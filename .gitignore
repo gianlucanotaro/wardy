@@ -9,12 +9,11 @@ data/
 .env.local
 
 # Build outputs
-wardrobe
-wardrobe-linux-arm64
-web/dist/assets/
+/wardrobe
 
 # Node
 web/node_modules/
+web/dist/
 
 # Go
 *.test
