@@ -17,6 +17,18 @@ func (n NullString) MarshalJSON() ([]byte, error) {
 	return json.Marshal(n.String)
 }
 
+func (n *NullString) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" {
+		*n = NullString{}
+		return nil
+	}
+	if err := json.Unmarshal(data, &n.String); err != nil {
+		return err
+	}
+	n.Valid = true
+	return nil
+}
+
 func (n *NullString) Scan(value any) error {
 	return (*sql.NullString)(n).Scan(value)
 }

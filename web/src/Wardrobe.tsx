@@ -1,12 +1,17 @@
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { deleteItem, listItems, logout, uploadItem, type Item, type Me } from './api'
+import { deleteItem, listItems, logout, uploadItem, type Me } from './api'
+import TagEditor from './TagEditor'
 
 export default function Wardrobe({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const queryClient = useQueryClient()
   const items = useQuery({ queryKey: ['items'], queryFn: listItems })
-  const [selected, setSelected] = useState<Item | null>(null)
+  const [selectedId, setSelectedId] = useState<number | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
+
+  // Look the selected item up from the live query cache (rather than
+  // holding a snapshot) so optimistic tag edits show up immediately.
+  const selected = items.data?.find((it) => it.id === selectedId) ?? null
 
   const upload = useMutation({
     mutationFn: uploadItem,
@@ -16,7 +21,7 @@ export default function Wardrobe({ me, onLogout }: { me: Me; onLogout: () => voi
   const remove = useMutation({
     mutationFn: deleteItem,
     onSuccess: () => {
-      setSelected(null)
+      setSelectedId(null)
       queryClient.invalidateQueries({ queryKey: ['items'] })
     },
   })
@@ -71,7 +76,7 @@ export default function Wardrobe({ me, onLogout }: { me: Me; onLogout: () => voi
           <button
             type="button"
             key={item.id}
-            onClick={() => setSelected(item)}
+            onClick={() => setSelectedId(item.id)}
             className="aspect-square bg-gray-100 rounded overflow-hidden"
           >
             <img
@@ -87,10 +92,10 @@ export default function Wardrobe({ me, onLogout }: { me: Me; onLogout: () => voi
       {selected && (
         <div
           className="fixed inset-0 bg-black/50 flex items-center justify-center p-4"
-          onClick={() => setSelected(null)}
+          onClick={() => setSelectedId(null)}
         >
           <div
-            className="bg-white rounded-lg p-4 max-w-sm w-full flex flex-col gap-3"
+            className="bg-white rounded-lg p-4 max-w-sm w-full max-h-[90vh] overflow-y-auto flex flex-col gap-3"
             onClick={(e) => e.stopPropagation()}
           >
             <img
@@ -98,9 +103,11 @@ export default function Wardrobe({ me, onLogout }: { me: Me; onLogout: () => voi
               alt={selected.name || 'wardrobe item'}
               className="w-full rounded"
             />
-            <p className="text-sm text-gray-500">{selected.name || 'Untitled item'}</p>
-            <div className="flex justify-between">
-              <button type="button" onClick={() => setSelected(null)} className="text-sm underline">
+
+            <TagEditor item={selected} />
+
+            <div className="flex justify-between pt-2 border-t">
+              <button type="button" onClick={() => setSelectedId(null)} className="text-sm underline">
                 Close
               </button>
               <button

@@ -26,8 +26,8 @@ type Item struct {
 	Fit            string     `json:"fit"`
 	Brand          string     `json:"brand"`
 	Notes          string     `json:"notes"`
-	Seasons        string     `json:"seasons"`   // JSON array, e.g. `["summer"]`
-	Occasions      string     `json:"occasions"` // JSON array
+	Seasons        StringList `json:"seasons"`
+	Occasions      StringList `json:"occasions"`
 	PhotoPath      string     `json:"photo_path"`
 	ThumbPath      string     `json:"thumb_path"`
 	AITaggedAt     NullString `json:"ai_tagged_at"`
@@ -106,6 +106,44 @@ func (s *Store) UpdateItemName(ctx context.Context, userID, id int64, name strin
 		name, id, userID)
 	if err != nil {
 		return fmt.Errorf("update item: %w", err)
+	}
+	return requireRowsAffected(res)
+}
+
+// ItemTags is the full set of taxonomy fields for a manual tag edit.
+// Validation happens in the caller (internal/http, via internal/taxonomy)
+// — store just persists already-valid values.
+type ItemTags struct {
+	Category       string
+	Subcategory    string
+	ColorPrimary   string
+	ColorSecondary string
+	Pattern        string
+	Material       string
+	Fit            string
+	Formality      int
+	Warmth         int
+	Seasons        []string
+	Occasions      []string
+}
+
+// UpdateItemTags applies a full tag edit, scoped to userID, and marks the
+// item as user-edited so a later AI re-tagging run (phase 5) never
+// overwrites it. Returns ErrNotFound if the item doesn't exist or belongs
+// to a different user.
+func (s *Store) UpdateItemTags(ctx context.Context, userID, id int64, t ItemTags) error {
+	res, err := s.db.ExecContext(ctx, `
+		UPDATE items
+		SET category = ?, subcategory = ?, color_primary = ?, color_secondary = ?,
+		    pattern = ?, material = ?, fit = ?, formality = ?, warmth = ?,
+		    seasons = ?, occasions = ?,
+		    user_edited_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+		WHERE id = ? AND user_id = ?`,
+		t.Category, t.Subcategory, t.ColorPrimary, t.ColorSecondary,
+		t.Pattern, t.Material, t.Fit, t.Formality, t.Warmth,
+		StringList(t.Seasons), StringList(t.Occasions), id, userID)
+	if err != nil {
+		return fmt.Errorf("update item tags: %w", err)
 	}
 	return requireRowsAffected(res)
 }

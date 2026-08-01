@@ -14,6 +14,7 @@ import (
 
 	"github.com/gianlucanotaro/wardy/internal/images"
 	"github.com/gianlucanotaro/wardy/internal/store"
+	"github.com/gianlucanotaro/wardy/internal/taxonomy"
 )
 
 // maxUploadBytes caps the raw request body, not just the decoded image —
@@ -192,6 +193,94 @@ func updateItemHandler(s *store.Store) http.HandlerFunc {
 		item, err := s.ItemByID(r.Context(), user.ID, id)
 		if err != nil {
 			slog.Error("update item: fetch", "error", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(item)
+	}
+}
+
+// updateItemTagsHandler applies a full manual tag edit. Every field is
+// validated against the closed vocabularies in internal/taxonomy before
+// anything is written — a partially-invalid payload is rejected outright
+// rather than partially applied.
+func updateItemTagsHandler(s *store.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := userFromContext(r.Context())
+		if !ok {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		id, err := itemIDFromPath(r)
+		if err != nil {
+			http.Error(w, "invalid item id", http.StatusBadRequest)
+			return
+		}
+
+		var req struct {
+			Category       string   `json:"category"`
+			Subcategory    string   `json:"subcategory"`
+			ColorPrimary   string   `json:"color_primary"`
+			ColorSecondary string   `json:"color_secondary"`
+			Pattern        string   `json:"pattern"`
+			Material       string   `json:"material"`
+			Fit            string   `json:"fit"`
+			Formality      int      `json:"formality"`
+			Warmth         int      `json:"warmth"`
+			Seasons        []string `json:"seasons"`
+			Occasions      []string `json:"occasions"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid request", http.StatusBadRequest)
+			return
+		}
+
+		tags := taxonomy.Tags{
+			Category:       taxonomy.Category(req.Category),
+			Subcategory:    req.Subcategory,
+			ColorPrimary:   req.ColorPrimary,
+			ColorSecondary: req.ColorSecondary,
+			Pattern:        taxonomy.Pattern(req.Pattern),
+			Material:       taxonomy.Material(req.Material),
+			Fit:            taxonomy.Fit(req.Fit),
+			Formality:      req.Formality,
+			Warmth:         req.Warmth,
+			Seasons:        req.Seasons,
+			Occasions:      req.Occasions,
+		}
+		if err := tags.Validate(); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		err = s.UpdateItemTags(r.Context(), user.ID, id, store.ItemTags{
+			Category:       string(tags.Category),
+			Subcategory:    tags.Subcategory,
+			ColorPrimary:   tags.ColorPrimary,
+			ColorSecondary: tags.ColorSecondary,
+			Pattern:        string(tags.Pattern),
+			Material:       string(tags.Material),
+			Fit:            string(tags.Fit),
+			Formality:      tags.Formality,
+			Warmth:         tags.Warmth,
+			Seasons:        tags.Seasons,
+			Occasions:      tags.Occasions,
+		})
+		if errors.Is(err, store.ErrNotFound) {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		if err != nil {
+			slog.Error("update item tags", "error", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		item, err := s.ItemByID(r.Context(), user.ID, id)
+		if err != nil {
+			slog.Error("update item tags: fetch", "error", err)
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}

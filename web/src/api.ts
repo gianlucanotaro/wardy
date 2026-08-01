@@ -1,12 +1,26 @@
 export type Me = { email: string; display_name: string }
 
-export type Item = {
+export type TagsPayload = {
+  category: string
+  subcategory: string
+  color_primary: string
+  color_secondary: string
+  pattern: string
+  material: string
+  fit: string
+  formality: number
+  warmth: number
+  seasons: string[]
+  occasions: string[]
+}
+
+export type Item = TagsPayload & {
   id: number
   name: string
   photo_path: string
   thumb_path: string
+  user_edited_at: string | null
   created_at: string
-  [key: string]: unknown
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -52,4 +66,11 @@ export async function uploadItem(file: File): Promise<Item> {
 
 export function deleteItem(id: number): Promise<void> {
   return request(`/api/items/${id}`, { method: 'DELETE' })
+}
+
+export function updateItemTags(id: number, tags: TagsPayload): Promise<Item> {
+  return request(`/api/items/${id}/tags`, {
+    method: 'PATCH',
+    body: JSON.stringify(tags),
+  })
 }
