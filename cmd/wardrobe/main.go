@@ -43,6 +43,12 @@ func run() error {
 
 	addr := envOr("ADDR", ":8080")
 	secureCookies := envOr("SECURE", "false") == "true"
+	dataDir := envOr("DATA_DIR", "./data")
+	photosDir := filepath.Join(dataDir, "photos")
+
+	if err := os.MkdirAll(photosDir, 0o755); err != nil {
+		return fmt.Errorf("create photos dir: %w", err)
+	}
 
 	s, err := openStore(ctx)
 	if err != nil {
@@ -52,7 +58,7 @@ func run() error {
 
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           httpapi.New(s, web.FS(), secureCookies),
+		Handler:           httpapi.New(s, web.FS(), secureCookies, photosDir),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

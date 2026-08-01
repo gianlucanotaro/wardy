@@ -27,7 +27,7 @@ func newTestStore(t *testing.T) *store.Store {
 func newTestHandler(t *testing.T, s *store.Store) http.Handler {
 	t.Helper()
 	frontend := fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("<html></html>")}}
-	return New(s, frontend, false)
+	return New(s, frontend, false, t.TempDir())
 }
 
 func createTestUser(t *testing.T, s *store.Store, email, password string) {

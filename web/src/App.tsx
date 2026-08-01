@@ -1,28 +1,27 @@
-import { useEffect, useState } from 'react'
-
-type Health = { status: string }
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { getMe } from './api'
+import LoginForm from './LoginForm'
+import Wardrobe from './Wardrobe'
 
 function App() {
-  const [health, setHealth] = useState<Health | 'loading' | 'error'>('loading')
+  const queryClient = useQueryClient()
+  const me = useQuery({ queryKey: ['me'], queryFn: getMe, retry: false })
 
-  useEffect(() => {
-    fetch('/healthz')
-      .then((res) => res.json())
-      .then((data: Health) => setHealth(data))
-      .catch(() => setHealth('error'))
-  }, [])
+  if (me.isLoading) {
+    return (
+      <main className="min-h-svh flex items-center justify-center text-sm text-gray-500">
+        Loading…
+      </main>
+    )
+  }
 
-  const statusText =
-    health === 'loading' ? 'checking…' : health === 'error' ? 'unreachable' : health.status
+  const refetchMe = () => queryClient.invalidateQueries({ queryKey: ['me'] })
 
-  return (
-    <main className="min-h-svh flex flex-col items-center justify-center gap-2 px-4 text-center">
-      <h1 className="text-2xl font-medium">Wardy</h1>
-      <p className="text-sm text-gray-500">
-        Backend: <span className="font-mono">{statusText}</span>
-      </p>
-    </main>
-  )
+  if (me.isError || !me.data) {
+    return <LoginForm onSuccess={refetchMe} />
+  }
+
+  return <Wardrobe me={me.data} onLogout={refetchMe} />
 }
 
 export default App
