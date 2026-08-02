@@ -75,15 +75,17 @@ func TestUpdateItemTagsRejectsInvalid(t *testing.T) {
 		t.Fatalf("update tags with bad category: got status %d, want %d", rec.Code, http.StatusBadRequest)
 	}
 
-	// Confirm nothing was partially applied.
+	// Confirm nothing was partially applied — color_primary in the rejected
+	// payload ("blue") differs from the default ("black"), so this
+	// distinguishes "fully untouched" from "everything but category applied".
 	getReq := httptest.NewRequest(http.MethodGet, "/api/items/1", nil)
 	getReq.AddCookie(cookie)
 	getRec := httptest.NewRecorder()
 	h.ServeHTTP(getRec, getReq)
 	var item store.Item
 	json.Unmarshal(getRec.Body.Bytes(), &item)
-	if item.Category != "" {
-		t.Errorf("category should be untouched after rejected update, got %q", item.Category)
+	if item.ColorPrimary != "black" {
+		t.Errorf("item should be untouched after a rejected update, got color_primary %q", item.ColorPrimary)
 	}
 }
 

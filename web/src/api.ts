@@ -21,6 +21,11 @@ export type Item = TagsPayload & {
   thumb_path: string
   user_edited_at: string | null
   created_at: string
+  // Whether a tag_item AI job is still pending for this item. Poll while
+  // true; stop once it's false (tagged, permanently failed, or AI was
+  // never attempted all read the same from here — the tag editor already
+  // handles an untagged item gracefully either way).
+  tagging_pending: boolean
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {

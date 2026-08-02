@@ -5,7 +5,14 @@ import TagEditor from './TagEditor'
 
 export default function Wardrobe({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const queryClient = useQueryClient()
-  const items = useQuery({ queryKey: ['items'], queryFn: listItems })
+  const items = useQuery({
+    queryKey: ['items'],
+    queryFn: listItems,
+    // Poll while any item is still being tagged; stop once none are —
+    // tagging is a background job, so the UI can't just wait on the
+    // upload response for the result.
+    refetchInterval: (query) => (query.state.data?.some((it) => it.tagging_pending) ? 2000 : false),
+  })
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
 
@@ -77,7 +84,7 @@ export default function Wardrobe({ me, onLogout }: { me: Me; onLogout: () => voi
             type="button"
             key={item.id}
             onClick={() => setSelectedId(item.id)}
-            className="aspect-square bg-gray-100 rounded overflow-hidden"
+            className="relative aspect-square bg-gray-100 rounded overflow-hidden"
           >
             <img
               src={`/api/items/${item.id}/thumb`}
@@ -85,6 +92,11 @@ export default function Wardrobe({ me, onLogout }: { me: Me; onLogout: () => voi
               className="w-full h-full object-cover"
               loading="lazy"
             />
+            {item.tagging_pending && (
+              <span className="absolute bottom-1 right-1 bg-black/70 text-white text-[10px] px-1.5 py-0.5 rounded">
+                Tagging…
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -104,6 +116,9 @@ export default function Wardrobe({ me, onLogout }: { me: Me; onLogout: () => voi
               className="w-full rounded"
             />
 
+            {selected.tagging_pending && (
+              <p className="text-sm text-gray-500">Tagging in progress — you can edit these now, or wait.</p>
+            )}
             <TagEditor item={selected} />
 
             <div className="flex justify-between pt-2 border-t">

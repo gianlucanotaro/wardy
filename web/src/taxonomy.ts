@@ -17,7 +17,7 @@ export const SUBCATEGORIES: Record<Category, string[]> = {
   top: ['t-shirt', 'shirt', 'button-down', 'blouse', 'knit', 'sweater', 'hoodie', 'tank', 'polo'],
   bottom: ['jeans', 'chinos', 'trousers', 'shorts', 'skirt', 'leggings'],
   dress: ['casual-dress', 'cocktail-dress', 'maxi-dress', 'jumpsuit'],
-  outerwear: ['jacket', 'blazer', 'coat', 'parka', 'vest'],
+  outerwear: ['jacket', 'blazer', 'coat', 'parka', 'puffer-jacket', 'vest'],
   shoes: ['sneakers', 'boots', 'sandals', 'heels', 'flats', 'loafers'],
   bag: ['backpack', 'tote', 'crossbody', 'clutch', 'handbag'],
   accessory: ['belt', 'hat', 'scarf', 'jewelry', 'sunglasses', 'watch'],

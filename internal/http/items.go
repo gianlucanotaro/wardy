@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +14,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/gianlucanotaro/wardy/internal/images"
+	"github.com/gianlucanotaro/wardy/internal/jobs"
 	"github.com/gianlucanotaro/wardy/internal/store"
 	"github.com/gianlucanotaro/wardy/internal/taxonomy"
 )
@@ -21,10 +23,29 @@ import (
 // oversized uploads get rejected before any image processing happens.
 const maxUploadBytes = 15 << 20 // 15 MB
 
+// itemResponse adds a derived tagging_pending flag to store.Item's own
+// columns, so the frontend knows whether to keep polling (a tag_item job
+// is still pending) or stop (tagged, permanently failed, or never
+// queued all mean "stop" — see docs/frontend.md's upload/tagging flow).
+type itemResponse struct {
+	store.Item
+	TaggingPending bool `json:"tagging_pending"`
+}
+
+func writeItem(ctx context.Context, w http.ResponseWriter, s *store.Store, item *store.Item, statusCode int) {
+	pending, err := s.ItemHasPendingTagJob(ctx, item.ID)
+	if err != nil {
+		slog.Error("check pending tag job", "error", err)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(itemResponse{Item: *item, TaggingPending: pending})
+}
+
 // uploadItemHandler accepts a multipart "photo" field, runs it through the
 // image pipeline (orientation fix, resize, EXIF strip), stores both
 // derivatives on disk, and creates the item row.
-func uploadItemHandler(s *store.Store, photosDir string) http.HandlerFunc {
+func uploadItemHandler(s *store.Store, photosDir string, aiEnabled bool, jobLimiter *rateLimiter) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := userFromContext(r.Context())
 		if !ok {
@@ -95,6 +116,16 @@ func uploadItemHandler(s *store.Store, photosDir string) http.HandlerFunc {
 			return
 		}
 
+		// Enqueue AI tagging unless the kill switch is off or this user has
+		// hit today's cap — either way the item is still fully usable, just
+		// left for manual tagging (see docs/ai.md's budget guards).
+		if aiEnabled && jobLimiter.Allow(strconv.FormatInt(user.ID, 10)) {
+			payload := jobs.TagItemPayload{ItemID: itemID, UserID: user.ID}
+			if _, err := s.EnqueueJob(r.Context(), jobs.TagItemType, payload); err != nil {
+				slog.Error("upload: enqueue tag_item job", "error", err)
+			}
+		}
+
 		item, err := s.ItemByID(r.Context(), user.ID, itemID)
 		if err != nil {
 			slog.Error("upload: fetch created item", "error", err)
@@ -102,9 +133,7 @@ func uploadItemHandler(s *store.Store, photosDir string) http.HandlerFunc {
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(item)
+		writeItem(r.Context(), w, s, item, http.StatusCreated)
 	}
 }
 
@@ -122,12 +151,20 @@ func listItemsHandler(s *store.Store) http.HandlerFunc {
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
-		if items == nil {
-			items = []store.Item{}
+
+		pending, err := s.PendingTagItemIDs(r.Context())
+		if err != nil {
+			slog.Error("list items: check pending tag jobs", "error", err)
+			pending = map[int64]bool{}
+		}
+
+		responses := make([]itemResponse, len(items))
+		for i, item := range items {
+			responses[i] = itemResponse{Item: item, TaggingPending: pending[item.ID]}
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(items)
+		json.NewEncoder(w).Encode(responses)
 	}
 }
 
@@ -155,8 +192,7 @@ func getItemHandler(s *store.Store) http.HandlerFunc {
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(item)
+		writeItem(r.Context(), w, s, item, http.StatusOK)
 	}
 }
 
@@ -197,8 +233,7 @@ func updateItemHandler(s *store.Store) http.HandlerFunc {
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(item)
+		writeItem(r.Context(), w, s, item, http.StatusOK)
 	}
 }
 
@@ -285,8 +320,7 @@ func updateItemTagsHandler(s *store.Store) http.HandlerFunc {
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(item)
+		writeItem(r.Context(), w, s, item, http.StatusOK)
 	}
 }
 

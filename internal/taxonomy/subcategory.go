@@ -17,7 +17,7 @@ var Subcategories = map[Category][]string{
 		"casual-dress", "cocktail-dress", "maxi-dress", "jumpsuit",
 	},
 	CategoryOuterwear: {
-		"jacket", "blazer", "coat", "parka", "vest",
+		"jacket", "blazer", "coat", "parka", "puffer-jacket", "vest",
 	},
 	CategoryShoes: {
 		"sneakers", "boots", "sandals", "heels", "flats", "loafers",

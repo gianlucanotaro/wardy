@@ -12,11 +12,14 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
+	"github.com/gianlucanotaro/wardy/internal/ai"
 	httpapi "github.com/gianlucanotaro/wardy/internal/http"
+	"github.com/gianlucanotaro/wardy/internal/jobs"
 	"github.com/gianlucanotaro/wardy/internal/store"
 	"github.com/gianlucanotaro/wardy/web"
 	"golang.org/x/term"
@@ -56,15 +59,34 @@ func run() error {
 	}
 	defer s.Close()
 
+	aiProviderName := envOr("AI_PROVIDER", "mock")
+	if envOr("AI_ENABLED", "true") != "true" {
+		aiProviderName = "off" // AI_ENABLED is the blanket kill switch
+	}
+	aiEnabled := aiProviderName != "off"
+
+	provider, err := ai.New(aiProviderName, os.Getenv("ANTHROPIC_API_KEY"))
+	if err != nil {
+		return fmt.Errorf("init ai provider: %w", err)
+	}
+
+	monthlyBudget, err := strconv.ParseFloat(envOr("AI_MONTHLY_BUDGET_USD", "5.00"), 64)
+	if err != nil {
+		return fmt.Errorf("parse AI_MONTHLY_BUDGET_USD: %w", err)
+	}
+
+	worker := jobs.NewWorker(s, provider, photosDir, monthlyBudget)
+	go worker.Run(ctx)
+
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           httpapi.New(s, web.FS(), secureCookies, photosDir),
+		Handler:           httpapi.New(s, web.FS(), secureCookies, photosDir, aiEnabled),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
 	errCh := make(chan error, 1)
 	go func() {
-		slog.Info("listening", "addr", addr)
+		slog.Info("listening", "addr", addr, "ai_provider", aiProviderName)
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- fmt.Errorf("listen: %w", err)
 		}

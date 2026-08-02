@@ -36,13 +36,33 @@ type Item struct {
 	CreatedAt      string     `json:"created_at"`
 }
 
-// CreateItem inserts a new item for userID with just its photo paths;
-// every taxonomy field is left at its schema default until tagging fills
-// it in.
+// defaultItemTags are applied to every new item at upload time, so an item
+// always has a complete, valid set of tags to show and filter on even
+// before AI or manual tagging runs — and even if AI tagging fails
+// permanently (e.g. the model describes a garment our taxonomy doesn't
+// have a subcategory for yet). Tagging (AI or manual) overwrites these.
+var defaultItemTags = ItemTags{
+	Category:     "top",
+	Subcategory:  "t-shirt",
+	ColorPrimary: "black",
+	Pattern:      "solid",
+	Material:     "unknown",
+	Fit:          "regular",
+	Formality:    3,
+	Warmth:       3,
+}
+
+// CreateItem inserts a new item for userID with its photo paths and
+// defaultItemTags; tagging (AI or manual) fills in the real values.
 func (s *Store) CreateItem(ctx context.Context, userID int64, photoPath, thumbPath string) (int64, error) {
-	res, err := s.db.ExecContext(ctx,
-		`INSERT INTO items (user_id, category, photo_path, thumb_path) VALUES (?, '', ?, ?)`,
-		userID, photoPath, thumbPath)
+	t := defaultItemTags
+	res, err := s.db.ExecContext(ctx, `
+		INSERT INTO items (
+			user_id, category, subcategory, color_primary, pattern, material, fit,
+			formality, warmth, photo_path, thumb_path
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		userID, t.Category, t.Subcategory, t.ColorPrimary, t.Pattern, t.Material, t.Fit,
+		t.Formality, t.Warmth, photoPath, thumbPath)
 	if err != nil {
 		return 0, fmt.Errorf("insert item: %w", err)
 	}
@@ -146,6 +166,34 @@ func (s *Store) UpdateItemTags(ctx context.Context, userID, id int64, t ItemTags
 		return fmt.Errorf("update item tags: %w", err)
 	}
 	return requireRowsAffected(res)
+}
+
+// UpdateItemAITags applies AI-generated tags, but only if the user hasn't
+// manually edited the item since upload — docs/ai.md: never overwrite a
+// user's values on a re-run. The zero-rows-affected case (item already
+// user-edited, or already deleted) is not an error: the caller is the
+// background worker, not a user request, and "nothing to do" is an
+// expected outcome here.
+func (s *Store) UpdateItemAITags(ctx context.Context, id int64, t ItemTags) (applied bool, err error) {
+	res, err := s.db.ExecContext(ctx, `
+		UPDATE items
+		SET category = ?, subcategory = ?, color_primary = ?, color_secondary = ?,
+		    pattern = ?, material = ?, fit = ?, formality = ?, warmth = ?,
+		    seasons = ?, occasions = ?,
+		    ai_tagged_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+		WHERE id = ? AND user_edited_at IS NULL`,
+		t.Category, t.Subcategory, t.ColorPrimary, t.ColorSecondary,
+		t.Pattern, t.Material, t.Fit, t.Formality, t.Warmth,
+		StringList(t.Seasons), StringList(t.Occasions), id)
+	if err != nil {
+		return false, fmt.Errorf("update item ai tags: %w", err)
+	}
+
+	n, err := res.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("rows affected: %w", err)
+	}
+	return n > 0, nil
 }
 
 // DeleteItem removes an item's row, scoped to userID, and returns its photo
