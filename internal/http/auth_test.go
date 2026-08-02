@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gianlucanotaro/wardy/internal/store"
+	"github.com/gianlucanotaro/wardy/internal/weather"
 )
 
 func newTestStore(t *testing.T) *store.Store {
@@ -31,8 +32,13 @@ func newTestHandler(t *testing.T, s *store.Store) http.Handler {
 
 func newTestHandlerAI(t *testing.T, s *store.Store, aiEnabled bool) http.Handler {
 	t.Helper()
+	return newTestHandlerFull(t, s, aiEnabled, weather.NewClient())
+}
+
+func newTestHandlerFull(t *testing.T, s *store.Store, aiEnabled bool, weatherClient *weather.Client) http.Handler {
+	t.Helper()
 	frontend := fstest.MapFS{"index.html": &fstest.MapFile{Data: []byte("<html></html>")}}
-	return New(s, frontend, false, t.TempDir(), aiEnabled)
+	return New(s, frontend, false, t.TempDir(), aiEnabled, weatherClient)
 }
 
 func createTestUser(t *testing.T, s *store.Store, email, password string) {

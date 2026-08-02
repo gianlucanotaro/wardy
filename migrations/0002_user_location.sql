@@ -1,0 +1,2 @@
+ALTER TABLE users ADD COLUMN home_lat REAL;
+ALTER TABLE users ADD COLUMN home_lon REAL;

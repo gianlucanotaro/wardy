@@ -17,6 +17,8 @@ type User struct {
 	Email        string
 	PasswordHash string
 	DisplayName  string
+	HomeLat      NullFloat64
+	HomeLon      NullFloat64
 	CreatedAt    string
 }
 
@@ -39,24 +41,35 @@ func (s *Store) CreateUser(ctx context.Context, email, passwordHash, displayName
 	return id, nil
 }
 
+const userColumns = `SELECT id, email, password_hash, display_name, home_lat, home_lon, created_at`
+
 // UserByEmail looks up a user by email, returning ErrNotFound if none
 // exists.
 func (s *Store) UserByEmail(ctx context.Context, email string) (*User, error) {
 	return s.scanUser(s.db.QueryRowContext(ctx,
-		`SELECT id, email, password_hash, display_name, created_at FROM users WHERE email = ?`,
-		email))
+		userColumns+` FROM users WHERE email = ?`, email))
 }
 
 // UserByID looks up a user by id, returning ErrNotFound if none exists.
 func (s *Store) UserByID(ctx context.Context, id int64) (*User, error) {
 	return s.scanUser(s.db.QueryRowContext(ctx,
-		`SELECT id, email, password_hash, display_name, created_at FROM users WHERE id = ?`,
-		id))
+		userColumns+` FROM users WHERE id = ?`, id))
+}
+
+// UpdateUserLocation sets a user's home location, used to fetch weather
+// (internal/weather) without ever demanding browser geolocation.
+func (s *Store) UpdateUserLocation(ctx context.Context, userID int64, lat, lon float64) error {
+	_, err := s.db.ExecContext(ctx,
+		`UPDATE users SET home_lat = ?, home_lon = ? WHERE id = ?`, lat, lon, userID)
+	if err != nil {
+		return fmt.Errorf("update user location: %w", err)
+	}
+	return nil
 }
 
 func (s *Store) scanUser(row *sql.Row) (*User, error) {
 	var u User
-	err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.DisplayName, &u.CreatedAt)
+	err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.DisplayName, &u.HomeLat, &u.HomeLon, &u.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}

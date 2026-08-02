@@ -21,6 +21,7 @@ import (
 	httpapi "github.com/gianlucanotaro/wardy/internal/http"
 	"github.com/gianlucanotaro/wardy/internal/jobs"
 	"github.com/gianlucanotaro/wardy/internal/store"
+	"github.com/gianlucanotaro/wardy/internal/weather"
 	"github.com/gianlucanotaro/wardy/web"
 	"golang.org/x/term"
 )
@@ -78,9 +79,11 @@ func run() error {
 	worker := jobs.NewWorker(s, provider, photosDir, monthlyBudget)
 	go worker.Run(ctx)
 
+	weatherClient := weather.NewClient()
+
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           httpapi.New(s, web.FS(), secureCookies, photosDir, aiEnabled),
+		Handler:           httpapi.New(s, web.FS(), secureCookies, photosDir, aiEnabled, weatherClient),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

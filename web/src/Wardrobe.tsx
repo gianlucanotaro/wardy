@@ -1,10 +1,12 @@
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { deleteItem, listItems, logout, uploadItem, type Me } from './api'
+import SettingsScreen from './Settings'
 import TagEditor from './TagEditor'
 
 export default function Wardrobe({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const queryClient = useQueryClient()
+  const [showSettings, setShowSettings] = useState(false)
   const items = useQuery({
     queryKey: ['items'],
     queryFn: listItems,
@@ -38,12 +40,19 @@ export default function Wardrobe({ me, onLogout }: { me: Me; onLogout: () => voi
     onSuccess: onLogout,
   })
 
+  if (showSettings) {
+    return <SettingsScreen onClose={() => setShowSettings(false)} />
+  }
+
   return (
     <main className="min-h-svh flex flex-col px-4 py-4 gap-4 max-w-2xl mx-auto w-full">
       <header className="flex items-center justify-between">
         <h1 className="text-lg font-medium">Wardy</h1>
         <div className="flex items-center gap-3 text-sm text-gray-500">
           <span>{me.display_name}</span>
+          <button type="button" onClick={() => setShowSettings(true)} className="underline">
+            Settings
+          </button>
           <button type="button" onClick={() => logoutMutation.mutate()} className="underline">
             Log out
           </button>

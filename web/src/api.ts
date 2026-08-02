@@ -79,3 +79,24 @@ export function updateItemTags(id: number, tags: TagsPayload): Promise<Item> {
     body: JSON.stringify(tags),
   })
 }
+
+export type Settings = { home_lat: number | null; home_lon: number | null }
+
+export function getSettings(): Promise<Settings> {
+  return request('/api/settings')
+}
+
+export function updateSettings(homeLat: number, homeLon: number): Promise<Settings> {
+  return request('/api/settings', {
+    method: 'PATCH',
+    body: JSON.stringify({ home_lat: homeLat, home_lon: homeLon }),
+  })
+}
+
+export type Weather =
+  | { available: true; temp_high_c: number; temp_low_c: number; precip_probability: number; wind_speed_kph: number; condition: string }
+  | { available: false; reason: string }
+
+export function getWeather(): Promise<Weather> {
+  return request('/api/weather')
+}
