@@ -24,7 +24,7 @@ func TestPatternValid(t *testing.T) {
 		}
 	}
 
-	invalid := []Pattern{"", "STRIPED", "plaid", "polka-dot", "camo"}
+	invalid := []Pattern{"", "STRIPED", "plaid", "paisley", "camo"}
 	for _, p := range invalid {
 		if p.Valid() {
 			t.Errorf("Pattern(%q).Valid() = true, want false", p)
@@ -54,7 +54,7 @@ func TestFitValid(t *testing.T) {
 		}
 	}
 
-	invalid := []Fit{"", "SLIM", "skinny", "baggy", "tailored"}
+	invalid := []Fit{"", "SLIM", "baggy", "tailored", "athletic"}
 	for _, f := range invalid {
 		if f.Valid() {
 			t.Errorf("Fit(%q).Valid() = true, want false", f)

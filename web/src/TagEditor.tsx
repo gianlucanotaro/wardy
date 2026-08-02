@@ -25,8 +25,8 @@ function draftFromItem(item: Item): TagsPayload {
     color_primary: item.color_primary || COLORS[0],
     color_secondary: item.color_secondary || '',
     pattern: item.pattern || PATTERNS[0],
-    material: item.material || MATERIALS[MATERIALS.length - 1], // unknown
-    fit: item.fit || FITS[1], // regular
+    material: item.material || 'unknown',
+    fit: item.fit || 'regular',
     formality: item.formality || 3,
     warmth: item.warmth || 3,
     seasons: item.seasons ?? [],

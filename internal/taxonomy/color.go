@@ -6,7 +6,7 @@ package taxonomy
 var Colors = []string{
 	"black", "white", "gray", "navy", "blue", "red", "burgundy", "pink",
 	"orange", "yellow", "green", "olive", "brown", "tan", "beige", "cream",
-	"purple", "teal", "gold", "silver", "multicolor",
+	"purple", "teal", "gold", "silver", "rust", "multicolor",
 }
 
 func ValidColor(c string) bool {

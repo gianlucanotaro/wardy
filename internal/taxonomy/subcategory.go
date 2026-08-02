@@ -8,25 +8,34 @@ package taxonomy
 var Subcategories = map[Category][]string{
 	CategoryTop: {
 		"t-shirt", "shirt", "button-down", "blouse", "knit", "sweater",
-		"hoodie", "tank", "polo",
+		"hoodie", "tank", "polo", "cardigan", "sweatshirt", "long-sleeve-tee",
+		"turtleneck", "crop-top",
 	},
 	CategoryBottom: {
 		"jeans", "chinos", "trousers", "shorts", "skirt", "leggings",
+		"sweatpants", "cargo-pants", "overalls",
 	},
 	CategoryDress: {
 		"casual-dress", "cocktail-dress", "maxi-dress", "jumpsuit",
+		"midi-dress", "mini-dress", "shirt-dress", "sweater-dress", "romper",
 	},
 	CategoryOuterwear: {
 		"jacket", "blazer", "coat", "parka", "puffer-jacket", "vest",
+		"trench-coat", "raincoat", "bomber-jacket", "fleece-jacket",
 	},
 	CategoryShoes: {
 		"sneakers", "boots", "sandals", "heels", "flats", "loafers",
+		"dress-shoes", "slippers", "flip-flops", "rain-boots",
 	},
 	CategoryBag: {
 		"backpack", "tote", "crossbody", "clutch", "handbag",
+		"belt-bag", "duffel", "briefcase",
 	},
+	// "hat" means a brimmed hat specifically, distinct from "cap"
+	// (structured, flat-brim/baseball style) and "beanie" (knit).
 	CategoryAccessory: {
 		"belt", "hat", "scarf", "jewelry", "sunglasses", "watch",
+		"gloves", "tie", "socks", "beanie", "cap", "glasses",
 	},
 }
 

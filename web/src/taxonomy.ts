@@ -14,13 +14,27 @@ export const CATEGORIES = [
 export type Category = (typeof CATEGORIES)[number]
 
 export const SUBCATEGORIES: Record<Category, string[]> = {
-  top: ['t-shirt', 'shirt', 'button-down', 'blouse', 'knit', 'sweater', 'hoodie', 'tank', 'polo'],
-  bottom: ['jeans', 'chinos', 'trousers', 'shorts', 'skirt', 'leggings'],
-  dress: ['casual-dress', 'cocktail-dress', 'maxi-dress', 'jumpsuit'],
-  outerwear: ['jacket', 'blazer', 'coat', 'parka', 'puffer-jacket', 'vest'],
-  shoes: ['sneakers', 'boots', 'sandals', 'heels', 'flats', 'loafers'],
-  bag: ['backpack', 'tote', 'crossbody', 'clutch', 'handbag'],
-  accessory: ['belt', 'hat', 'scarf', 'jewelry', 'sunglasses', 'watch'],
+  top: [
+    't-shirt', 'shirt', 'button-down', 'blouse', 'knit', 'sweater', 'hoodie', 'tank', 'polo',
+    'cardigan', 'sweatshirt', 'long-sleeve-tee', 'turtleneck', 'crop-top',
+  ],
+  bottom: ['jeans', 'chinos', 'trousers', 'shorts', 'skirt', 'leggings', 'sweatpants', 'cargo-pants', 'overalls'],
+  dress: [
+    'casual-dress', 'cocktail-dress', 'maxi-dress', 'jumpsuit',
+    'midi-dress', 'mini-dress', 'shirt-dress', 'sweater-dress', 'romper',
+  ],
+  outerwear: [
+    'jacket', 'blazer', 'coat', 'parka', 'puffer-jacket', 'vest',
+    'trench-coat', 'raincoat', 'bomber-jacket', 'fleece-jacket',
+  ],
+  shoes: [
+    'sneakers', 'boots', 'sandals', 'heels', 'flats', 'loafers',
+    'dress-shoes', 'slippers', 'flip-flops', 'rain-boots',
+  ],
+  bag: ['backpack', 'tote', 'crossbody', 'clutch', 'handbag', 'belt-bag', 'duffel', 'briefcase'],
+  // "hat" means a brimmed hat specifically, distinct from "cap"
+  // (structured, flat-brim/baseball style) and "beanie" (knit).
+  accessory: ['belt', 'hat', 'scarf', 'jewelry', 'sunglasses', 'watch', 'gloves', 'tie', 'socks', 'beanie', 'cap', 'glasses'],
 }
 
 export const PATTERNS = [
@@ -30,6 +44,11 @@ export const PATTERNS = [
   'floral',
   'graphic',
   'textured',
+  'polka-dot',
+  'animal-print',
+  'camouflage',
+  'colorblock',
+  'tie-dye',
   'other',
 ] as const
 export type Pattern = (typeof PATTERNS)[number]
@@ -44,11 +63,19 @@ export const MATERIALS = [
   'silk',
   'synthetic',
   'blend',
+  // Surface textures, not fibers — unlike wool/cashmere/silk, these are
+  // things a photo can actually show.
+  'corduroy',
+  'velvet',
+  'suede',
+  'fleece',
+  'tweed',
+  'lace',
   'unknown',
 ] as const
 export type Material = (typeof MATERIALS)[number]
 
-export const FITS = ['slim', 'regular', 'relaxed', 'oversized'] as const
+export const FITS = ['skinny', 'slim', 'regular', 'relaxed', 'oversized', 'not-applicable'] as const
 export type Fit = (typeof FITS)[number]
 
 export const COLORS = [
@@ -72,6 +99,7 @@ export const COLORS = [
   'teal',
   'gold',
   'silver',
+  'rust',
   'multicolor',
 ] as const
 export type Color = (typeof COLORS)[number]

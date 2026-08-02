@@ -38,18 +38,24 @@ func (c Category) Valid() bool {
 type Pattern string
 
 const (
-	PatternSolid    Pattern = "solid"
-	PatternStriped  Pattern = "striped"
-	PatternChecked  Pattern = "checked"
-	PatternFloral   Pattern = "floral"
-	PatternGraphic  Pattern = "graphic"
-	PatternTextured Pattern = "textured"
-	PatternOther    Pattern = "other"
+	PatternSolid       Pattern = "solid"
+	PatternStriped     Pattern = "striped"
+	PatternChecked     Pattern = "checked"
+	PatternFloral      Pattern = "floral"
+	PatternGraphic     Pattern = "graphic"
+	PatternTextured    Pattern = "textured"
+	PatternPolkaDot    Pattern = "polka-dot"
+	PatternAnimalPrint Pattern = "animal-print"
+	PatternCamouflage  Pattern = "camouflage"
+	PatternColorblock  Pattern = "colorblock"
+	PatternTieDye      Pattern = "tie-dye"
+	PatternOther       Pattern = "other"
 )
 
 var Patterns = []Pattern{
 	PatternSolid, PatternStriped, PatternChecked, PatternFloral,
-	PatternGraphic, PatternTextured, PatternOther,
+	PatternGraphic, PatternTextured, PatternPolkaDot, PatternAnimalPrint,
+	PatternCamouflage, PatternColorblock, PatternTieDye, PatternOther,
 }
 
 func (p Pattern) Valid() bool {
@@ -73,13 +79,24 @@ const (
 	MaterialSilk      Material = "silk"
 	MaterialSynthetic Material = "synthetic"
 	MaterialBlend     Material = "blend"
-	MaterialUnknown   Material = "unknown"
+	// Corduroy, velvet, suede, fleece, tweed, and lace are surface
+	// textures rather than fibers — unlike wool/cashmere/silk, a vision
+	// model can actually see these from a photo, which is why they were
+	// added instead of more fiber-type values.
+	MaterialCorduroy Material = "corduroy"
+	MaterialVelvet   Material = "velvet"
+	MaterialSuede    Material = "suede"
+	MaterialFleece   Material = "fleece"
+	MaterialTweed    Material = "tweed"
+	MaterialLace     Material = "lace"
+	MaterialUnknown  Material = "unknown"
 )
 
 var Materials = []Material{
 	MaterialCotton, MaterialLinen, MaterialWool, MaterialCashmere,
 	MaterialDenim, MaterialLeather, MaterialSilk, MaterialSynthetic,
-	MaterialBlend, MaterialUnknown,
+	MaterialBlend, MaterialCorduroy, MaterialVelvet, MaterialSuede,
+	MaterialFleece, MaterialTweed, MaterialLace, MaterialUnknown,
 }
 
 func (m Material) Valid() bool {
@@ -94,13 +111,19 @@ func (m Material) Valid() bool {
 type Fit string
 
 const (
+	FitSkinny    Fit = "skinny"
 	FitSlim      Fit = "slim"
 	FitRegular   Fit = "regular"
 	FitRelaxed   Fit = "relaxed"
 	FitOversized Fit = "oversized"
+	// FitNotApplicable is for categories fit doesn't describe at all
+	// (bag, accessory) — without it those items had to be tagged with a
+	// fit value that meant nothing, the one closed-vocab field with no
+	// escape hatch (material has "unknown"; fit had none until this).
+	FitNotApplicable Fit = "not-applicable"
 )
 
-var Fits = []Fit{FitSlim, FitRegular, FitRelaxed, FitOversized}
+var Fits = []Fit{FitSkinny, FitSlim, FitRegular, FitRelaxed, FitOversized, FitNotApplicable}
 
 func (f Fit) Valid() bool {
 	for _, v := range Fits {

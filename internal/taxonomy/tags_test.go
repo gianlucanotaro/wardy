@@ -47,7 +47,7 @@ func TestTagsValidate_RejectsEveryInvalidField(t *testing.T) {
 		{"color_secondary", func(tg *Tags) { tg.ColorSecondary = "sage mist" }, "color_secondary"},
 		{"pattern", func(tg *Tags) { tg.Pattern = "plaid" }, "pattern"},
 		{"material", func(tg *Tags) { tg.Material = "acrylic" }, "material"},
-		{"fit", func(tg *Tags) { tg.Fit = "skinny" }, "fit"},
+		{"fit", func(tg *Tags) { tg.Fit = "baggy" }, "fit"},
 		{"formality too low", func(tg *Tags) { tg.Formality = 0 }, "formality"},
 		{"formality too high", func(tg *Tags) { tg.Formality = 6 }, "formality"},
 		{"warmth too low", func(tg *Tags) { tg.Warmth = 0 }, "warmth"},
