@@ -1,0 +1,76 @@
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { getSuggestions } from './api'
+import { OCCASIONS } from './taxonomy'
+
+// Phase 7 is the rules-based pre-filter only — no AI rationale yet (that's
+// phase 8's job). Every outfit here is the "rules-only fallback" state
+// docs/frontend.md describes, shown plainly with a quiet note rather than
+// pretending there's a written rationale.
+export default function Suggest({ onClose }: { onClose: () => void }) {
+  const [occasion, setOccasion] = useState<string>('casual')
+
+  const suggestions = useQuery({
+    queryKey: ['suggest', occasion],
+    queryFn: () => getSuggestions(occasion),
+  })
+
+  return (
+    <div className="flex flex-col gap-4 p-4 max-w-2xl mx-auto w-full">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-medium">Suggest an outfit</h2>
+        <button type="button" onClick={onClose} className="text-sm underline">
+          Close
+        </button>
+      </div>
+
+      <div className="flex flex-wrap gap-1">
+        {OCCASIONS.map((o) => (
+          <button
+            type="button"
+            key={o}
+            onClick={() => setOccasion(o)}
+            className={`border rounded px-3 py-1.5 text-sm capitalize ${
+              o === occasion ? 'bg-black text-white' : 'bg-white'
+            }`}
+          >
+            {o}
+          </button>
+        ))}
+      </div>
+
+      {suggestions.isLoading && <p className="text-sm text-gray-500">Finding outfits…</p>}
+      {suggestions.isError && <p className="text-sm text-red-600">Couldn't load suggestions.</p>}
+
+      {suggestions.data && !suggestions.data.weather_available && (
+        <p className="text-xs text-gray-400">
+          Weather unavailable — suggestions don't account for today's temperature.
+        </p>
+      )}
+
+      {suggestions.data && suggestions.data.outfits.length === 0 && (
+        <p className="text-sm text-gray-500">
+          {suggestions.data.no_match_reason || 'Nothing matches yet — tag a few more items.'}
+        </p>
+      )}
+
+      <div className="flex flex-col gap-3">
+        {suggestions.data?.outfits.map((outfit, i) => (
+          <div key={i} className="border rounded-lg p-3 flex flex-col gap-2">
+            <div className="flex gap-2 overflow-x-auto">
+              {outfit.items.map((item) => (
+                <img
+                  key={item.id}
+                  src={`/api/items/${item.id}/thumb`}
+                  alt={item.name || item.category}
+                  className="w-20 h-20 object-cover rounded flex-shrink-0"
+                />
+              ))}
+            </div>
+            <p className="text-xs text-gray-400">{outfit.note}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}

@@ -2,11 +2,14 @@ import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { deleteItem, listItems, logout, uploadItem, type Me } from './api'
 import SettingsScreen from './Settings'
+import SuggestScreen from './Suggest'
 import TagEditor from './TagEditor'
+
+type View = 'wardrobe' | 'settings' | 'suggest'
 
 export default function Wardrobe({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const queryClient = useQueryClient()
-  const [showSettings, setShowSettings] = useState(false)
+  const [view, setView] = useState<View>('wardrobe')
   const items = useQuery({
     queryKey: ['items'],
     queryFn: listItems,
@@ -40,8 +43,11 @@ export default function Wardrobe({ me, onLogout }: { me: Me; onLogout: () => voi
     onSuccess: onLogout,
   })
 
-  if (showSettings) {
-    return <SettingsScreen onClose={() => setShowSettings(false)} />
+  if (view === 'settings') {
+    return <SettingsScreen onClose={() => setView('wardrobe')} />
+  }
+  if (view === 'suggest') {
+    return <SuggestScreen onClose={() => setView('wardrobe')} />
   }
 
   return (
@@ -50,7 +56,10 @@ export default function Wardrobe({ me, onLogout }: { me: Me; onLogout: () => voi
         <h1 className="text-lg font-medium">Wardy</h1>
         <div className="flex items-center gap-3 text-sm text-gray-500">
           <span>{me.display_name}</span>
-          <button type="button" onClick={() => setShowSettings(true)} className="underline">
+          <button type="button" onClick={() => setView('suggest')} className="underline">
+            Suggest
+          </button>
+          <button type="button" onClick={() => setView('settings')} className="underline">
             Settings
           </button>
           <button type="button" onClick={() => logoutMutation.mutate()} className="underline">

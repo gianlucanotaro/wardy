@@ -45,6 +45,7 @@ func New(s *store.Store, frontend fs.FS, secureCookies bool, photosDir string, a
 	mux.Handle("GET /api/settings", requireAuth(s, http.HandlerFunc(getSettingsHandler)))
 	mux.Handle("PATCH /api/settings", requireAuth(s, updateSettingsHandler(s)))
 	mux.Handle("GET /api/weather", requireAuth(s, weatherHandler(weatherClient)))
+	mux.Handle("GET /api/suggest", requireAuth(s, suggestHandler(s, weatherClient)))
 
 	mux.Handle("POST /api/items", requireAuth(s, uploadItemHandler(s, photosDir, aiEnabled, jobLimiter)))
 	mux.Handle("GET /api/items", requireAuth(s, listItemsHandler(s)))

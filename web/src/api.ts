@@ -100,3 +100,15 @@ export type Weather =
 export function getWeather(): Promise<Weather> {
   return request('/api/weather')
 }
+
+export type SuggestOutfit = { items: Item[]; note: string }
+
+export type SuggestResponse = {
+  outfits: SuggestOutfit[]
+  no_match_reason?: string
+  weather_available: boolean
+}
+
+export function getSuggestions(occasion: string): Promise<SuggestResponse> {
+  return request(`/api/suggest?occasion=${encodeURIComponent(occasion)}`)
+}
