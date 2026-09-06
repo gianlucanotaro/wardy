@@ -3,10 +3,10 @@ import { useQuery } from '@tanstack/react-query'
 import { getSuggestions } from './api'
 import { OCCASIONS } from './taxonomy'
 
-// Phase 7 is the rules-based pre-filter only — no AI rationale yet (that's
-// phase 8's job). Every outfit here is the "rules-only fallback" state
-// docs/frontend.md describes, shown plainly with a quiet note rather than
-// pretending there's a written rationale.
+// Three states per docs/frontend.md: normal (source "ai" — outfit.note is
+// the model's rationale), rules-only-fallback (source "rules_fallback" —
+// outfit.note is the plain factual note, shown with a quiet banner), and
+// nothing-matches (no outfits, no_match_reason set).
 export default function Suggest({ onClose }: { onClose: () => void }) {
   const [occasion, setOccasion] = useState<string>('casual')
 
@@ -46,6 +46,10 @@ export default function Suggest({ onClose }: { onClose: () => void }) {
         <p className="text-xs text-gray-400">
           Weather unavailable — suggestions don't account for today's temperature.
         </p>
+      )}
+
+      {suggestions.data && suggestions.data.source === 'rules_fallback' && (
+        <p className="text-xs text-gray-400">Showing simple matches — AI suggestions are unavailable right now.</p>
       )}
 
       {suggestions.data && suggestions.data.outfits.length === 0 && (

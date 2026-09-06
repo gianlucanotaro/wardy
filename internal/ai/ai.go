@@ -34,16 +34,52 @@ type Usage struct {
 	EstCostUSD   float64
 }
 
+// SuggestionCandidate is the compact, ids-plus-relevant-attributes view of
+// an item sent to the suggestion model — no paths, no timestamps (see
+// docs/ai.md).
+type SuggestionCandidate struct {
+	ID           int64
+	Category     string
+	Subcategory  string
+	ColorPrimary string
+	Formality    int
+	Warmth       int
+}
+
+// AISuggestion is one outfit as returned by the suggestion model: item ids
+// plus a short rationale. Nothing here is trusted until every id has been
+// checked against the candidate set the model was given — models
+// hallucinate ids (docs/ai.md).
+type AISuggestion struct {
+	ItemIDs   []int64
+	Rationale string
+}
+
+// SuggestionModelName identifies the model SuggestOutfits calls, for the
+// per-user daily suggestion cap (internal/suggest.SuggestAI queries usage
+// logged under this name).
+const SuggestionModelName = "claude-sonnet-5"
+
+// MaxAISuggestions caps how many outfits SuggestOutfits asks for and
+// returns — docs/ai.md: "ask for 2-3 outfits".
+const MaxAISuggestions = 3
+
 // ErrDisabled is returned by the "off" provider — tagging is turned off
 // entirely, and callers should leave the item for manual tagging rather
 // than retrying.
 var ErrDisabled = errors.New("ai tagging is disabled")
 
-// Provider tags a single item's thumbnail. Implementations: anthropic
-// (real API calls), mock (fixture data, no network), off (always
+// Provider tags item thumbnails and suggests outfits. Implementations:
+// anthropic (real API calls), mock (fixture data, no network), off (always
 // disabled). Selected by AI_PROVIDER.
 type Provider interface {
 	TagItem(ctx context.Context, thumbnail []byte) (TagResult, Usage, error)
+
+	// SuggestOutfits asks for 2-3 outfits built only from candidates,
+	// with mood and timeOfDay as prompt context (not filters) shaping the
+	// rationale — see docs/ai.md. Callers must validate every returned id
+	// against the candidate set before trusting it.
+	SuggestOutfits(ctx context.Context, candidates []SuggestionCandidate, occasion, mood, timeOfDay string) ([]AISuggestion, Usage, error)
 }
 
 // New builds the Provider selected by name. apiKey is only required for

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/gianlucanotaro/wardy/internal/ai"
 	"github.com/gianlucanotaro/wardy/internal/store"
 	"github.com/gianlucanotaro/wardy/internal/suggest"
 	"github.com/gianlucanotaro/wardy/internal/taxonomy"
@@ -19,16 +20,22 @@ type outfitResponse struct {
 
 type suggestResponse struct {
 	Outfits          []outfitResponse `json:"outfits"`
+	Source           string           `json:"source,omitempty"`
 	NoMatchReason    string           `json:"no_match_reason,omitempty"`
 	WeatherAvailable bool             `json:"weather_available"`
 }
 
-// suggestHandler runs the rules-based (zero-AI) outfit pre-filter for
-// ?occasion=. Weather is fetched best-effort — a missing location or a
-// failed fetch both just mean Suggest runs without warmth-matching
-// (docs/ai.md: "Weather down -> suggest anyway"), never an error to the
-// client.
-func suggestHandler(s *store.Store, wc *weather.Client) http.HandlerFunc {
+// suggestHandler runs the outfit pre-filter for ?occasion=, layering
+// AI-written rationale on top via suggest.SuggestAI when aiEnabled, under
+// budget, and under the per-user daily cap — otherwise it degrades to the
+// same rules-only result the pre-AI pre-filter produces (docs/ai.md: "the
+// app must stay fully usable with AI_PROVIDER=off"). Weather is fetched
+// best-effort — a missing location or a failed fetch both just mean
+// Suggest runs without warmth-matching (docs/ai.md: "Weather down ->
+// suggest anyway"), never an error to the client. ?mood= and
+// ?time_of_day= are optional prompt context for the AI rationale, not
+// filters on the candidate set.
+func suggestHandler(s *store.Store, wc *weather.Client, provider ai.Provider, aiEnabled bool, monthlyBudgetUSD float64) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := userFromContext(r.Context())
 		if !ok {
@@ -41,6 +48,8 @@ func suggestHandler(s *store.Store, wc *weather.Client) http.HandlerFunc {
 			http.Error(w, "invalid or missing occasion", http.StatusBadRequest)
 			return
 		}
+		mood := r.URL.Query().Get("mood")
+		timeOfDay := r.URL.Query().Get("time_of_day")
 
 		var forecast *weather.Forecast
 		if user.HomeLat.Valid && user.HomeLon.Valid {
@@ -53,7 +62,7 @@ func suggestHandler(s *store.Store, wc *weather.Client) http.HandlerFunc {
 
 		northernHemisphere := !user.HomeLat.Valid || user.HomeLat.Float64 >= 0
 
-		result, err := suggest.Suggest(r.Context(), s, user.ID, occasion, forecast, northernHemisphere, time.Now())
+		result, err := suggest.SuggestAI(r.Context(), s, provider, aiEnabled, monthlyBudgetUSD, suggest.DailySuggestionCap, user.ID, occasion, mood, timeOfDay, forecast, northernHemisphere, time.Now())
 		if err != nil {
 			slog.Error("suggest", "error", err)
 			http.Error(w, "internal error", http.StatusInternalServerError)
@@ -62,6 +71,7 @@ func suggestHandler(s *store.Store, wc *weather.Client) http.HandlerFunc {
 
 		resp := suggestResponse{
 			Outfits:          make([]outfitResponse, 0, len(result.Outfits)),
+			Source:           result.Source,
 			NoMatchReason:    result.NoMatchReason,
 			WeatherAvailable: forecast != nil,
 		}

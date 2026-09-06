@@ -83,7 +83,7 @@ func run() error {
 
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           httpapi.New(s, web.FS(), secureCookies, photosDir, aiEnabled, weatherClient),
+		Handler:           httpapi.New(s, web.FS(), secureCookies, photosDir, aiEnabled, weatherClient, provider, monthlyBudget),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

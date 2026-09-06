@@ -139,7 +139,7 @@ func (w *Worker) runTagItem(ctx context.Context, job *store.Job) error {
 
 	result, usage, err := w.provider.TagItem(ctx, thumbBytes)
 	if usage.Model != "" {
-		if logErr := w.store.LogUsage(ctx, usage.Model, usage.InputTokens, usage.OutputTokens, usage.EstCostUSD); logErr != nil {
+		if logErr := w.store.LogUsage(ctx, payload.UserID, usage.Model, usage.InputTokens, usage.OutputTokens, usage.EstCostUSD); logErr != nil {
 			slog.Error("jobs: log usage", "error", logErr)
 		}
 	}

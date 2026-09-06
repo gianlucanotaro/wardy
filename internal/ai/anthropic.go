@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/anthropics/anthropic-sdk-go"
 	"github.com/anthropics/anthropic-sdk-go/option"
@@ -22,6 +23,45 @@ const (
 	inputPricePerMTokens  = 1.0
 	outputPricePerMTokens = 5.0
 )
+
+const (
+	suggestionModel     = anthropic.ModelClaudeSonnet5
+	suggestionMaxTokens = 600
+
+	// Sonnet 5 list pricing — used only to produce an estimated cost for
+	// the usage table, not for billing.
+	suggestionInputPricePerMTokens  = 3.0
+	suggestionOutputPricePerMTokens = 15.0
+
+	// maxSuggestAttempts mirrors the tagging job's retry policy (docs/ai.md:
+	// "3 retries max"). Unlike tagging, a suggestion request runs inline in
+	// an HTTP request rather than through the job queue, so the retries
+	// happen in a tight loop here rather than across ProcessOne polls.
+	maxSuggestAttempts  = 3
+	suggestRetryBackoff = 250 * time.Millisecond
+)
+
+// suggestionSystemPrompt is generated once at package init and reused
+// byte-for-byte on every call.
+var suggestionSystemPrompt = `You suggest outfits for a wardrobe app from a fixed list of candidate items that have already been matched to today's weather and occasion.
+
+Respond with ONLY a JSON array — no markdown fences, no prose before or after:
+
+[
+  {"item_ids": [1, 2, 3], "rationale": "one sentence explaining why this outfit works"},
+  ...
+]
+
+Return 2 to 3 outfits. Use ONLY item ids from the candidate list you are given — never invent an id, and never include an item not in the list. Each outfit should combine items that work together (e.g. a top and bottom, or a dress, plus shoes and outerwear where appropriate). Mood and time of day, when given, should shape the rationale and which outfits you pick — they are not additional filters.`
+
+type suggestionCandidateJSON struct {
+	ID           int64  `json:"id"`
+	Category     string `json:"category"`
+	Subcategory  string `json:"subcategory"`
+	ColorPrimary string `json:"color_primary"`
+	Formality    int    `json:"formality"`
+	Warmth       int    `json:"warmth"`
+}
 
 // taggingSystemPrompt is generated from internal/taxonomy rather than
 // hand-typed, so the vocabulary the model is told about can never drift
@@ -136,6 +176,115 @@ func (p *anthropicProvider) TagItem(ctx context.Context, thumbnail []byte) (TagR
 	return result, usage, nil
 }
 
+// SuggestOutfits asks claude-sonnet-5 for 2-3 outfits built from
+// candidates. Retries up to maxSuggestAttempts times with exponential
+// backoff, never retrying a non-retryable (4xx) error — see IsRetryable.
+func (p *anthropicProvider) SuggestOutfits(ctx context.Context, candidates []SuggestionCandidate, occasion, mood, timeOfDay string) ([]AISuggestion, Usage, error) {
+	userText, err := buildSuggestionPrompt(candidates, occasion, mood, timeOfDay)
+	if err != nil {
+		return nil, Usage{}, err
+	}
+
+	params := anthropic.MessageNewParams{
+		Model:     suggestionModel,
+		MaxTokens: suggestionMaxTokens,
+		System: []anthropic.TextBlockParam{
+			{Text: suggestionSystemPrompt},
+		},
+		Messages: []anthropic.MessageParam{
+			anthropic.NewUserMessage(anthropic.NewTextBlock(userText)),
+		},
+	}
+
+	var resp *anthropic.Message
+	var lastErr error
+	for attempt := 1; attempt <= maxSuggestAttempts; attempt++ {
+		resp, lastErr = p.client.Messages.New(ctx, params)
+		if lastErr == nil {
+			break
+		}
+		if !IsRetryable(lastErr) || attempt == maxSuggestAttempts {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			return nil, Usage{}, ctx.Err()
+		case <-time.After(time.Duration(attempt) * suggestRetryBackoff):
+		}
+	}
+	if lastErr != nil {
+		return nil, Usage{}, fmt.Errorf("anthropic: %w", lastErr)
+	}
+
+	usage := Usage{
+		Model:        string(suggestionModel),
+		InputTokens:  int(resp.Usage.InputTokens),
+		OutputTokens: int(resp.Usage.OutputTokens),
+		EstCostUSD:   estimateCostAt(resp.Usage.InputTokens, resp.Usage.OutputTokens, suggestionInputPricePerMTokens, suggestionOutputPricePerMTokens),
+	}
+
+	var text strings.Builder
+	for _, block := range resp.Content {
+		text.WriteString(block.Text)
+	}
+
+	suggestions, err := parseSuggestResponse(text.String())
+	if err != nil {
+		return nil, usage, err
+	}
+	return suggestions, usage, nil
+}
+
+func buildSuggestionPrompt(candidates []SuggestionCandidate, occasion, mood, timeOfDay string) (string, error) {
+	payload := make([]suggestionCandidateJSON, len(candidates))
+	for i, c := range candidates {
+		payload[i] = suggestionCandidateJSON{
+			ID:           c.ID,
+			Category:     c.Category,
+			Subcategory:  c.Subcategory,
+			ColorPrimary: c.ColorPrimary,
+			Formality:    c.Formality,
+			Warmth:       c.Warmth,
+		}
+	}
+	candidateJSON, err := json.Marshal(payload)
+	if err != nil {
+		return "", fmt.Errorf("marshal candidates: %w", err)
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "Occasion: %s\n", occasion)
+	if mood != "" {
+		fmt.Fprintf(&b, "Mood: %s\n", mood)
+	}
+	if timeOfDay != "" {
+		fmt.Fprintf(&b, "Time of day: %s\n", timeOfDay)
+	}
+	fmt.Fprintf(&b, "Candidates: %s", candidateJSON)
+	return b.String(), nil
+}
+
+// parseSuggestResponse parses a model's raw text response into outfit
+// suggestions. Kept separate from SuggestOutfits so it can be exercised
+// against recorded fixtures in tests without any live API calls.
+func parseSuggestResponse(text string) ([]AISuggestion, error) {
+	text = stripMarkdownFences(text)
+
+	var raw []struct {
+		ItemIDs   []int64 `json:"item_ids"`
+		Rationale string  `json:"rationale"`
+	}
+	if err := json.Unmarshal([]byte(text), &raw); err != nil {
+		return nil, fmt.Errorf("parse model response: %w", err)
+	}
+
+	suggestions := make([]AISuggestion, 0, len(raw))
+	for _, r := range raw {
+		suggestions = append(suggestions, AISuggestion{ItemIDs: r.ItemIDs, Rationale: r.Rationale})
+	}
+	return suggestions, nil
+}
+
 // parseTagResponse parses a model's raw text response into a TagResult.
 // Kept separate from TagItem so it can be exercised against recorded
 // fixtures in tests without any live API calls.
@@ -183,6 +332,10 @@ func stripMarkdownFences(s string) string {
 }
 
 func estimateCost(inputTokens, outputTokens int64) float64 {
-	return float64(inputTokens)/1_000_000*inputPricePerMTokens +
-		float64(outputTokens)/1_000_000*outputPricePerMTokens
+	return estimateCostAt(inputTokens, outputTokens, inputPricePerMTokens, outputPricePerMTokens)
+}
+
+func estimateCostAt(inputTokens, outputTokens int64, inputPrice, outputPrice float64) float64 {
+	return float64(inputTokens)/1_000_000*inputPrice +
+		float64(outputTokens)/1_000_000*outputPrice
 }

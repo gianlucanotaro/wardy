@@ -97,6 +97,66 @@ func TestParseTagResponse_MalformedJSON(t *testing.T) {
 	}
 }
 
+const cleanSuggestJSON = `[
+  {"item_ids": [1, 2], "rationale": "A breezy top with tailored trousers for the weather."},
+  {"item_ids": [3, 4, 5], "rationale": "A dress layered with a jacket for a cooler evening."}
+]`
+
+func TestParseSuggestResponse_Clean(t *testing.T) {
+	got, err := parseSuggestResponse(cleanSuggestJSON)
+	if err != nil {
+		t.Fatalf("parseSuggestResponse: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("got %d suggestions, want 2", len(got))
+	}
+	if len(got[0].ItemIDs) != 2 || got[0].ItemIDs[0] != 1 || got[0].ItemIDs[1] != 2 {
+		t.Errorf("unexpected item ids: %+v", got[0].ItemIDs)
+	}
+	if got[0].Rationale == "" {
+		t.Error("rationale should not be empty")
+	}
+}
+
+func TestParseSuggestResponse_MarkdownFenced(t *testing.T) {
+	got, err := parseSuggestResponse("```json\n" + cleanSuggestJSON + "\n```")
+	if err != nil {
+		t.Fatalf("parseSuggestResponse: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("got %d suggestions, want 2", len(got))
+	}
+}
+
+func TestParseSuggestResponse_MalformedJSON(t *testing.T) {
+	cases := []string{
+		`[{"item_ids": [1, 2], "rationale":`, // truncated
+		`not json at all.`,                   // prose instead of JSON
+		``,                                   // empty response
+		`{"item_ids": [1, 2]}`,               // object instead of array
+	}
+	for _, c := range cases {
+		if _, err := parseSuggestResponse(c); err == nil {
+			t.Errorf("parseSuggestResponse(%q) = nil error, want an error", c)
+		}
+	}
+}
+
+// TestParseSuggestResponse_HallucinatedIDsParseFine documents that parsing
+// alone never rejects an id — a model can return syntactically valid JSON
+// referencing an item id that was never in the candidate set. Validating
+// ids against the candidate set is internal/suggest's job, not the
+// parser's — see suggest.SuggestAI.
+func TestParseSuggestResponse_HallucinatedIDsParseFine(t *testing.T) {
+	got, err := parseSuggestResponse(`[{"item_ids": [9999], "rationale": "invented item"}]`)
+	if err != nil {
+		t.Fatalf("parseSuggestResponse: %v", err)
+	}
+	if len(got) != 1 || got[0].ItemIDs[0] != 9999 {
+		t.Errorf("unexpected result: %+v", got)
+	}
+}
+
 // TestParseThenValidate_RejectsOutOfVocabValues exercises the exact
 // pipeline the worker runs: parse the model's text, then validate against
 // the closed vocabularies. A model can return syntactically valid JSON

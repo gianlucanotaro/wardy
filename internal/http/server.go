@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gianlucanotaro/wardy/internal/ai"
 	"github.com/gianlucanotaro/wardy/internal/store"
 	"github.com/gianlucanotaro/wardy/internal/weather"
 )
@@ -32,8 +33,11 @@ const (
 // frontend, served as a single-page app. secureCookies should be true in
 // production (HTTPS via Caddy) and false for local HTTP development.
 // photosDir is where uploaded photo derivatives are written and served
-// from. aiEnabled controls whether uploads enqueue a tagging job at all.
-func New(s *store.Store, frontend fs.FS, secureCookies bool, photosDir string, aiEnabled bool, weatherClient *weather.Client) http.Handler {
+// from. aiEnabled controls whether uploads enqueue a tagging job at all
+// and whether /api/suggest attempts an AI-written rationale. provider and
+// monthlyBudgetUSD are the same values passed to jobs.NewWorker, reused
+// here for outfit suggestions (see docs/ai.md's budget guards).
+func New(s *store.Store, frontend fs.FS, secureCookies bool, photosDir string, aiEnabled bool, weatherClient *weather.Client, provider ai.Provider, monthlyBudgetUSD float64) http.Handler {
 	mux := http.NewServeMux()
 	limiter := newRateLimiter(loginRateLimitAttempts, loginRateLimitWindow)
 	jobLimiter := newRateLimiter(aiDailyTagLimitAttempts, aiDailyTagLimitWindow)
@@ -45,7 +49,7 @@ func New(s *store.Store, frontend fs.FS, secureCookies bool, photosDir string, a
 	mux.Handle("GET /api/settings", requireAuth(s, http.HandlerFunc(getSettingsHandler)))
 	mux.Handle("PATCH /api/settings", requireAuth(s, updateSettingsHandler(s)))
 	mux.Handle("GET /api/weather", requireAuth(s, weatherHandler(weatherClient)))
-	mux.Handle("GET /api/suggest", requireAuth(s, suggestHandler(s, weatherClient)))
+	mux.Handle("GET /api/suggest", requireAuth(s, suggestHandler(s, weatherClient, provider, aiEnabled, monthlyBudgetUSD)))
 
 	mux.Handle("POST /api/items", requireAuth(s, uploadItemHandler(s, photosDir, aiEnabled, jobLimiter)))
 	mux.Handle("GET /api/items", requireAuth(s, listItemsHandler(s)))

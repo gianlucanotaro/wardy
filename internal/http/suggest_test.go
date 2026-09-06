@@ -44,6 +44,14 @@ func getSuggest(h http.Handler, cookie *http.Cookie, occasion string) *httptest.
 	return rec
 }
 
+func getSuggestWithParams(h http.Handler, cookie *http.Cookie, query string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodGet, "/api/suggest?"+query, nil)
+	req.AddCookie(cookie)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	return rec
+}
+
 func TestSuggestEndpointRejectsInvalidOccasion(t *testing.T) {
 	s := newTestStore(t)
 	h := newTestHandler(t, s)
@@ -140,6 +148,52 @@ func TestSuggestEndpointNothingMatchesIsStill200(t *testing.T) {
 	}
 	if resp["no_match_reason"] == nil || resp["no_match_reason"] == "" {
 		t.Error("expected a non-empty no_match_reason")
+	}
+}
+
+func TestSuggestEndpointSourceIsAIWhenEnabled(t *testing.T) {
+	s := newTestStore(t)
+	h := newTestHandler(t, s) // aiEnabled=true, mock provider (see newTestHandlerFull)
+	cookie := loginAndGetCookie(t, h, s, "me@example.com", "correct horse battery staple")
+
+	season := currentSeason()
+	tagItemForSuggest(t, s, 1, "top", 2, 2, []string{season}, []string{"casual"})
+	tagItemForSuggest(t, s, 1, "bottom", 2, 2, []string{season}, []string{"casual"})
+
+	rec := getSuggestWithParams(h, cookie, "occasion=casual&mood=relaxed&time_of_day=morning")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("get suggest: status %d, body %s", rec.Code, rec.Body.String())
+	}
+
+	var resp map[string]any
+	json.Unmarshal(rec.Body.Bytes(), &resp)
+	if resp["source"] != "ai" {
+		t.Errorf("source = %v, want %q", resp["source"], "ai")
+	}
+	outfits, _ := resp["outfits"].([]any)
+	if len(outfits) == 0 {
+		t.Fatalf("expected at least one outfit, got none (response: %v)", resp)
+	}
+}
+
+func TestSuggestEndpointSourceIsRulesFallbackWhenAIDisabled(t *testing.T) {
+	s := newTestStore(t)
+	h := newTestHandlerAI(t, s, false) // aiEnabled=false (AI_PROVIDER=off equivalent)
+	cookie := loginAndGetCookie(t, h, s, "me@example.com", "correct horse battery staple")
+
+	season := currentSeason()
+	tagItemForSuggest(t, s, 1, "top", 2, 2, []string{season}, []string{"casual"})
+	tagItemForSuggest(t, s, 1, "bottom", 2, 2, []string{season}, []string{"casual"})
+
+	rec := getSuggest(h, cookie, "casual")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("get suggest: status %d, body %s", rec.Code, rec.Body.String())
+	}
+
+	var resp map[string]any
+	json.Unmarshal(rec.Body.Bytes(), &resp)
+	if resp["source"] != "rules_fallback" {
+		t.Errorf("source = %v, want %q", resp["source"], "rules_fallback")
 	}
 }
 

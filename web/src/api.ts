@@ -103,8 +103,11 @@ export function getWeather(): Promise<Weather> {
 
 export type SuggestOutfit = { items: Item[]; note: string }
 
+export type SuggestSource = 'ai' | 'rules_fallback'
+
 export type SuggestResponse = {
   outfits: SuggestOutfit[]
+  source?: SuggestSource
   no_match_reason?: string
   weather_available: boolean
 }

@@ -2,15 +2,37 @@ package suggest
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/gianlucanotaro/wardy/internal/ai"
 	"github.com/gianlucanotaro/wardy/internal/store"
 	"github.com/gianlucanotaro/wardy/internal/taxonomy"
 	"github.com/gianlucanotaro/wardy/internal/weather"
 )
+
+// fakeAIProvider lets each SuggestAI test script exactly what
+// SuggestOutfits returns, and records whether it was called at all — the
+// budget/cap/kill-switch tests need to assert the model was never even
+// invoked.
+type fakeAIProvider struct {
+	suggestions []ai.AISuggestion
+	usage       ai.Usage
+	err         error
+	called      bool
+}
+
+func (f *fakeAIProvider) TagItem(_ context.Context, _ []byte) (ai.TagResult, ai.Usage, error) {
+	return ai.TagResult{}, ai.Usage{}, errors.New("TagItem not used by suggest package tests")
+}
+
+func (f *fakeAIProvider) SuggestOutfits(_ context.Context, _ []ai.SuggestionCandidate, _, _, _ string) ([]ai.AISuggestion, ai.Usage, error) {
+	f.called = true
+	return f.suggestions, f.usage, f.err
+}
 
 func newTestStore(t *testing.T) *store.Store {
 	t.Helper()
@@ -264,6 +286,219 @@ func TestSuggestOwnershipScoped(t *testing.T) {
 	}
 	if len(result.Outfits) != 0 {
 		t.Errorf("user B should get no outfits from user A's wardrobe, got %d", len(result.Outfits))
+	}
+}
+
+func TestSuggestAI_UsesAIRationaleWhenAvailable(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	userID, _ := s.CreateUser(ctx, "me@example.com", "hash", "Me")
+	topID := createTaggedItem(t, s, userID, "top", "t-shirt", 2, 1, []string{"summer"}, []string{"casual"})
+	bottomID := createTaggedItem(t, s, userID, "bottom", "shorts", 2, 1, []string{"summer"}, []string{"casual"})
+
+	provider := &fakeAIProvider{
+		suggestions: []ai.AISuggestion{
+			{ItemIDs: []int64{topID, bottomID}, Rationale: "Light and breathable for a hot day."},
+		},
+		usage: ai.Usage{Model: ai.SuggestionModelName, InputTokens: 100, OutputTokens: 20, EstCostUSD: 0.001},
+	}
+
+	forecast := hotSummerForecast()
+	result, err := SuggestAI(ctx, s, provider, true, 5.00, DailySuggestionCap, userID, taxonomy.OccasionCasual, "relaxed", "morning", &forecast, true, julyDate)
+	if err != nil {
+		t.Fatalf("SuggestAI: %v", err)
+	}
+	if !provider.called {
+		t.Fatal("expected the AI provider to be called")
+	}
+	if result.Source != SourceAI {
+		t.Errorf("Source = %q, want %q", result.Source, SourceAI)
+	}
+	if len(result.Outfits) != 1 {
+		t.Fatalf("got %d outfits, want 1", len(result.Outfits))
+	}
+	if result.Outfits[0].Note != "Light and breathable for a hot day." {
+		t.Errorf("Note = %q, want the AI rationale", result.Outfits[0].Note)
+	}
+}
+
+func TestSuggestAI_DropsHallucinatedIDsButKeepsValidOutfits(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	userID, _ := s.CreateUser(ctx, "me@example.com", "hash", "Me")
+	topID := createTaggedItem(t, s, userID, "top", "t-shirt", 2, 1, []string{"summer"}, []string{"casual"})
+	bottomID := createTaggedItem(t, s, userID, "bottom", "shorts", 2, 1, []string{"summer"}, []string{"casual"})
+
+	const hallucinatedID = 999999
+
+	provider := &fakeAIProvider{
+		suggestions: []ai.AISuggestion{
+			{ItemIDs: []int64{topID, bottomID}, Rationale: "A valid outfit."},
+			{ItemIDs: []int64{hallucinatedID}, Rationale: "An outfit that doesn't exist."},
+		},
+		usage: ai.Usage{Model: ai.SuggestionModelName},
+	}
+
+	forecast := hotSummerForecast()
+	result, err := SuggestAI(ctx, s, provider, true, 5.00, DailySuggestionCap, userID, taxonomy.OccasionCasual, "", "", &forecast, true, julyDate)
+	if err != nil {
+		t.Fatalf("SuggestAI: %v", err)
+	}
+	if result.Source != SourceAI {
+		t.Errorf("Source = %q, want %q (one outfit still valid)", result.Source, SourceAI)
+	}
+	if len(result.Outfits) != 1 {
+		t.Fatalf("got %d outfits, want exactly the 1 valid one (hallucinated outfit should be dropped)", len(result.Outfits))
+	}
+	if result.Outfits[0].Note != "A valid outfit." {
+		t.Errorf("unexpected surviving outfit: %+v", result.Outfits[0])
+	}
+}
+
+func TestSuggestAI_FallsBackWhenEveryOutfitIsHallucinated(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	userID, _ := s.CreateUser(ctx, "me@example.com", "hash", "Me")
+	buildFixtureWardrobe(t, s, userID)
+
+	provider := &fakeAIProvider{
+		suggestions: []ai.AISuggestion{{ItemIDs: []int64{999999}, Rationale: "invented"}},
+		usage:       ai.Usage{Model: ai.SuggestionModelName},
+	}
+
+	forecast := hotSummerForecast()
+	result, err := SuggestAI(ctx, s, provider, true, 5.00, DailySuggestionCap, userID, taxonomy.OccasionCasual, "", "", &forecast, true, julyDate)
+	if err != nil {
+		t.Fatalf("SuggestAI: %v", err)
+	}
+	if result.Source != SourceRulesFallback {
+		t.Errorf("Source = %q, want %q when every AI outfit is invalid", result.Source, SourceRulesFallback)
+	}
+	if len(result.Outfits) == 0 {
+		t.Fatalf("expected the rules fallback to still produce outfits, got none (reason: %q)", result.NoMatchReason)
+	}
+}
+
+func TestSuggestAI_FallsBackWhenAIDisabled(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	userID, _ := s.CreateUser(ctx, "me@example.com", "hash", "Me")
+	buildFixtureWardrobe(t, s, userID)
+
+	provider := &fakeAIProvider{}
+	forecast := hotSummerForecast()
+
+	// aiEnabled=false is the kill switch (AI_PROVIDER=off) — must fully
+	// degrade to Suggest()'s own rules-only behavior.
+	got, err := SuggestAI(ctx, s, provider, false, 5.00, DailySuggestionCap, userID, taxonomy.OccasionCasual, "", "", &forecast, true, julyDate)
+	if err != nil {
+		t.Fatalf("SuggestAI: %v", err)
+	}
+	if provider.called {
+		t.Error("provider must not be called when AI is disabled")
+	}
+	if got.Source != SourceRulesFallback {
+		t.Errorf("Source = %q, want %q", got.Source, SourceRulesFallback)
+	}
+
+	want, err := Suggest(ctx, s, userID, taxonomy.OccasionCasual, &forecast, true, julyDate)
+	if err != nil {
+		t.Fatalf("Suggest: %v", err)
+	}
+	if len(got.Outfits) != len(want.Outfits) {
+		t.Errorf("SuggestAI with AI disabled produced %d outfits, Suggest produced %d — should match exactly", len(got.Outfits), len(want.Outfits))
+	}
+}
+
+func TestSuggestAI_FallsBackOverMonthlyBudget(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	userID, _ := s.CreateUser(ctx, "me@example.com", "hash", "Me")
+	buildFixtureWardrobe(t, s, userID)
+
+	// Already over a tiny budget before SuggestAI even looks at the request.
+	if err := s.LogUsage(ctx, userID, "claude-haiku-4-5-20251001", 1000, 1000, 1.00); err != nil {
+		t.Fatalf("LogUsage: %v", err)
+	}
+
+	provider := &fakeAIProvider{}
+	forecast := hotSummerForecast()
+	result, err := SuggestAI(ctx, s, provider, true, 0.01, DailySuggestionCap, userID, taxonomy.OccasionCasual, "", "", &forecast, true, julyDate)
+	if err != nil {
+		t.Fatalf("SuggestAI: %v", err)
+	}
+	if provider.called {
+		t.Error("provider must not be called once the monthly budget is exceeded")
+	}
+	if result.Source != SourceRulesFallback {
+		t.Errorf("Source = %q, want %q", result.Source, SourceRulesFallback)
+	}
+}
+
+func TestSuggestAI_FallsBackOverDailyCap(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	userID, _ := s.CreateUser(ctx, "me@example.com", "hash", "Me")
+	buildFixtureWardrobe(t, s, userID)
+
+	const cap = 3
+	for i := 0; i < cap; i++ {
+		if err := s.LogUsage(ctx, userID, ai.SuggestionModelName, 100, 20, 0.001); err != nil {
+			t.Fatalf("LogUsage: %v", err)
+		}
+	}
+
+	provider := &fakeAIProvider{}
+	forecast := hotSummerForecast()
+	result, err := SuggestAI(ctx, s, provider, true, 5.00, cap, userID, taxonomy.OccasionCasual, "", "", &forecast, true, julyDate)
+	if err != nil {
+		t.Fatalf("SuggestAI: %v", err)
+	}
+	if provider.called {
+		t.Error("provider must not be called once the daily suggestion cap is exceeded")
+	}
+	if result.Source != SourceRulesFallback {
+		t.Errorf("Source = %q, want %q", result.Source, SourceRulesFallback)
+	}
+}
+
+func TestSuggestAI_FallsBackOnProviderError(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	userID, _ := s.CreateUser(ctx, "me@example.com", "hash", "Me")
+	buildFixtureWardrobe(t, s, userID)
+
+	provider := &fakeAIProvider{err: errors.New("connection reset")}
+	forecast := hotSummerForecast()
+	result, err := SuggestAI(ctx, s, provider, true, 5.00, DailySuggestionCap, userID, taxonomy.OccasionCasual, "", "", &forecast, true, julyDate)
+	if err != nil {
+		t.Fatalf("SuggestAI: %v", err)
+	}
+	if result.Source != SourceRulesFallback {
+		t.Errorf("Source = %q, want %q", result.Source, SourceRulesFallback)
+	}
+	if len(result.Outfits) == 0 {
+		t.Fatalf("expected the rules fallback to still produce outfits, got none (reason: %q)", result.NoMatchReason)
+	}
+}
+
+func TestSuggestAI_NothingMatchesNeverCallsProvider(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	userID, _ := s.CreateUser(ctx, "me@example.com", "hash", "Me")
+	buildFixtureWardrobe(t, s, userID) // no "formal" occasion items at all
+
+	provider := &fakeAIProvider{}
+	forecast := hotSummerForecast()
+	result, err := SuggestAI(ctx, s, provider, true, 5.00, DailySuggestionCap, userID, taxonomy.OccasionFormal, "", "", &forecast, true, julyDate)
+	if err != nil {
+		t.Fatalf("SuggestAI: %v", err)
+	}
+	if provider.called {
+		t.Error("provider should not be called when the rules pass already found nothing to work with")
+	}
+	if len(result.Outfits) != 0 || result.NoMatchReason == "" {
+		t.Errorf("expected the nothing-matches state, got outfits=%d reason=%q", len(result.Outfits), result.NoMatchReason)
 	}
 }
 

@@ -26,6 +26,10 @@ func (f *fakeProvider) TagItem(_ context.Context, _ []byte) (ai.TagResult, ai.Us
 	return f.result, f.usage, f.err
 }
 
+func (f *fakeProvider) SuggestOutfits(_ context.Context, _ []ai.SuggestionCandidate, _, _, _ string) ([]ai.AISuggestion, ai.Usage, error) {
+	return nil, ai.Usage{}, errors.New("SuggestOutfits not used by jobs package tests")
+}
+
 func validFakeResult() ai.TagResult {
 	return ai.TagResult{
 		Category: "top", Subcategory: "t-shirt", ColorPrimary: "blue",
@@ -271,7 +275,7 @@ func TestProcessOneSkipsCallWhenBudgetExceeded(t *testing.T) {
 	jobID := enqueueTagJob(t, s, userID, itemID)
 
 	// Already over a tiny budget before the worker even looks at the job.
-	if err := s.LogUsage(ctx, "claude-haiku-4-5-20251001", 1000, 1000, 1.00); err != nil {
+	if err := s.LogUsage(ctx, userID, "claude-haiku-4-5-20251001", 1000, 1000, 1.00); err != nil {
 		t.Fatalf("LogUsage: %v", err)
 	}
 
