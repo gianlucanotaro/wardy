@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { getSuggestions } from './api'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { createLook, getSuggestions } from './api'
 import { OCCASIONS } from './taxonomy'
 
 // Three states per docs/frontend.md: normal (source "ai" — outfit.note is
@@ -9,10 +9,22 @@ import { OCCASIONS } from './taxonomy'
 // nothing-matches (no outfits, no_match_reason set).
 export default function Suggest({ onClose }: { onClose: () => void }) {
   const [occasion, setOccasion] = useState<string>('casual')
+  // Keyed by occasion+index so switching occasions never shows a stale
+  // "Saved" state for a different outfit that happens to share an index.
+  const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set())
 
   const suggestions = useQuery({
     queryKey: ['suggest', occasion],
     queryFn: () => getSuggestions(occasion),
+  })
+
+  const saveAsLook = useMutation({
+    mutationFn: (input: { key: string; itemIds: number[] }) =>
+      createLook({
+        name: `${occasion.charAt(0).toUpperCase()}${occasion.slice(1)} look`,
+        item_ids: input.itemIds,
+      }),
+    onSuccess: (_look, input) => setSavedKeys((prev) => new Set(prev).add(input.key)),
   })
 
   return (
@@ -59,21 +71,33 @@ export default function Suggest({ onClose }: { onClose: () => void }) {
       )}
 
       <div className="flex flex-col gap-3">
-        {suggestions.data?.outfits.map((outfit, i) => (
-          <div key={i} className="border rounded-lg p-3 flex flex-col gap-2">
-            <div className="flex gap-2 overflow-x-auto">
-              {outfit.items.map((item) => (
-                <img
-                  key={item.id}
-                  src={`/api/items/${item.id}/thumb`}
-                  alt={item.name || item.category}
-                  className="w-20 h-20 object-cover rounded flex-shrink-0"
-                />
-              ))}
+        {suggestions.data?.outfits.map((outfit, i) => {
+          const key = `${occasion}-${i}`
+          const saved = savedKeys.has(key)
+          return (
+            <div key={i} className="border rounded-lg p-3 flex flex-col gap-2">
+              <div className="flex gap-2 overflow-x-auto">
+                {outfit.items.map((item) => (
+                  <img
+                    key={item.id}
+                    src={`/api/items/${item.id}/thumb`}
+                    alt={item.name || item.category}
+                    className="w-20 h-20 object-cover rounded flex-shrink-0"
+                  />
+                ))}
+              </div>
+              <p className="text-xs text-gray-400">{outfit.note}</p>
+              <button
+                type="button"
+                disabled={saved || saveAsLook.isPending}
+                onClick={() => saveAsLook.mutate({ key, itemIds: outfit.items.map((it) => it.id) })}
+                className="self-start text-sm underline disabled:no-underline disabled:text-gray-400"
+              >
+                {saved ? 'Saved' : 'Save as look'}
+              </button>
             </div>
-            <p className="text-xs text-gray-400">{outfit.note}</p>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

@@ -115,3 +115,32 @@ export type SuggestResponse = {
 export function getSuggestions(occasion: string): Promise<SuggestResponse> {
   return request(`/api/suggest?occasion=${encodeURIComponent(occasion)}`)
 }
+
+export type Look = {
+  id: number
+  name: string
+  notes: string
+  cover_item_id: number | null
+  items: Item[]
+  created_at: string
+}
+
+export function listLooks(): Promise<Look[]> {
+  return request('/api/looks')
+}
+
+export function getLook(id: number): Promise<Look> {
+  return request(`/api/looks/${id}`)
+}
+
+export function createLook(input: { name: string; notes?: string; item_ids: number[] }): Promise<Look> {
+  return request('/api/looks', { method: 'POST', body: JSON.stringify(input) })
+}
+
+export function updateLook(id: number, input: { name?: string; item_ids?: number[] }): Promise<Look> {
+  return request(`/api/looks/${id}`, { method: 'PATCH', body: JSON.stringify(input) })
+}
+
+export function deleteLook(id: number): Promise<void> {
+  return request(`/api/looks/${id}`, { method: 'DELETE' })
+}
