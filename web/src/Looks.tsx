@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { deleteLook, listLooks, updateLook } from './api'
+import { deleteLook, listLooks, logWear, todayISODate, updateLook } from './api'
 
 // Same grid + selected-id modal shape as Wardrobe.tsx's item detail — not
 // a new pattern, just applied to looks instead of items.
@@ -34,6 +34,10 @@ export default function Looks({ onClose }: { onClose: () => void }) {
     },
   })
 
+  const logAsWorn = useMutation({
+    mutationFn: (lookId: number) => logWear({ look_id: lookId, worn_on: todayISODate() }),
+  })
+
   return (
     <main className="min-h-svh flex flex-col px-4 py-4 gap-4 max-w-2xl mx-auto w-full">
       <div className="flex items-center justify-between">
@@ -58,6 +62,7 @@ export default function Looks({ onClose }: { onClose: () => void }) {
               onClick={() => {
                 setSelectedId(look.id)
                 setNameDraft(look.name)
+                logAsWorn.reset()
               }}
               className="relative aspect-square bg-gray-100 rounded overflow-hidden"
             >
@@ -129,6 +134,15 @@ export default function Looks({ onClose }: { onClose: () => void }) {
                 </div>
               ))}
             </div>
+
+            <button
+              type="button"
+              onClick={() => logAsWorn.mutate(selected.id)}
+              disabled={logAsWorn.isPending || logAsWorn.isSuccess}
+              className="self-start text-sm underline disabled:no-underline disabled:text-gray-400"
+            >
+              {logAsWorn.isSuccess ? 'Logged as worn today' : 'Log as worn today'}
+            </button>
 
             <div className="flex justify-between pt-2 border-t">
               <button type="button" onClick={() => setSelectedId(null)} className="text-sm underline">

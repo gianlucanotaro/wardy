@@ -234,7 +234,7 @@ func TestSuggestNothingMatchesWornRecently(t *testing.T) {
 	topID := createTaggedItem(t, s, userID, "top", "t-shirt", 2, 1, []string{"summer"}, []string{"casual"})
 	bottomID := createTaggedItem(t, s, userID, "bottom", "shorts", 2, 1, []string{"summer"}, []string{"casual"})
 
-	if err := s.LogWear(ctx, userID, []int64{topID, bottomID}, time.Now()); err != nil {
+	if _, err := s.LogWear(ctx, userID, nil, []int64{topID, bottomID}, time.Now(), "", ""); err != nil {
 		t.Fatalf("LogWear: %v", err)
 	}
 

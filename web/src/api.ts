@@ -144,3 +144,50 @@ export function updateLook(id: number, input: { name?: string; item_ids?: number
 export function deleteLook(id: number): Promise<void> {
   return request(`/api/looks/${id}`, { method: 'DELETE' })
 }
+
+export type Wear = {
+  id: number
+  look_id: number | null
+  worn_on: string
+  occasion: string
+  weather_summary: string
+  notes: string
+  items: Item[]
+  created_at: string
+}
+
+export type ItemLastWorn = Item & { last_worn_on: string | null }
+
+export type History = {
+  wears: Wear[]
+  items: ItemLastWorn[]
+}
+
+export function listWears(): Promise<Wear[]> {
+  return request('/api/wears')
+}
+
+export function getWear(id: number): Promise<Wear> {
+  return request(`/api/wears/${id}`)
+}
+
+export function logWear(input: { look_id?: number; item_ids?: number[]; worn_on: string; occasion?: string; notes?: string }): Promise<Wear> {
+  return request('/api/wears', { method: 'POST', body: JSON.stringify(input) })
+}
+
+export function deleteWear(id: number): Promise<void> {
+  return request(`/api/wears/${id}`, { method: 'DELETE' })
+}
+
+export function getHistory(): Promise<History> {
+  return request('/api/history')
+}
+
+// todayISODate is the local calendar date (not UTC — worn_on means "today"
+// to the person tapping the button, and UTC can disagree near midnight).
+export function todayISODate(): string {
+  const d = new Date()
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return `${d.getFullYear()}-${mm}-${dd}`
+}

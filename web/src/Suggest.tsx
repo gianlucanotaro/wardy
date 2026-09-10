@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { createLook, getSuggestions } from './api'
+import { createLook, getSuggestions, logWear, todayISODate } from './api'
 import { OCCASIONS } from './taxonomy'
 
 // Three states per docs/frontend.md: normal (source "ai" — outfit.note is
@@ -10,8 +10,10 @@ import { OCCASIONS } from './taxonomy'
 export default function Suggest({ onClose }: { onClose: () => void }) {
   const [occasion, setOccasion] = useState<string>('casual')
   // Keyed by occasion+index so switching occasions never shows a stale
-  // "Saved" state for a different outfit that happens to share an index.
+  // "Saved"/"Logged" state for a different outfit that happens to share an
+  // index.
   const [savedKeys, setSavedKeys] = useState<Set<string>>(new Set())
+  const [loggedKeys, setLoggedKeys] = useState<Set<string>>(new Set())
 
   const suggestions = useQuery({
     queryKey: ['suggest', occasion],
@@ -25,6 +27,12 @@ export default function Suggest({ onClose }: { onClose: () => void }) {
         item_ids: input.itemIds,
       }),
     onSuccess: (_look, input) => setSavedKeys((prev) => new Set(prev).add(input.key)),
+  })
+
+  const logAsWorn = useMutation({
+    mutationFn: (input: { key: string; itemIds: number[] }) =>
+      logWear({ item_ids: input.itemIds, worn_on: todayISODate(), occasion }),
+    onSuccess: (_wear, input) => setLoggedKeys((prev) => new Set(prev).add(input.key)),
   })
 
   return (
@@ -74,6 +82,7 @@ export default function Suggest({ onClose }: { onClose: () => void }) {
         {suggestions.data?.outfits.map((outfit, i) => {
           const key = `${occasion}-${i}`
           const saved = savedKeys.has(key)
+          const logged = loggedKeys.has(key)
           return (
             <div key={i} className="border rounded-lg p-3 flex flex-col gap-2">
               <div className="flex gap-2 overflow-x-auto">
@@ -87,14 +96,24 @@ export default function Suggest({ onClose }: { onClose: () => void }) {
                 ))}
               </div>
               <p className="text-xs text-gray-400">{outfit.note}</p>
-              <button
-                type="button"
-                disabled={saved || saveAsLook.isPending}
-                onClick={() => saveAsLook.mutate({ key, itemIds: outfit.items.map((it) => it.id) })}
-                className="self-start text-sm underline disabled:no-underline disabled:text-gray-400"
-              >
-                {saved ? 'Saved' : 'Save as look'}
-              </button>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  disabled={saved || saveAsLook.isPending}
+                  onClick={() => saveAsLook.mutate({ key, itemIds: outfit.items.map((it) => it.id) })}
+                  className="text-sm underline disabled:no-underline disabled:text-gray-400"
+                >
+                  {saved ? 'Saved' : 'Save as look'}
+                </button>
+                <button
+                  type="button"
+                  disabled={logged || logAsWorn.isPending}
+                  onClick={() => logAsWorn.mutate({ key, itemIds: outfit.items.map((it) => it.id) })}
+                  className="text-sm underline disabled:no-underline disabled:text-gray-400"
+                >
+                  {logged ? 'Logged as worn' : 'Log as worn'}
+                </button>
+              </div>
             </div>
           )
         })}

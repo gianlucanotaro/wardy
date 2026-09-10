@@ -66,6 +66,12 @@ func New(s *store.Store, frontend fs.FS, secureCookies bool, photosDir string, a
 	mux.Handle("PATCH /api/looks/{id}", requireAuth(s, updateLookHandler(s)))
 	mux.Handle("DELETE /api/looks/{id}", requireAuth(s, deleteLookHandler(s)))
 
+	mux.Handle("POST /api/wears", requireAuth(s, createWearHandler(s)))
+	mux.Handle("GET /api/wears", requireAuth(s, listWearsHandler(s)))
+	mux.Handle("GET /api/wears/{id}", requireAuth(s, getWearHandler(s)))
+	mux.Handle("DELETE /api/wears/{id}", requireAuth(s, deleteWearHandler(s)))
+	mux.Handle("GET /api/history", requireAuth(s, historyHandler(s)))
+
 	mux.Handle("/", spaHandler(frontend))
 
 	return withMiddleware(mux)

@@ -1,12 +1,13 @@
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { deleteItem, listItems, logout, uploadItem, type Me } from './api'
+import HistoryScreen from './History'
 import LooksScreen from './Looks'
 import SettingsScreen from './Settings'
 import SuggestScreen from './Suggest'
 import TagEditor from './TagEditor'
 
-type View = 'wardrobe' | 'settings' | 'suggest' | 'looks'
+type View = 'wardrobe' | 'settings' | 'suggest' | 'looks' | 'history'
 
 export default function Wardrobe({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const queryClient = useQueryClient()
@@ -53,6 +54,9 @@ export default function Wardrobe({ me, onLogout }: { me: Me; onLogout: () => voi
   if (view === 'looks') {
     return <LooksScreen onClose={() => setView('wardrobe')} />
   }
+  if (view === 'history') {
+    return <HistoryScreen onClose={() => setView('wardrobe')} />
+  }
 
   return (
     <main className="min-h-svh flex flex-col px-4 py-4 gap-4 max-w-2xl mx-auto w-full">
@@ -65,6 +69,9 @@ export default function Wardrobe({ me, onLogout }: { me: Me; onLogout: () => voi
           </button>
           <button type="button" onClick={() => setView('looks')} className="underline">
             Looks
+          </button>
+          <button type="button" onClick={() => setView('history')} className="underline">
+            History
           </button>
           <button type="button" onClick={() => setView('settings')} className="underline">
             Settings
