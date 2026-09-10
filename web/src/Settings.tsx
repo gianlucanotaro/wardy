@@ -14,8 +14,22 @@ const CONDITION_LABELS: Record<string, string> = {
   unknown: 'Unknown',
 }
 
+// iOS has no beforeinstallprompt event, so there's no programmatic install
+// button to offer — this is a static instruction instead, shown only when
+// it's actually actionable (on iOS, and not already installed).
+function isIOSInstallable(): boolean {
+  const isIOS =
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  const isStandalone =
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (window.navigator as unknown as { standalone?: boolean }).standalone === true
+  return isIOS && !isStandalone
+}
+
 export default function Settings({ onClose }: { onClose: () => void }) {
   const queryClient = useQueryClient()
+  const [showIOSInstallHint] = useState(isIOSInstallable)
   const settings = useQuery({ queryKey: ['settings'], queryFn: getSettings })
   const hasLocation = settings.data?.home_lat != null && settings.data?.home_lon != null
 
@@ -72,6 +86,16 @@ export default function Settings({ onClose }: { onClose: () => void }) {
           Close
         </button>
       </div>
+
+      {showIOSInstallHint && (
+        <section className="flex flex-col gap-1 border rounded p-3 bg-gray-50">
+          <h3 className="text-sm font-medium text-gray-700">Add to Home Screen</h3>
+          <p className="text-xs text-gray-500">
+            Tap the Share icon in Safari, then "Add to Home Screen" — Wardy works better full-screen, without the
+            browser bar.
+          </p>
+        </section>
+      )}
 
       <section className="flex flex-col gap-2">
         <h3 className="text-sm font-medium text-gray-700">Home location</h3>

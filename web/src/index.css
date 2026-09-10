@@ -1,1 +1,20 @@
 @import "tailwindcss";
+
+/* Standalone-mode PWA on notch/home-indicator devices — requires
+   viewport-fit=cover in index.html's viewport meta, or these all
+   evaluate to 0. Covers normal document flow; fixed-position overlays
+   (modals) sit outside body's box model, so they repeat this via
+   .safe-area-overlay below. */
+body {
+  padding-top: env(safe-area-inset-top);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+}
+
+.safe-area-overlay {
+  padding-top: env(safe-area-inset-top);
+  padding-right: env(safe-area-inset-right);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+}

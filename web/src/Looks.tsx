@@ -84,7 +84,7 @@ export default function Looks({ onClose }: { onClose: () => void }) {
 
       {selected && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 safe-area-overlay"
           onClick={() => setSelectedId(null)}
         >
           <div
