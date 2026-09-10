@@ -221,6 +221,7 @@ func toAICandidates(items []store.Item) []ai.SuggestionCandidate {
 			ColorPrimary: it.ColorPrimary,
 			Formality:    it.Formality,
 			Warmth:       it.Warmth,
+			CustomTags:   it.CustomTags,
 		}
 	}
 	return out

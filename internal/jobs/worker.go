@@ -179,6 +179,7 @@ func (w *Worker) runTagItem(ctx context.Context, job *store.Job) error {
 		Warmth:         tags.Warmth,
 		Seasons:        tags.Seasons,
 		Occasions:      tags.Occasions,
+		CustomTags:     result.CustomTags,
 	}); err != nil {
 		return fmt.Errorf("save ai tags: %w", err)
 	}

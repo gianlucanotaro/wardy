@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // Item is a wardrobe item. Tagging fields (category, subcategory, colors,
@@ -28,6 +29,7 @@ type Item struct {
 	Notes          string     `json:"notes"`
 	Seasons        StringList `json:"seasons"`
 	Occasions      StringList `json:"occasions"`
+	CustomTags     StringList `json:"custom_tags"`
 	PhotoPath      string     `json:"photo_path"`
 	ThumbPath      string     `json:"thumb_path"`
 	AITaggedAt     NullString `json:"ai_tagged_at"`
@@ -145,6 +147,45 @@ type ItemTags struct {
 	Warmth         int
 	Seasons        []string
 	Occasions      []string
+	// CustomTags are free-form, user- or AI-authored — not part of the
+	// closed taxonomy, so there's no enum to validate against, only the
+	// sanity caps validateCustomTags applies.
+	CustomTags []string
+}
+
+const (
+	maxCustomTags      = 15
+	maxCustomTagLength = 30
+)
+
+// validateCustomTags trims and drops empty entries, deduplicates, and caps
+// both the count and the length of each tag — the only limits this field
+// has (no taxonomy enum). Applied uniformly regardless of whether the tags
+// came from a user edit (UpdateItemTags) or an AI tagging job
+// (UpdateItemAITags), so a run-on AI response can't quietly balloon a
+// row. Never errors — an over-limit or malformed tag is cleaned up rather
+// than rejecting an otherwise-valid edit.
+func validateCustomTags(tags []string) []string {
+	seen := make(map[string]bool, len(tags))
+	out := make([]string, 0, len(tags))
+	for _, t := range tags {
+		t = strings.TrimSpace(t)
+		if t == "" {
+			continue
+		}
+		if r := []rune(t); len(r) > maxCustomTagLength {
+			t = string(r[:maxCustomTagLength])
+		}
+		if seen[t] {
+			continue
+		}
+		seen[t] = true
+		out = append(out, t)
+		if len(out) >= maxCustomTags {
+			break
+		}
+	}
+	return out
 }
 
 // UpdateItemTags applies a full tag edit, scoped to userID, and marks the
@@ -156,12 +197,12 @@ func (s *Store) UpdateItemTags(ctx context.Context, userID, id int64, t ItemTags
 		UPDATE items
 		SET category = ?, subcategory = ?, color_primary = ?, color_secondary = ?,
 		    pattern = ?, material = ?, fit = ?, formality = ?, warmth = ?,
-		    seasons = ?, occasions = ?,
+		    seasons = ?, occasions = ?, custom_tags = ?,
 		    user_edited_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
 		WHERE id = ? AND user_id = ?`,
 		t.Category, t.Subcategory, t.ColorPrimary, t.ColorSecondary,
 		t.Pattern, t.Material, t.Fit, t.Formality, t.Warmth,
-		StringList(t.Seasons), StringList(t.Occasions), id, userID)
+		StringList(t.Seasons), StringList(t.Occasions), StringList(validateCustomTags(t.CustomTags)), id, userID)
 	if err != nil {
 		return fmt.Errorf("update item tags: %w", err)
 	}
@@ -179,12 +220,12 @@ func (s *Store) UpdateItemAITags(ctx context.Context, id int64, t ItemTags) (app
 		UPDATE items
 		SET category = ?, subcategory = ?, color_primary = ?, color_secondary = ?,
 		    pattern = ?, material = ?, fit = ?, formality = ?, warmth = ?,
-		    seasons = ?, occasions = ?,
+		    seasons = ?, occasions = ?, custom_tags = ?,
 		    ai_tagged_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
 		WHERE id = ? AND user_edited_at IS NULL`,
 		t.Category, t.Subcategory, t.ColorPrimary, t.ColorSecondary,
 		t.Pattern, t.Material, t.Fit, t.Formality, t.Warmth,
-		StringList(t.Seasons), StringList(t.Occasions), id)
+		StringList(t.Seasons), StringList(t.Occasions), StringList(validateCustomTags(t.CustomTags)), id)
 	if err != nil {
 		return false, fmt.Errorf("update item ai tags: %w", err)
 	}
@@ -218,7 +259,7 @@ func (s *Store) DeleteItem(ctx context.Context, userID, id int64) (photoPath, th
 
 const itemColumns = `SELECT id, user_id, name, category, subcategory, color_primary,
 	color_secondary, pattern, material, formality, warmth, fit, brand, notes,
-	seasons, occasions, photo_path, thumb_path, ai_tagged_at, user_edited_at,
+	seasons, occasions, custom_tags, photo_path, thumb_path, ai_tagged_at, user_edited_at,
 	archived, created_at`
 
 // rowScanner is satisfied by both *sql.Row and *sql.Rows.
@@ -231,7 +272,7 @@ func scanItem(row rowScanner) (Item, error) {
 	err := row.Scan(
 		&it.ID, &it.UserID, &it.Name, &it.Category, &it.Subcategory, &it.ColorPrimary,
 		&it.ColorSecondary, &it.Pattern, &it.Material, &it.Formality, &it.Warmth, &it.Fit,
-		&it.Brand, &it.Notes, &it.Seasons, &it.Occasions, &it.PhotoPath, &it.ThumbPath,
+		&it.Brand, &it.Notes, &it.Seasons, &it.Occasions, &it.CustomTags, &it.PhotoPath, &it.ThumbPath,
 		&it.AITaggedAt, &it.UserEditedAt, &it.Archived, &it.CreatedAt,
 	)
 	if err != nil {

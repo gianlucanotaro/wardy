@@ -266,6 +266,9 @@ func updateItemTagsHandler(s *store.Store) http.HandlerFunc {
 			Warmth         int      `json:"warmth"`
 			Seasons        []string `json:"seasons"`
 			Occasions      []string `json:"occasions"`
+			// Not part of the closed taxonomy — no Validate() below,
+			// only the store layer's count/length caps (store.ItemTags).
+			CustomTags []string `json:"custom_tags"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "invalid request", http.StatusBadRequest)
@@ -302,6 +305,7 @@ func updateItemTagsHandler(s *store.Store) http.HandlerFunc {
 			Warmth:         tags.Warmth,
 			Seasons:        tags.Seasons,
 			Occasions:      tags.Occasions,
+			CustomTags:     req.CustomTags,
 		})
 		if errors.Is(err, store.ErrNotFound) {
 			http.Error(w, "not found", http.StatusNotFound)

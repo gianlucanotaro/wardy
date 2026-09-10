@@ -1,6 +1,7 @@
 package ai
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/gianlucanotaro/wardy/internal/taxonomy"
@@ -34,6 +35,35 @@ func TestParseTagResponse_Clean(t *testing.T) {
 	}
 	if len(got.Seasons) != 2 || got.Seasons[0] != "summer" {
 		t.Errorf("seasons not parsed: %+v", got.Seasons)
+	}
+}
+
+// TestParseTagResponse_CustomTagsOmittedIsNotAnError documents that
+// cleanJSON (used throughout this file) deliberately has no custom_tags
+// field — an older or minimal response omitting it must still parse
+// cleanly, yielding no custom tags rather than an error.
+func TestParseTagResponse_CustomTagsOmittedIsNotAnError(t *testing.T) {
+	got, err := parseTagResponse(cleanJSON)
+	if err != nil {
+		t.Fatalf("parseTagResponse: %v", err)
+	}
+	if len(got.CustomTags) != 0 {
+		t.Errorf("CustomTags = %+v, want none (field was omitted)", got.CustomTags)
+	}
+}
+
+func TestParseTagResponse_CustomTagsPresent(t *testing.T) {
+	withTags := `{"category":"top","subcategory":"t-shirt","color_primary":"blue",
+		"color_secondary":"","pattern":"solid","material":"cotton","fit":"regular",
+		"formality":2,"warmth":2,"seasons":["summer"],"occasions":["casual"],
+		"custom_tags":["vintage","distressed"]}`
+
+	got, err := parseTagResponse(withTags)
+	if err != nil {
+		t.Fatalf("parseTagResponse: %v", err)
+	}
+	if len(got.CustomTags) != 2 || got.CustomTags[0] != "vintage" || got.CustomTags[1] != "distressed" {
+		t.Errorf("CustomTags = %+v, want [vintage, distressed]", got.CustomTags)
 	}
 }
 
@@ -101,6 +131,37 @@ const cleanSuggestJSON = `[
   {"item_ids": [1, 2], "rationale": "A breezy top with tailored trousers for the weather."},
   {"item_ids": [3, 4, 5], "rationale": "A dress layered with a jacket for a cooler evening."}
 ]`
+
+// TestBuildSuggestionPrompt_IncludesCustomTags confirms a candidate's
+// custom tags actually reach the compact JSON sent to the model — the
+// context half of the "context not filter" design (the candidate set
+// itself is fixed before this function is ever called).
+func TestBuildSuggestionPrompt_IncludesCustomTags(t *testing.T) {
+	candidates := []SuggestionCandidate{
+		{ID: 1, Category: "top", CustomTags: []string{"favorite", "gift from mom"}},
+	}
+	prompt, err := buildSuggestionPrompt(candidates, "casual", "", "")
+	if err != nil {
+		t.Fatalf("buildSuggestionPrompt: %v", err)
+	}
+	if !strings.Contains(prompt, `"custom_tags":["favorite","gift from mom"]`) {
+		t.Errorf("prompt does not include the candidate's custom tags: %s", prompt)
+	}
+}
+
+// TestBuildSuggestionPrompt_OmitsEmptyCustomTags confirms an item with no
+// custom tags doesn't pad every candidate with a noisy "custom_tags":[] —
+// omitempty on the JSON field.
+func TestBuildSuggestionPrompt_OmitsEmptyCustomTags(t *testing.T) {
+	candidates := []SuggestionCandidate{{ID: 1, Category: "top"}}
+	prompt, err := buildSuggestionPrompt(candidates, "casual", "", "")
+	if err != nil {
+		t.Fatalf("buildSuggestionPrompt: %v", err)
+	}
+	if strings.Contains(prompt, "custom_tags") {
+		t.Errorf("prompt should omit custom_tags entirely for an item with none: %s", prompt)
+	}
+}
 
 func TestParseSuggestResponse_Clean(t *testing.T) {
 	got, err := parseSuggestResponse(cleanSuggestJSON)

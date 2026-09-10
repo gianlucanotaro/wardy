@@ -38,5 +38,6 @@ func (mockProvider) TagItem(_ context.Context, _ []byte) (TagResult, Usage, erro
 		Warmth:       3,
 		Seasons:      []string{"summer", "spring"},
 		Occasions:    []string{"casual"},
+		CustomTags:   []string{"wardrobe-basic"},
 	}, Usage{Model: "mock"}, nil
 }

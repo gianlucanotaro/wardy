@@ -23,14 +23,19 @@ type fakeAIProvider struct {
 	usage       ai.Usage
 	err         error
 	called      bool
+	// gotCandidates captures the last candidates argument SuggestOutfits
+	// was called with, so tests can inspect what suggest.go actually
+	// sent the model without needing toAICandidates to be exported.
+	gotCandidates []ai.SuggestionCandidate
 }
 
 func (f *fakeAIProvider) TagItem(_ context.Context, _ []byte) (ai.TagResult, ai.Usage, error) {
 	return ai.TagResult{}, ai.Usage{}, errors.New("TagItem not used by suggest package tests")
 }
 
-func (f *fakeAIProvider) SuggestOutfits(_ context.Context, _ []ai.SuggestionCandidate, _, _, _ string) ([]ai.AISuggestion, ai.Usage, error) {
+func (f *fakeAIProvider) SuggestOutfits(_ context.Context, candidates []ai.SuggestionCandidate, _, _, _ string) ([]ai.AISuggestion, ai.Usage, error) {
 	f.called = true
+	f.gotCandidates = candidates
 	return f.suggestions, f.usage, f.err
 }
 
@@ -129,6 +134,49 @@ func TestSuggestBasicMatch(t *testing.T) {
 				t.Errorf("outfit included a non-summer item: %+v", item)
 			}
 		}
+	}
+}
+
+// TestSuggestRulesPreFilterIgnoresCustomTags confirms the deterministic
+// pre-filter (Suggest, not SuggestAI) never uses custom_tags to include
+// or exclude an item — it's free text, and the pre-filter is deliberately
+// typed/arithmetic (docs/taxonomy.md). An item with a custom tag that
+// looks nothing like a matching criterion must still match purely on its
+// structured fields, same as one with no custom tags at all.
+func TestSuggestRulesPreFilterIgnoresCustomTags(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	userID, _ := s.CreateUser(ctx, "me@example.com", "hash", "Me")
+
+	topID := createTaggedItem(t, s, userID, "top", "t-shirt", 2, 1, []string{"summer"}, []string{"casual"})
+	if err := s.UpdateItemTags(ctx, userID, topID, store.ItemTags{
+		Category: "top", Subcategory: "t-shirt", ColorPrimary: "blue",
+		Pattern: "solid", Material: "cotton", Fit: "regular",
+		Formality: 2, Warmth: 1, Seasons: []string{"summer"}, Occasions: []string{"casual"},
+		CustomTags: []string{"needs mending"},
+	}); err != nil {
+		t.Fatalf("UpdateItemTags: %v", err)
+	}
+	createTaggedItem(t, s, userID, "bottom", "shorts", 2, 1, []string{"summer"}, []string{"casual"})
+
+	forecast := hotSummerForecast()
+	result, err := Suggest(ctx, s, userID, taxonomy.OccasionCasual, &forecast, true, julyDate)
+	if err != nil {
+		t.Fatalf("Suggest: %v", err)
+	}
+	if len(result.Outfits) == 0 {
+		t.Fatalf("expected an outfit including the custom-tagged item, got none (reason: %q)", result.NoMatchReason)
+	}
+	found := false
+	for _, outfit := range result.Outfits {
+		for _, item := range outfit.Items {
+			if item.ID == topID {
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Error("item with a custom tag should match on its structured fields exactly like any other item")
 	}
 }
 
@@ -319,6 +367,51 @@ func TestSuggestAI_UsesAIRationaleWhenAvailable(t *testing.T) {
 	}
 	if result.Outfits[0].Note != "Light and breathable for a hot day." {
 		t.Errorf("Note = %q, want the AI rationale", result.Outfits[0].Note)
+	}
+}
+
+// TestSuggestAI_PassesCustomTagsAsContext confirms custom tags ride along
+// in the compact candidate payload sent to the model — context for the
+// rationale, per docs/ai.md's mood/time_of_day pattern, never a filter:
+// the candidate set itself is already fixed by the rules pre-filter
+// before SuggestOutfits is even called.
+func TestSuggestAI_PassesCustomTagsAsContext(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	userID, _ := s.CreateUser(ctx, "me@example.com", "hash", "Me")
+	topID := createTaggedItem(t, s, userID, "top", "t-shirt", 2, 1, []string{"summer"}, []string{"casual"})
+	if err := s.UpdateItemTags(ctx, userID, topID, store.ItemTags{
+		Category: "top", Subcategory: "t-shirt", ColorPrimary: "blue",
+		Pattern: "solid", Material: "cotton", Fit: "regular",
+		Formality: 2, Warmth: 1, Seasons: []string{"summer"}, Occasions: []string{"casual"},
+		CustomTags: []string{"favorite"},
+	}); err != nil {
+		t.Fatalf("UpdateItemTags: %v", err)
+	}
+	bottomID := createTaggedItem(t, s, userID, "bottom", "shorts", 2, 1, []string{"summer"}, []string{"casual"})
+
+	provider := &fakeAIProvider{
+		suggestions: []ai.AISuggestion{{ItemIDs: []int64{topID, bottomID}, Rationale: "Your favorite tee, kept cool."}},
+		usage:       ai.Usage{Model: ai.SuggestionModelName},
+	}
+
+	forecast := hotSummerForecast()
+	_, err := SuggestAI(ctx, s, provider, true, 5.00, DailySuggestionCap, userID, taxonomy.OccasionCasual, "", "", &forecast, true, julyDate)
+	if err != nil {
+		t.Fatalf("SuggestAI: %v", err)
+	}
+
+	var topCandidate *ai.SuggestionCandidate
+	for i := range provider.gotCandidates {
+		if provider.gotCandidates[i].ID == topID {
+			topCandidate = &provider.gotCandidates[i]
+		}
+	}
+	if topCandidate == nil {
+		t.Fatalf("top item not found in candidates sent to the model: %+v", provider.gotCandidates)
+	}
+	if len(topCandidate.CustomTags) != 1 || topCandidate.CustomTags[0] != "favorite" {
+		t.Errorf("CustomTags = %+v, want [favorite]", topCandidate.CustomTags)
 	}
 }
 

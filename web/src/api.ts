@@ -12,6 +12,9 @@ export type TagsPayload = {
   warmth: number
   seasons: string[]
   occasions: string[]
+  // Free-form, user- or AI-authored — not part of the closed taxonomy
+  // above, so it's edited separately (see CustomTagsField in TagEditor).
+  custom_tags: string[]
 }
 
 export type Item = TagsPayload & {

@@ -1,0 +1,1 @@
+ALTER TABLE items ADD COLUMN custom_tags TEXT NOT NULL DEFAULT '[]';

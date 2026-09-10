@@ -31,6 +31,7 @@ function draftFromItem(item: Item): TagsPayload {
     warmth: item.warmth || 3,
     seasons: item.seasons ?? [],
     occasions: item.occasions ?? [],
+    custom_tags: item.custom_tags ?? [],
   }
 }
 
@@ -160,6 +161,66 @@ export default function TagEditor({ item }: { item: Item }) {
       />
 
       {mutation.isError && <p className="text-sm text-red-600">Couldn't save that change.</p>}
+
+      <CustomTagsField value={draft.custom_tags} onChange={(custom_tags) => save({ ...draft, custom_tags })} />
+    </div>
+  )
+}
+
+// Deliberately its own bordered section, not another MultiField above —
+// these aren't picked from a closed vocabulary, they're free text the
+// user (or, initially, the AI's best guess) attaches for their own
+// organization. Visually distinct so it's never mistaken for one of the
+// validated fields above it.
+function CustomTagsField({ value, onChange }: { value: string[]; onChange: (value: string[]) => void }) {
+  const [draft, setDraft] = useState('')
+
+  function addTag() {
+    const tag = draft.trim()
+    if (tag && !value.includes(tag)) {
+      onChange([...value, tag])
+    }
+    setDraft('')
+  }
+
+  return (
+    <div className="flex flex-col gap-2 text-sm border rounded p-3 bg-gray-50">
+      <span className="text-gray-500">Your tags</span>
+      <p className="text-xs text-gray-400">
+        Free-form — "favorite", "needs mending", whatever helps you find it later. Not used for outfit matching
+        beyond flavor in AI rationale.
+      </p>
+
+      <div className="flex flex-wrap gap-1">
+        {value.map((tag) => (
+          <span key={tag} className="flex items-center gap-1 border rounded px-2 py-1 text-xs bg-white">
+            {tag}
+            <button
+              type="button"
+              onClick={() => onChange(value.filter((t) => t !== tag))}
+              aria-label={`Remove tag ${tag}`}
+              className="text-gray-400"
+            >
+              ×
+            </button>
+          </span>
+        ))}
+      </div>
+
+      <input
+        type="text"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault()
+            addTag()
+          }
+        }}
+        onBlur={addTag}
+        placeholder="Add a tag…"
+        className="border rounded px-2 py-1.5"
+      />
     </div>
   )
 }

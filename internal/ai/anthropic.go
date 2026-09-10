@@ -52,15 +52,16 @@ Respond with ONLY a JSON array — no markdown fences, no prose before or after:
   ...
 ]
 
-Return 2 to 3 outfits. Use ONLY item ids from the candidate list you are given — never invent an id, and never include an item not in the list. Each outfit should combine items that work together (e.g. a top and bottom, or a dress, plus shoes and outerwear where appropriate). Mood and time of day, when given, should shape the rationale and which outfits you pick — they are not additional filters.`
+Return 2 to 3 outfits. Use ONLY item ids from the candidate list you are given — never invent an id, and never include an item not in the list. Each outfit should combine items that work together (e.g. a top and bottom, or a dress, plus shoes and outerwear where appropriate). Mood and time of day, when given, should shape the rationale and which outfits you pick — they are not additional filters. Some candidates carry custom_tags: the user's own personal tags (sentimental or organizational, like "favorite" or "needs mending") — use them as context for the rationale when relevant, never as a reason to include or exclude an item, since the candidate list is already final.`
 
 type suggestionCandidateJSON struct {
-	ID           int64  `json:"id"`
-	Category     string `json:"category"`
-	Subcategory  string `json:"subcategory"`
-	ColorPrimary string `json:"color_primary"`
-	Formality    int    `json:"formality"`
-	Warmth       int    `json:"warmth"`
+	ID           int64    `json:"id"`
+	Category     string   `json:"category"`
+	Subcategory  string   `json:"subcategory"`
+	ColorPrimary string   `json:"color_primary"`
+	Formality    int      `json:"formality"`
+	Warmth       int      `json:"warmth"`
+	CustomTags   []string `json:"custom_tags,omitempty"`
 }
 
 // taggingSystemPrompt is generated from internal/taxonomy rather than
@@ -92,7 +93,11 @@ exactly one of its listed values below — never invent a new one, even if it se
   "formality": integer 1 (loungewear) to 5 (black tie),
   "warmth": integer 1 (hot weather only) to 5 (deep winter),
   "seasons": array, any of %s,
-  "occasions": array, any of %s
+  "occasions": array, any of %s,
+  "custom_tags": array, 0 to 3 short style/condition/era descriptors not covered by the fields
+    above — things you can actually see, like "vintage", "distressed", "logo-print". Never guess
+    at sentiment, ownership, or origin (never something like "gift" or "college era") — you have
+    no way to know that from a photo. An empty array is a completely normal answer.
 }
 
 Valid subcategory values per category:
@@ -245,6 +250,7 @@ func buildSuggestionPrompt(candidates []SuggestionCandidate, occasion, mood, tim
 			ColorPrimary: c.ColorPrimary,
 			Formality:    c.Formality,
 			Warmth:       c.Warmth,
+			CustomTags:   c.CustomTags,
 		}
 	}
 	candidateJSON, err := json.Marshal(payload)
@@ -303,6 +309,9 @@ func parseTagResponse(text string) (TagResult, error) {
 		Warmth         int      `json:"warmth"`
 		Seasons        []string `json:"seasons"`
 		Occasions      []string `json:"occasions"`
+		// Optional — an older or malformed response omitting it is not a
+		// parse error, it just yields no custom tags.
+		CustomTags []string `json:"custom_tags"`
 	}
 	if err := json.Unmarshal([]byte(text), &raw); err != nil {
 		return TagResult{}, fmt.Errorf("parse model response: %w", err)
@@ -320,6 +329,7 @@ func parseTagResponse(text string) (TagResult, error) {
 		Warmth:         raw.Warmth,
 		Seasons:        raw.Seasons,
 		Occasions:      raw.Occasions,
+		CustomTags:     raw.CustomTags,
 	}, nil
 }
 

@@ -21,7 +21,15 @@ export default function Wardrobe({ me, onLogout }: { me: Me; onLogout: () => voi
     refetchInterval: (query) => (query.state.data?.some((it) => it.tagging_pending) ? 2000 : false),
   })
   const [selectedId, setSelectedId] = useState<number | null>(null)
+  const [tagQuery, setTagQuery] = useState('')
   const fileInput = useRef<HTMLInputElement>(null)
+
+  // Client-side — the grid already has the full item list loaded, so a
+  // search endpoint would just be a second round trip for the same data.
+  const query = tagQuery.trim().toLowerCase()
+  const visibleItems = query
+    ? items.data?.filter((it) => (it.custom_tags ?? []).some((tag) => tag.toLowerCase().includes(query)))
+    : items.data
 
   // Look the selected item up from the live query cache (rather than
   // holding a snapshot) so optimistic tag edits show up immediately.
@@ -110,8 +118,21 @@ export default function Wardrobe({ me, onLogout }: { me: Me; onLogout: () => voi
         <p className="text-sm text-gray-500">No items yet — add your first photo above.</p>
       )}
 
+      {items.isSuccess && items.data.length > 0 && (
+        <input
+          type="text"
+          value={tagQuery}
+          onChange={(e) => setTagQuery(e.target.value)}
+          placeholder="Search your tags…"
+          className="border rounded px-2 py-1.5 text-sm"
+        />
+      )}
+      {query && visibleItems?.length === 0 && (
+        <p className="text-sm text-gray-500">No items tagged "{tagQuery.trim()}".</p>
+      )}
+
       <div className="grid grid-cols-3 gap-2">
-        {items.data?.map((item) => (
+        {visibleItems?.map((item) => (
           <button
             type="button"
             key={item.id}

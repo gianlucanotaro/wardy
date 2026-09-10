@@ -24,6 +24,11 @@ type TagResult struct {
 	Warmth         int
 	Seasons        []string
 	Occasions      []string
+	// CustomTags are short, purely observational style/condition/era
+	// descriptors the closed vocabulary doesn't capture (e.g. "vintage",
+	// "distressed") — never anything sentimental or about origin, which
+	// the model has no way to know. Empty is a normal answer.
+	CustomTags []string
 }
 
 // Usage records what a single model call cost, for the usage table.
@@ -44,6 +49,11 @@ type SuggestionCandidate struct {
 	ColorPrimary string
 	Formality    int
 	Warmth       int
+	// CustomTags are the user's own personal tags (sentimental or
+	// organizational — "favorite", "gift from mom") — prompt context
+	// only, per docs/ai.md's mood/time_of_day pattern: they may shape
+	// the model's rationale but never the candidate set itself.
+	CustomTags []string
 }
 
 // AISuggestion is one outfit as returned by the suggestion model: item ids
