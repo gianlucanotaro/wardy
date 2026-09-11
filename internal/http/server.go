@@ -72,6 +72,9 @@ func New(s *store.Store, frontend fs.FS, secureCookies bool, photosDir string, a
 	mux.Handle("DELETE /api/wears/{id}", requireAuth(s, deleteWearHandler(s)))
 	mux.Handle("GET /api/history", requireAuth(s, historyHandler(s)))
 
+	mux.Handle("GET /api/plan", requireAuth(s, planHandler(s)))
+	mux.Handle("PUT /api/plan/{date}", requireAuth(s, setPlanDayHandler(s)))
+
 	mux.Handle("/", spaHandler(frontend))
 
 	return withMiddleware(mux)

@@ -11,7 +11,7 @@ export default function LoginForm({ onSuccess }: { onSuccess: () => void }) {
   })
 
   return (
-    <main className="min-h-svh flex items-center justify-center px-4">
+    <main className="min-h-svh flex items-center justify-center px-4 bg-(--color-bg) text-(--color-ink)">
       <form
         className="w-full max-w-xs flex flex-col gap-3"
         onSubmit={(e) => {
@@ -19,39 +19,35 @@ export default function LoginForm({ onSuccess }: { onSuccess: () => void }) {
           mutation.mutate()
         }}
       >
-        <h1 className="text-xl font-medium text-center mb-2">Wardy</h1>
+        <h1 className="font-extrabold text-3xl tracking-tight text-center mb-3">WARDY</h1>
         <label className="flex flex-col gap-1 text-sm" htmlFor="email">
-          Email
+          <span className="wy-lbl">EMAIL</span>
           <input
             id="email"
             type="email"
             required
             autoComplete="email"
-            className="border rounded px-3 py-2"
+            className="border border-(--color-line) bg-(--color-surface) px-3 py-2 focus:outline-2 focus:outline-(--color-accent)"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
         </label>
         <label className="flex flex-col gap-1 text-sm" htmlFor="password">
-          Password
+          <span className="wy-lbl">PASSWORD</span>
           <input
             id="password"
             type="password"
             required
             autoComplete="current-password"
-            className="border rounded px-3 py-2"
+            className="border border-(--color-line) bg-(--color-surface) px-3 py-2 focus:outline-2 focus:outline-(--color-accent)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
         </label>
-        <button
-          type="submit"
-          disabled={mutation.isPending}
-          className="bg-black text-white rounded px-3 py-2 mt-2 disabled:opacity-50"
-        >
-          {mutation.isPending ? 'Signing in…' : 'Sign in'}
+        <button type="submit" disabled={mutation.isPending} data-primary="1" className="wy-act mt-2 text-center">
+          {mutation.isPending ? 'SIGNING IN…' : 'SIGN IN'}
         </button>
-        {mutation.isError && <p className="text-sm text-red-600">Invalid email or password.</p>}
+        {mutation.isError && <p className="text-sm text-(--color-accent-700)">Invalid email or password.</p>}
       </form>
     </main>
   )

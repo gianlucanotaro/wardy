@@ -27,7 +27,7 @@ function isIOSInstallable(): boolean {
   return isIOS && !isStandalone
 }
 
-export default function Settings({ onClose }: { onClose: () => void }) {
+export default function Settings() {
   const queryClient = useQueryClient()
   const [showIOSInstallHint] = useState(isIOSInstallable)
   const settings = useQuery({ queryKey: ['settings'], queryFn: getSettings })
@@ -79,91 +79,83 @@ export default function Settings({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="flex flex-col gap-4 p-4 max-w-sm mx-auto w-full">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-medium">Settings</h2>
-        <button type="button" onClick={onClose} className="text-sm underline">
-          Close
-        </button>
+    <div className="flex flex-col">
+      <div className="px-4 py-3 border-b-2 border-(--color-line-strong)">
+        <span className="font-extrabold text-3xl tracking-tight">SETTINGS</span>
       </div>
 
       {showIOSInstallHint && (
-        <section className="flex flex-col gap-1 border rounded p-3 bg-gray-50">
-          <h3 className="text-sm font-medium text-gray-700">Add to Home Screen</h3>
-          <p className="text-xs text-gray-500">
+        <section className="px-4 py-3 border-b-2 border-(--color-line-strong)">
+          <div className="wy-lbl mb-1">ADD TO HOME SCREEN</div>
+          <p className="text-sm">
             Tap the Share icon in Safari, then "Add to Home Screen" — Wardy works better full-screen, without the
             browser bar.
           </p>
         </section>
       )}
 
-      <section className="flex flex-col gap-2">
-        <h3 className="text-sm font-medium text-gray-700">Home location</h3>
-        <p className="text-xs text-gray-500">Used to fetch the weather for outfit suggestions.</p>
+      <section className="px-4 py-3 border-b-2 border-(--color-line-strong) flex flex-col gap-2">
+        <div className="wy-lbl">HOME LOCATION</div>
+        <p className="text-sm text-(--color-neutral-700)">Used to fetch the weather for outfit suggestions.</p>
 
         <form
-          className="flex flex-col gap-2"
+          className="flex flex-col gap-2 mt-1"
           onSubmit={(e) => {
             e.preventDefault()
             save.mutate()
           }}
         >
           <label className="flex flex-col gap-1 text-sm" htmlFor="lat">
-            Latitude
+            <span className="wy-lbl">LATITUDE</span>
             <input
               id="lat"
               type="number"
               step="any"
               required
-              className="border rounded px-2 py-2"
+              className="border border-(--color-line) bg-(--color-surface) px-3 py-2 focus:outline-2 focus:outline-(--color-accent)"
               value={lat}
               onChange={(e) => setLat(e.target.value)}
             />
           </label>
           <label className="flex flex-col gap-1 text-sm" htmlFor="lon">
-            Longitude
+            <span className="wy-lbl">LONGITUDE</span>
             <input
               id="lon"
               type="number"
               step="any"
               required
-              className="border rounded px-2 py-2"
+              className="border border-(--color-line) bg-(--color-surface) px-3 py-2 focus:outline-2 focus:outline-(--color-accent)"
               value={lon}
               onChange={(e) => setLon(e.target.value)}
             />
           </label>
 
-          <button type="button" onClick={useMyLocation} className="text-sm underline text-left">
-            Use my current location
+          <button type="button" onClick={useMyLocation} className="wy-lbl text-left mt-1">
+            USE MY CURRENT LOCATION
           </button>
-          {geoError && <p className="text-sm text-red-600">{geoError}</p>}
+          {geoError && <p className="text-sm text-(--color-accent-700)">{geoError}</p>}
 
-          <button
-            type="submit"
-            disabled={save.isPending}
-            className="bg-black text-white rounded px-3 py-2 text-sm disabled:opacity-50"
-          >
-            {save.isPending ? 'Saving…' : 'Save location'}
+          <button type="submit" disabled={save.isPending} data-primary="1" className="wy-act mt-1 text-center">
+            {save.isPending ? 'SAVING…' : 'SAVE LOCATION'}
           </button>
-          {save.isError && <p className="text-sm text-red-600">Couldn't save — try again.</p>}
+          {save.isError && <p className="text-sm text-(--color-accent-700)">Couldn't save — try again.</p>}
         </form>
       </section>
 
       {hasLocation && (
-        <section className="flex flex-col gap-1">
-          <h3 className="text-sm font-medium text-gray-700">Current weather</h3>
-          {weather.isLoading && <p className="text-sm text-gray-500">Loading…</p>}
+        <section className="px-4 py-3 border-b-2 border-(--color-line-strong) flex flex-col gap-1">
+          <div className="wy-lbl">CURRENT WEATHER</div>
+          {weather.isLoading && <p className="text-sm text-(--color-neutral-700)">Loading…</p>}
           {weather.data?.available === false && (
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-(--color-neutral-700)">
               Weather unavailable right now — suggestions will work without it.
             </p>
           )}
           {weather.data?.available === true && (
-            <p className="text-sm text-gray-700">
+            <p className="text-sm">
               {CONDITION_LABELS[weather.data.condition] ?? weather.data.condition},{' '}
               {Math.round(weather.data.temp_low_c)}–{Math.round(weather.data.temp_high_c)}°C,{' '}
-              {weather.data.precip_probability}% chance of rain, wind{' '}
-              {Math.round(weather.data.wind_speed_kph)} km/h
+              {weather.data.precip_probability}% chance of rain, wind {Math.round(weather.data.wind_speed_kph)} km/h
             </p>
           )}
         </section>

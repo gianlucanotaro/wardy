@@ -115,8 +115,13 @@ export type SuggestResponse = {
   weather_available: boolean
 }
 
-export function getSuggestions(occasion: string): Promise<SuggestResponse> {
-  return request(`/api/suggest?occasion=${encodeURIComponent(occasion)}`)
+// mood is optional prompt context for the AI rationale only — it never
+// changes which items are eligible (the "context not filter" design;
+// see internal/http/suggest.go).
+export function getSuggestions(occasion: string, mood?: string): Promise<SuggestResponse> {
+  const params = new URLSearchParams({ occasion })
+  if (mood) params.set('mood', mood)
+  return request(`/api/suggest?${params.toString()}`)
 }
 
 export type Look = {
@@ -184,6 +189,16 @@ export function deleteWear(id: number): Promise<void> {
 
 export function getHistory(): Promise<History> {
   return request('/api/history')
+}
+
+export type PlanDay = { date: string; look: Look | null }
+
+export function getPlan(start: string, end: string): Promise<PlanDay[]> {
+  return request(`/api/plan?start=${start}&end=${end}`)
+}
+
+export function setPlanDay(date: string, lookId: number | null): Promise<PlanDay> {
+  return request(`/api/plan/${date}`, { method: 'PUT', body: JSON.stringify({ look_id: lookId }) })
 }
 
 // todayISODate is the local calendar date (not UTC — worn_on means "today"

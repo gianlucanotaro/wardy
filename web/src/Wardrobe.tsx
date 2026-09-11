@@ -1,17 +1,17 @@
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { deleteItem, listItems, logout, uploadItem, type Me } from './api'
-import HistoryScreen from './History'
-import LooksScreen from './Looks'
-import SettingsScreen from './Settings'
-import SuggestScreen from './Suggest'
+import { deleteItem, listItems, uploadItem } from './api'
 import TagEditor from './TagEditor'
+import { FORMALITY_LABELS, WARMTH_LABELS } from './taxonomy'
 
-type View = 'wardrobe' | 'settings' | 'suggest' | 'looks' | 'history'
-
-export default function Wardrobe({ me, onLogout }: { me: Me; onLogout: () => void }) {
+// The WARDROBE tab: grid + tag search + item detail, matching
+// Wardy Prototype.dc.html's isWardrobe/isDetail blocks. Deliberately does
+// NOT apply the design system's .grayscale photo treatment — color is
+// functional here (matching outfits by color is a core use case), not
+// decorative, so item photos stay in color unlike a marketing page's hero
+// images.
+export default function Wardrobe() {
   const queryClient = useQueryClient()
-  const [view, setView] = useState<View>('wardrobe')
   const items = useQuery({
     queryKey: ['items'],
     queryFn: listItems,
@@ -48,49 +48,14 @@ export default function Wardrobe({ me, onLogout }: { me: Me; onLogout: () => voi
     },
   })
 
-  const logoutMutation = useMutation({
-    mutationFn: logout,
-    onSuccess: onLogout,
-  })
-
-  if (view === 'settings') {
-    return <SettingsScreen onClose={() => setView('wardrobe')} />
-  }
-  if (view === 'suggest') {
-    return <SuggestScreen onClose={() => setView('wardrobe')} />
-  }
-  if (view === 'looks') {
-    return <LooksScreen onClose={() => setView('wardrobe')} />
-  }
-  if (view === 'history') {
-    return <HistoryScreen onClose={() => setView('wardrobe')} />
+  function meta(item: { subcategory: string; color_primary: string; material: string }) {
+    return `${item.subcategory} · ${item.color_primary} · ${item.material}`.toUpperCase()
   }
 
   return (
-    <main className="min-h-svh flex flex-col px-4 py-4 gap-4 max-w-2xl mx-auto w-full">
-      <header className="flex items-center justify-between">
-        <h1 className="text-lg font-medium">Wardy</h1>
-        <div className="flex items-center gap-3 text-sm text-gray-500">
-          <span>{me.display_name}</span>
-          <button type="button" onClick={() => setView('suggest')} className="underline">
-            Suggest
-          </button>
-          <button type="button" onClick={() => setView('looks')} className="underline">
-            Looks
-          </button>
-          <button type="button" onClick={() => setView('history')} className="underline">
-            History
-          </button>
-          <button type="button" onClick={() => setView('settings')} className="underline">
-            Settings
-          </button>
-          <button type="button" onClick={() => logoutMutation.mutate()} className="underline">
-            Log out
-          </button>
-        </div>
-      </header>
-
-      <div>
+    <div className="flex flex-col">
+      <div className="flex items-baseline justify-between px-4 py-3 border-b-2 border-(--color-line-strong)">
+        <h1 className="font-extrabold text-3xl tracking-tight">WARDROBE</h1>
         <input
           ref={fileInput}
           type="file"
@@ -106,90 +71,141 @@ export default function Wardrobe({ me, onLogout }: { me: Me; onLogout: () => voi
           type="button"
           onClick={() => fileInput.current?.click()}
           disabled={upload.isPending}
-          className="border rounded px-3 py-2 text-sm disabled:opacity-50"
+          className="wy-chip disabled:opacity-45"
+          style={{ background: 'var(--color-accent)', color: 'var(--color-bg)', borderColor: 'var(--color-accent)' }}
         >
-          {upload.isPending ? 'Uploading…' : '+ Add item'}
+          {upload.isPending ? 'UPLOADING…' : '+ ADD ITEM'}
         </button>
-        {upload.isError && <p className="text-sm text-red-600 mt-1">Upload failed.</p>}
       </div>
+      {upload.isError && (
+        <p className="px-4 py-2 text-sm text-(--color-accent-700) border-b-2 border-(--color-line-strong)">
+          Upload failed.
+        </p>
+      )}
 
-      {items.isLoading && <p className="text-sm text-gray-500">Loading wardrobe…</p>}
+      {items.isLoading && <p className="px-4 py-4 wy-lbl">LOADING WARDROBE…</p>}
       {items.isSuccess && items.data.length === 0 && (
-        <p className="text-sm text-gray-500">No items yet — add your first photo above.</p>
+        <p className="px-4 py-4 text-sm">No items yet — add your first photo above.</p>
       )}
 
       {items.isSuccess && items.data.length > 0 && (
-        <input
-          type="text"
-          value={tagQuery}
-          onChange={(e) => setTagQuery(e.target.value)}
-          placeholder="Search your tags…"
-          className="border rounded px-2 py-1.5 text-sm"
-        />
-      )}
-      {query && visibleItems?.length === 0 && (
-        <p className="text-sm text-gray-500">No items tagged "{tagQuery.trim()}".</p>
+        <div className="px-4 py-3 border-b-2 border-(--color-line-strong)">
+          <input
+            type="text"
+            value={tagQuery}
+            onChange={(e) => setTagQuery(e.target.value)}
+            placeholder="SEARCH YOUR TAGS…"
+            className="w-full border border-(--color-line) bg-(--color-surface) px-3 py-2 text-sm placeholder:text-(--color-neutral-500) focus:outline-2 focus:outline-(--color-accent)"
+          />
+        </div>
       )}
 
-      <div className="grid grid-cols-3 gap-2">
+      {items.isSuccess && items.data.length > 0 && (
+        <div className="flex justify-between px-4 py-2.5 border-b-2 border-(--color-line-strong) wy-lbl">
+          <span>{query ? `"${tagQuery.trim()}"` : 'EVERYTHING'}</span>
+          <span>{visibleItems?.length ?? 0} ITEMS</span>
+        </div>
+      )}
+
+      <div className="grid grid-cols-3">
         {visibleItems?.map((item) => (
-          <button
-            type="button"
-            key={item.id}
-            onClick={() => setSelectedId(item.id)}
-            className="relative aspect-square bg-gray-100 rounded overflow-hidden"
-          >
-            <img
-              src={`/api/items/${item.id}/thumb`}
-              alt={item.name || 'wardrobe item'}
-              className="w-full h-full object-cover"
-              loading="lazy"
-            />
-            {item.tagging_pending && (
-              <span className="absolute bottom-1 right-1 bg-black/70 text-white text-[10px] px-1.5 py-0.5 rounded">
-                Tagging…
-              </span>
-            )}
+          <button type="button" key={item.id} onClick={() => setSelectedId(item.id)} className="wy-tile">
+            <div className="relative aspect-3/4 border border-(--color-line-strong) bg-(--color-surface) overflow-hidden">
+              <img
+                src={`/api/items/${item.id}/thumb`}
+                alt={item.name || 'wardrobe item'}
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
+              {item.tagging_pending && (
+                <span className="absolute bottom-1 right-1 bg-(--color-ink) text-(--color-bg) text-[9px] font-extrabold uppercase tracking-wide px-1.5 py-0.5">
+                  Tagging…
+                </span>
+              )}
+            </div>
+            <div className="font-extrabold text-xs mt-1.5 tracking-tight truncate">
+              {(item.name || item.subcategory || item.category).toUpperCase()}
+            </div>
+            <div className="text-[9.5px] text-(--color-neutral-700) tracking-wide truncate">{meta(item)}</div>
           </button>
         ))}
       </div>
+      {query && visibleItems?.length === 0 && (
+        <p className="px-4 py-4 text-sm">No items tagged "{tagQuery.trim()}".</p>
+      )}
 
       {selected && (
         <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 safe-area-overlay"
+          className="fixed inset-0 z-20 bg-(--color-ink)/60 overflow-y-auto safe-area-overlay"
           onClick={() => setSelectedId(null)}
         >
           <div
-            className="bg-white rounded-lg p-4 max-w-sm w-full max-h-[90vh] overflow-y-auto flex flex-col gap-3"
+            className="bg-(--color-bg) min-h-full sm:min-h-0 sm:max-w-lg sm:mx-auto sm:my-8 border-(--color-line-strong) sm:border-2"
             onClick={(e) => e.stopPropagation()}
           >
-            <img
-              src={`/api/items/${selected.id}/photo`}
-              alt={selected.name || 'wardrobe item'}
-              className="w-full rounded"
-            />
+            <div className="flex items-center gap-3 px-4 py-3 border-b-2 border-(--color-line-strong)">
+              <button type="button" onClick={() => setSelectedId(null)} className="wy-chip">
+                ← BACK
+              </button>
+              <span className="wy-lbl">ITEM #{selected.id}</span>
+            </div>
+
+            <div className="border-b-2 border-(--color-line-strong) p-4">
+              <div className="aspect-3/4 border-2 border-(--color-line-strong) bg-(--color-surface) overflow-hidden">
+                <img
+                  src={`/api/items/${selected.id}/photo`}
+                  alt={selected.name || 'wardrobe item'}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            </div>
+
+            <div className="px-4 pt-4">
+              <div className="wy-lbl">{(selected.category || 'UNTAGGED').toUpperCase()}</div>
+              <div className="font-extrabold text-[28px] leading-none tracking-tight mt-1 mb-3">
+                {(selected.name || selected.subcategory || 'Item').toUpperCase()}
+              </div>
+            </div>
 
             {selected.tagging_pending && (
-              <p className="text-sm text-gray-500">Tagging in progress — you can edit these now, or wait.</p>
+              <p className="px-4 pb-2 text-sm text-(--color-neutral-700)">
+                Tagging in progress — you can edit these now, or wait.
+              </p>
             )}
-            <TagEditor item={selected} />
 
-            <div className="flex justify-between pt-2 border-t">
-              <button type="button" onClick={() => setSelectedId(null)} className="text-sm underline">
-                Close
+            <div className="grid grid-cols-2 border-t border-(--color-line)">
+              <div className="wy-cell">
+                <div className="wy-lbl">FORMALITY</div>
+                <div className="font-extrabold text-[15px] tracking-tight">
+                  {FORMALITY_LABELS[selected.formality]}
+                </div>
+              </div>
+              <div className="wy-cell">
+                <div className="wy-lbl">WARMTH</div>
+                <div className="font-extrabold text-[15px] tracking-tight">{WARMTH_LABELS[selected.warmth]}</div>
+              </div>
+            </div>
+
+            <div className="p-4">
+              <TagEditor item={selected} />
+            </div>
+
+            <div className="grid grid-cols-2 border-t-2 border-(--color-line-strong)">
+              <button type="button" onClick={() => setSelectedId(null)} className="wy-act">
+                DONE
               </button>
               <button
                 type="button"
                 onClick={() => remove.mutate(selected.id)}
                 disabled={remove.isPending}
-                className="text-sm text-red-600 underline disabled:opacity-50"
+                className="wy-act border-l-2 border-(--color-line-strong) text-(--color-accent-700)"
               >
-                {remove.isPending ? 'Deleting…' : 'Delete'}
+                {remove.isPending ? 'DELETING…' : 'DELETE'}
               </button>
             </div>
           </div>
         </div>
       )}
-    </main>
+    </div>
   )
 }
