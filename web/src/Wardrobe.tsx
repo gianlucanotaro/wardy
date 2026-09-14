@@ -33,6 +33,13 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
   const [tagQuery, setTagQuery] = useState('')
   const fileInput = useRef<HTMLInputElement>(null)
 
+  // The add-item flow (Wardy Prototype.dc.html's isAdd block): idle (choose
+  // a photo) -> review (photo + tag editor, live once uploaded). There's no
+  // separate blocking "tagging" stage — docs/frontend.md already requires
+  // showing the photo immediately and editing mid-poll, so review just
+  // reflects whatever the shared items cache currently has.
+  const [addFlow, setAddFlow] = useState<{ stage: 'idle' } | { stage: 'review'; itemId: number } | null>(null)
+
   // Client-side — the grid already has the full item list loaded, so a
   // search endpoint would just be a second round trip for the same data.
   const query = tagQuery.trim().toLowerCase()
@@ -44,9 +51,24 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
   // holding a snapshot) so optimistic tag edits show up immediately.
   const selected = items.data?.find((it) => it.id === selectedId) ?? null
 
+  const addingItem = addFlow?.stage === 'review' ? (items.data?.find((it) => it.id === addFlow.itemId) ?? null) : null
+  // All-or-nothing, not diffed per field — see TagEditor's markAiSuggested
+  // comment. False once tagging fails too (ai_tagged_at stays null), which
+  // is exactly the "fall through to an empty form, no special failure
+  // state" behavior the issue asks for.
+  const aiJustSuggested = Boolean(addingItem?.ai_tagged_at && !addingItem.user_edited_at)
+
   const upload = useMutation({
     mutationFn: uploadItem,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['items'] }),
+    onSuccess: (newItem) => {
+      // Seed the cache synchronously so the review stage's very first
+      // render already finds the item — invalidate still follows, to
+      // reconcile with the server (and pick up anything a plain POST
+      // response wouldn't reflect, like a since-changed wear count).
+      queryClient.setQueryData<Item[]>(['items'], (old) => [newItem, ...(old ?? [])])
+      queryClient.invalidateQueries({ queryKey: ['items'] })
+      setAddFlow({ stage: 'review', itemId: newItem.id })
+    },
   })
 
   const remove = useMutation({
@@ -83,32 +105,18 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
     <div className="flex flex-col">
       <div className="flex items-baseline justify-between px-4 py-3 border-b-2 border-(--color-line-strong)">
         <h1 className="font-extrabold text-3xl tracking-tight">WARDROBE</h1>
-        <input
-          ref={fileInput}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0]
-            if (file) upload.mutate(file)
-            e.target.value = ''
-          }}
-        />
         <button
           type="button"
-          onClick={() => fileInput.current?.click()}
-          disabled={upload.isPending}
-          className="wy-chip disabled:opacity-45"
+          onClick={() => {
+            setShowArchived(false)
+            setAddFlow({ stage: 'idle' })
+          }}
+          className="wy-chip"
           style={{ background: 'var(--color-accent)', color: 'var(--color-bg)', borderColor: 'var(--color-accent)' }}
         >
-          {upload.isPending ? 'UPLOADING…' : '+ ADD ITEM'}
+          + ADD ITEM
         </button>
       </div>
-      {upload.isError && (
-        <p className="px-4 py-2 text-sm text-(--color-accent-700) border-b-2 border-(--color-line-strong)">
-          Upload failed.
-        </p>
-      )}
 
       <div className="flex justify-end px-4 py-2 border-b border-(--color-line)">
         <button
@@ -298,6 +306,93 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
                 {remove.isPending ? 'DELETING…' : 'DELETE'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {addFlow?.stage === 'idle' && (
+        <div className="fixed inset-0 z-20 bg-(--color-bg) overflow-y-auto safe-area-overlay flex flex-col">
+          <div className="flex items-center gap-3 px-4 py-3 border-b-2 border-(--color-line-strong)">
+            <button type="button" onClick={() => setAddFlow(null)} disabled={upload.isPending} className="wy-chip">
+              ✕ CANCEL
+            </button>
+          </div>
+
+          <div className="flex-1 flex flex-col items-center justify-center gap-6 px-8 text-center">
+            <h2 className="font-extrabold text-3xl tracking-tight leading-tight">
+              PHOTOGRAPH IT ONCE.
+              <br />
+              WE TAG THE REST.
+            </h2>
+
+            <input
+              ref={fileInput}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) upload.mutate(file)
+                e.target.value = ''
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => fileInput.current?.click()}
+              disabled={upload.isPending}
+              className="wy-act disabled:opacity-45"
+              style={{
+                background: 'var(--color-accent)',
+                color: 'var(--color-bg)',
+                borderColor: 'var(--color-accent)',
+                padding: '14px 28px',
+              }}
+            >
+              {upload.isPending ? 'UPLOADING…' : 'CHOOSE A PHOTO'}
+            </button>
+
+            {upload.isError && <p className="text-sm text-(--color-accent-700)">Upload failed. Try again.</p>}
+          </div>
+        </div>
+      )}
+
+      {addFlow?.stage === 'review' && addingItem && (
+        <div className="fixed inset-0 z-20 bg-(--color-bg) overflow-y-auto safe-area-overlay">
+          <div className="flex items-center gap-3 px-4 py-3 border-b-2 border-(--color-line-strong)">
+            <span className="wy-lbl">REVIEW NEW ITEM</span>
+          </div>
+
+          <div className="border-b-2 border-(--color-line-strong) p-4">
+            <div className="aspect-3/4 border-2 border-(--color-line-strong) bg-(--color-surface) overflow-hidden">
+              <img
+                src={`/api/items/${addingItem.id}/photo`}
+                alt="newly added wardrobe item"
+                className="w-full h-full object-cover"
+              />
+            </div>
+          </div>
+
+          {addingItem.tagging_pending ? (
+            <p className="px-4 py-3 text-sm text-(--color-neutral-700) border-b border-(--color-line)">
+              TAGGING… you can start editing now, or leave this screen — it's safe, tagging finishes in the
+              background.
+            </p>
+          ) : (
+            !aiJustSuggested && (
+              <p className="px-4 py-3 text-sm text-(--color-neutral-700) border-b border-(--color-line)">
+                Automatic tagging didn't run for this item — fill in the fields below.
+              </p>
+            )
+          )}
+
+          <div className="p-4">
+            <TagEditor item={addingItem} markAiSuggested={aiJustSuggested} />
+          </div>
+
+          <div className="border-t-2 border-(--color-line-strong)">
+            <button type="button" onClick={() => setAddFlow(null)} data-primary="1" className="wy-act w-full">
+              DONE
+            </button>
           </div>
         </div>
       )}

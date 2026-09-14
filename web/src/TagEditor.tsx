@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { updateItemTags, type Item, type TagsPayload } from './api'
 import {
@@ -40,9 +40,31 @@ function draftFromItem(item: Item): TagsPayload {
 // saves immediately (optimistic update), matching the "one-tap save" and
 // "edits must feel instant" requirements for the screen used most often in
 // the app.
-export default function TagEditor({ item }: { item: Item }) {
+//
+// markAiSuggested is only ever true from the add-item review flow, right
+// after a tagging job lands on an item nobody has touched yet — the AI sets
+// every field in one shot, so the marker is all-or-nothing rather than
+// diffed per field. The moment any field is edited here, UpdateItemTags
+// sets user_edited_at and the marker disappears on its own next render
+// (the caller re-derives markAiSuggested from the live item, not a flag
+// that outlives the edit).
+export default function TagEditor({ item, markAiSuggested }: { item: Item; markAiSuggested?: boolean }) {
   const queryClient = useQueryClient()
   const [draft, setDraft] = useState<TagsPayload>(() => draftFromItem(item))
+
+  // Re-sync the draft when a tagging job lands while this component stays
+  // mounted across the whole poll (the add-item review screen's whole
+  // premise) — but never once the user has made their own edit, since
+  // UpdateItemAITags's user_edited_at guard means the item's tags can't
+  // change server-side after that anyway, so there's nothing to catch up
+  // to.
+  const prevAiTaggedAt = useRef(item.ai_tagged_at)
+  useEffect(() => {
+    if (item.ai_tagged_at !== prevAiTaggedAt.current && !item.user_edited_at) {
+      setDraft(draftFromItem(item))
+    }
+    prevAiTaggedAt.current = item.ai_tagged_at
+  }, [item])
 
   const mutation = useMutation({
     mutationFn: (next: TagsPayload) => updateItemTags(item.id, next),
@@ -73,7 +95,7 @@ export default function TagEditor({ item }: { item: Item }) {
 
   return (
     <div className="flex flex-col gap-4 text-left">
-      <Field label="CATEGORY">
+      <Field label="CATEGORY" aiSuggested={markAiSuggested}>
         <ChipGroup
           value={draft.category}
           options={[...CATEGORIES]}
@@ -83,11 +105,11 @@ export default function TagEditor({ item }: { item: Item }) {
         />
       </Field>
 
-      <Field label="SUBCATEGORY">
+      <Field label="SUBCATEGORY" aiSuggested={markAiSuggested}>
         <ChipGroup value={draft.subcategory} options={subcategories} onChange={(subcategory) => save({ ...draft, subcategory })} />
       </Field>
 
-      <Field label="COLOR">
+      <Field label="COLOR" aiSuggested={markAiSuggested}>
         <ChipGroup value={draft.color_primary} options={[...COLORS]} onChange={(color_primary) => save({ ...draft, color_primary })} />
       </Field>
 
@@ -100,20 +122,21 @@ export default function TagEditor({ item }: { item: Item }) {
         />
       </Field>
 
-      <Field label="PATTERN">
+      <Field label="PATTERN" aiSuggested={markAiSuggested}>
         <ChipGroup value={draft.pattern} options={[...PATTERNS]} onChange={(pattern) => save({ ...draft, pattern })} />
       </Field>
 
-      <Field label="MATERIAL">
+      <Field label="MATERIAL" aiSuggested={markAiSuggested} strongCallout="LEAST RELIABLE — CHECK THIS">
         <ChipGroup value={draft.material} options={[...MATERIALS]} onChange={(material) => save({ ...draft, material })} />
       </Field>
 
-      <Field label="FIT">
+      <Field label="FIT" aiSuggested={markAiSuggested}>
         <ChipGroup value={draft.fit} options={[...FITS]} onChange={(fit) => save({ ...draft, fit })} />
       </Field>
 
       <ScaleField
         label="FORMALITY"
+        aiSuggested={markAiSuggested}
         value={draft.formality}
         labels={FORMALITY_LABELS}
         onChange={(formality) => save({ ...draft, formality })}
@@ -121,15 +144,23 @@ export default function TagEditor({ item }: { item: Item }) {
 
       <ScaleField
         label="WARMTH"
+        aiSuggested={markAiSuggested}
         value={draft.warmth}
         labels={WARMTH_LABELS}
         onChange={(warmth) => save({ ...draft, warmth })}
       />
 
-      <MultiField label="SEASONS" value={draft.seasons} options={[...SEASONS]} onChange={(seasons) => save({ ...draft, seasons })} />
+      <MultiField
+        label="SEASONS"
+        aiSuggested={markAiSuggested}
+        value={draft.seasons}
+        options={[...SEASONS]}
+        onChange={(seasons) => save({ ...draft, seasons })}
+      />
 
       <MultiField
         label="OCCASIONS"
+        aiSuggested={markAiSuggested}
         value={draft.occasions}
         options={[...OCCASIONS]}
         onChange={(occasions) => save({ ...draft, occasions })}
@@ -203,12 +234,40 @@ function CustomTagsField({ value, onChange }: { value: string[]; onChange: (valu
   )
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({
+  label,
+  aiSuggested,
+  strongCallout,
+  children,
+}: {
+  label: string
+  aiSuggested?: boolean
+  strongCallout?: string
+  children: ReactNode
+}) {
   return (
     <div className="flex flex-col gap-1.5 text-sm">
-      <span className="wy-lbl">{label}</span>
+      <span className="wy-lbl flex items-center gap-1.5">
+        {label}
+        {aiSuggested && <AiDot />}
+      </span>
+      {aiSuggested && strongCallout && (
+        <span className="text-xs font-extrabold text-(--color-accent-700)">● {strongCallout}</span>
+      )}
       {children}
     </div>
+  )
+}
+
+// The small "AI suggested" marker from Wardy Prototype.dc.html's isAdd
+// review stage — a dot rather than a text label so it doesn't compete with
+// the field's own label, but named for assistive tech since it's otherwise
+// pure decoration.
+function AiDot() {
+  return (
+    <span className="text-(--color-accent)" aria-label="AI suggested">
+      ●
+    </span>
   )
 }
 
@@ -242,11 +301,13 @@ function ChipGroup({
 
 function ScaleField({
   label,
+  aiSuggested,
   value,
   labels,
   onChange,
 }: {
   label: string
+  aiSuggested?: boolean
   value: number
   labels: Record<number, string>
   onChange: (value: number) => void
@@ -255,7 +316,10 @@ function ScaleField({
   return (
     <div className="flex flex-col gap-1.5 text-sm">
       <div className="flex justify-between">
-        <span className="wy-lbl">{label}</span>
+        <span className="wy-lbl flex items-center gap-1.5">
+          {label}
+          {aiSuggested && <AiDot />}
+        </span>
         <span className="wy-lbl">{labels[value].toUpperCase()}</span>
       </div>
       <div className="grid grid-cols-5 gap-1">
@@ -281,11 +345,13 @@ function ScaleField({
 
 function MultiField({
   label,
+  aiSuggested,
   value,
   options,
   onChange,
 }: {
   label: string
+  aiSuggested?: boolean
   value: string[]
   options: string[]
   onChange: (value: string[]) => void
@@ -300,7 +366,10 @@ function MultiField({
 
   return (
     <div className="flex flex-col gap-1.5 text-sm">
-      <span className="wy-lbl">{label}</span>
+      <span className="wy-lbl flex items-center gap-1.5">
+        {label}
+        {aiSuggested && <AiDot />}
+      </span>
       <div className="flex flex-wrap gap-1.5">
         {options.map((opt) => (
           <button type="button" key={opt} className="wy-chip" data-on={value.includes(opt) || undefined} onClick={() => toggle(opt)}>

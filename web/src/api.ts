@@ -22,6 +22,12 @@ export type Item = TagsPayload & {
   name: string
   photo_path: string
   thumb_path: string
+  // Set once a tag_item job (AI or, going forward, any future automated
+  // tagger) has written its result — null if the item was only ever
+  // manually tagged. Paired with user_edited_at to tell "AI's untouched
+  // suggestion" apart from "someone already reviewed this" (see
+  // TagEditor's markAiSuggested).
+  ai_tagged_at: string | null
   user_edited_at: string | null
   created_at: string
   // Whether a tag_item AI job is still pending for this item. Poll while
