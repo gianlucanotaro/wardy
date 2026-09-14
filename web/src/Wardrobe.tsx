@@ -1,8 +1,12 @@
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { deleteItem, listItems, uploadItem } from './api'
+import { deleteItem, listItems, logWear, todayISODate, uploadItem, type Item } from './api'
 import TagEditor from './TagEditor'
 import { FORMALITY_LABELS, WARMTH_LABELS } from './taxonomy'
+
+// Mirrors Build.tsx's SLOTS categories — those are the only slots Build can
+// pre-fill into, so "Add to outfit" only shows for items in this list.
+const BUILDABLE_CATEGORIES = ['outerwear', 'top', 'bottom', 'shoes']
 
 // The WARDROBE tab: grid + tag search + item detail, matching
 // Wardy Prototype.dc.html's isWardrobe/isDetail blocks. Deliberately does
@@ -10,7 +14,7 @@ import { FORMALITY_LABELS, WARMTH_LABELS } from './taxonomy'
 // functional here (matching outfits by color is a core use case), not
 // decorative, so item photos stay in color unlike a marketing page's hero
 // images.
-export default function Wardrobe() {
+export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item) => void }) {
   const queryClient = useQueryClient()
   const items = useQuery({
     queryKey: ['items'],
@@ -46,6 +50,10 @@ export default function Wardrobe() {
       setSelectedId(null)
       queryClient.invalidateQueries({ queryKey: ['items'] })
     },
+  })
+
+  const logAsWorn = useMutation({
+    mutationFn: (itemId: number) => logWear({ item_ids: [itemId], worn_on: todayISODate() }),
   })
 
   function meta(item: { subcategory: string; color_primary: string; material: string }) {
@@ -109,7 +117,15 @@ export default function Wardrobe() {
 
       <div className="grid grid-cols-3">
         {visibleItems?.map((item) => (
-          <button type="button" key={item.id} onClick={() => setSelectedId(item.id)} className="wy-tile">
+          <button
+            type="button"
+            key={item.id}
+            onClick={() => {
+              setSelectedId(item.id)
+              logAsWorn.reset()
+            }}
+            className="wy-tile"
+          >
             <div className="relative aspect-3/4 border border-(--color-line-strong) bg-(--color-surface) overflow-hidden">
               <img
                 src={`/api/items/${item.id}/thumb`}
@@ -189,6 +205,38 @@ export default function Wardrobe() {
             <div className="p-4">
               <TagEditor item={selected} />
             </div>
+
+            <div
+              className={`grid border-t-2 border-(--color-line-strong) ${
+                BUILDABLE_CATEGORIES.includes(selected.category) ? 'grid-cols-2' : 'grid-cols-1'
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => logAsWorn.mutate(selected.id)}
+                disabled={logAsWorn.isPending}
+                className="wy-act"
+              >
+                {logAsWorn.isPending ? 'LOGGING…' : 'LOG AS WORN TODAY'}
+              </button>
+              {BUILDABLE_CATEGORIES.includes(selected.category) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onAddToOutfit(selected)
+                    setSelectedId(null)
+                  }}
+                  className="wy-act border-l-2 border-(--color-line-strong)"
+                >
+                  ADD TO OUTFIT
+                </button>
+              )}
+            </div>
+            {logAsWorn.isSuccess && (
+              <p className="px-4 py-2 text-sm text-(--color-neutral-700) border-t border-(--color-line)">
+                Logged as worn today.
+              </p>
+            )}
 
             <div className="grid grid-cols-2 border-t-2 border-(--color-line-strong)">
               <button type="button" onClick={() => setSelectedId(null)} className="wy-act">

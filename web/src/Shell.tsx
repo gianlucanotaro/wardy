@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { logout, type Me } from './api'
+import { logout, type Item, type Me } from './api'
 import Today from './Today'
 import Wardrobe from './Wardrobe'
 import Build from './Build'
@@ -26,6 +26,9 @@ const TABS: { key: View; label: string }[] = [
 
 export default function Shell({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const [view, setView] = useState<View>('today')
+  // Set by Wardrobe's "Add to outfit" so Build can pre-fill the matching
+  // slot on mount, then cleared by Build once consumed.
+  const [pendingBuildItem, setPendingBuildItem] = useState<Item | null>(null)
 
   const logoutMutation = useMutation({
     mutationFn: logout,
@@ -50,8 +53,17 @@ export default function Shell({ me, onLogout }: { me: Me; onLogout: () => void }
 
       <div className="flex-1 w-full max-w-2xl mx-auto pb-20">
         {view === 'today' && <Today />}
-        {view === 'wardrobe' && <Wardrobe />}
-        {view === 'build' && <Build />}
+        {view === 'wardrobe' && (
+          <Wardrobe
+            onAddToOutfit={(item) => {
+              setPendingBuildItem(item)
+              setView('build')
+            }}
+          />
+        )}
+        {view === 'build' && (
+          <Build pendingItem={pendingBuildItem} onConsumePendingItem={() => setPendingBuildItem(null)} />
+        )}
         {view === 'looks' && <Looks />}
         {view === 'plan' && <Plan />}
         {view === 'history' && <History />}

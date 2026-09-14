@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createLook, listItems, type Item } from './api'
 import { FORMALITY_LABELS, WARMTH_LABELS, type Category } from './taxonomy'
@@ -13,12 +13,35 @@ const SLOTS: { category: Category; label: string }[] = [
   { category: 'shoes', label: 'SHOES' },
 ]
 
-export default function Build() {
+// Which categories have a slot above — dress/bag/accessory don't. Wardrobe's
+// "Add to outfit" button keeps its own copy of this list (see Wardrobe.tsx)
+// to avoid exporting a non-component value out of this file, which breaks
+// fast refresh.
+const BUILDABLE_CATEGORIES: string[] = SLOTS.map((s) => s.category)
+
+export default function Build({
+  pendingItem,
+  onConsumePendingItem,
+}: {
+  pendingItem?: Item | null
+  onConsumePendingItem?: () => void
+}) {
   const queryClient = useQueryClient()
   const items = useQuery({ queryKey: ['items'], queryFn: listItems })
   const [slots, setSlots] = useState<Partial<Record<Category, Item>>>({})
   const [pickSlot, setPickSlot] = useState<Category | null>(null)
   const [message, setMessage] = useState<string | null>(null)
+
+  // Pre-fill the matching slot from Wardrobe's "Add to outfit", overwriting
+  // whatever was there — the more recent explicit user intent wins. Consume
+  // immediately so this doesn't re-fire on the next re-render.
+  useEffect(() => {
+    if (!pendingItem) return
+    if (BUILDABLE_CATEGORIES.includes(pendingItem.category)) {
+      setSlots((prev) => ({ ...prev, [pendingItem.category as Category]: pendingItem }))
+    }
+    onConsumePendingItem?.()
+  }, [pendingItem, onConsumePendingItem])
 
   const filled = SLOTS.map((s) => slots[s.category]).filter((it): it is Item => !!it)
 
