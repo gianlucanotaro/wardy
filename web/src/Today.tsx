@@ -42,7 +42,7 @@ export default function Today() {
   const now = new Date()
   const dateLabel = `${WEEKDAY[now.getDay()]} ${now.getDate()} ${MONTH[now.getMonth()]}`
 
-  const items = useQuery({ queryKey: ['items'], queryFn: listItems })
+  const items = useQuery({ queryKey: ['items'], queryFn: () => listItems() })
   const weather = useQuery({ queryKey: ['weather'], queryFn: getWeather })
   const suggestions = useQuery({
     queryKey: ['suggest', occasion, mood],

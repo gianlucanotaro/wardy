@@ -182,3 +182,60 @@ func TestDeleteItem(t *testing.T) {
 		t.Errorf("get after delete: got status %d, want %d", getRec.Code, http.StatusNotFound)
 	}
 }
+
+func archiveRequest(cookie *http.Cookie, archived bool) *http.Request {
+	body, _ := json.Marshal(map[string]bool{"archived": archived})
+	req := httptest.NewRequest(http.MethodPatch, "/api/items/1/archive", bytes.NewReader(body))
+	req.AddCookie(cookie)
+	return req
+}
+
+func TestArchiveItem(t *testing.T) {
+	s := newTestStore(t)
+	h := newTestHandler(t, s)
+	cookie := loginAndGetCookie(t, h, s, "me@example.com", "correct horse battery staple")
+
+	uploadItem(t, h, cookie, newFixtureJPEG(t))
+
+	archiveRec := httptest.NewRecorder()
+	h.ServeHTTP(archiveRec, archiveRequest(cookie, true))
+	if archiveRec.Code != http.StatusOK {
+		t.Fatalf("archive: got status %d, body %s", archiveRec.Code, archiveRec.Body.String())
+	}
+
+	listReq := httptest.NewRequest(http.MethodGet, "/api/items", nil)
+	listReq.AddCookie(cookie)
+	listRec := httptest.NewRecorder()
+	h.ServeHTTP(listRec, listReq)
+	var active []store.Item
+	json.Unmarshal(listRec.Body.Bytes(), &active)
+	if len(active) != 0 {
+		t.Errorf("default list after archive: got %d items, want 0", len(active))
+	}
+
+	archivedListReq := httptest.NewRequest(http.MethodGet, "/api/items?archived=true", nil)
+	archivedListReq.AddCookie(cookie)
+	archivedListRec := httptest.NewRecorder()
+	h.ServeHTTP(archivedListRec, archivedListReq)
+	var archivedItems []store.Item
+	json.Unmarshal(archivedListRec.Body.Bytes(), &archivedItems)
+	if len(archivedItems) != 1 {
+		t.Fatalf("archived=true list: got %d items, want 1", len(archivedItems))
+	}
+
+	unarchiveRec := httptest.NewRecorder()
+	h.ServeHTTP(unarchiveRec, archiveRequest(cookie, false))
+	if unarchiveRec.Code != http.StatusOK {
+		t.Fatalf("unarchive: got status %d, body %s", unarchiveRec.Code, unarchiveRec.Body.String())
+	}
+
+	listReq2 := httptest.NewRequest(http.MethodGet, "/api/items", nil)
+	listReq2.AddCookie(cookie)
+	listRec2 := httptest.NewRecorder()
+	h.ServeHTTP(listRec2, listReq2)
+	var reactivated []store.Item
+	json.Unmarshal(listRec2.Body.Bytes(), &reactivated)
+	if len(reactivated) != 1 {
+		t.Errorf("default list after unarchive: got %d items, want 1", len(reactivated))
+	}
+}

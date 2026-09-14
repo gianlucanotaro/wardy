@@ -85,10 +85,10 @@ type ItemWithWearStats struct {
 	LastWornOn NullString `json:"last_worn_on"`
 }
 
-// ItemsByUser returns userID's non-archived items, newest first, each
+// ItemsByUser returns userID's items matching archived, newest first, each
 // carrying its wear count and last-worn date — cheap enough at this
 // dataset size, per ItemsByLastWorn's own LEFT JOIN/GROUP BY shape.
-func (s *Store) ItemsByUser(ctx context.Context, userID int64) ([]ItemWithWearStats, error) {
+func (s *Store) ItemsByUser(ctx context.Context, userID int64, archived bool) ([]ItemWithWearStats, error) {
 	// itemColumns' bare column names collide with the joined wears table's
 	// (see ItemsByLastWorn), so this needs its own items.-qualified list.
 	rows, err := s.db.QueryContext(ctx, `SELECT items.id, items.user_id, items.name, items.category, items.subcategory,
@@ -98,9 +98,9 @@ func (s *Store) ItemsByUser(ctx context.Context, userID int64) ([]ItemWithWearSt
 		FROM items
 		LEFT JOIN wear_items wi ON wi.item_id = items.id
 		LEFT JOIN wears w ON w.id = wi.wear_id
-		WHERE items.user_id = ? AND items.archived = 0
+		WHERE items.user_id = ? AND items.archived = ?
 		GROUP BY items.id
-		ORDER BY items.created_at DESC`, userID)
+		ORDER BY items.created_at DESC`, userID, archived)
 	if err != nil {
 		return nil, fmt.Errorf("query items: %w", err)
 	}
@@ -165,6 +165,19 @@ func (s *Store) UpdateItemName(ctx context.Context, userID, id int64, name strin
 		name, id, userID)
 	if err != nil {
 		return fmt.Errorf("update item: %w", err)
+	}
+	return requireRowsAffected(res)
+}
+
+// ArchiveItem sets an item's archived flag, scoped to userID — the
+// reversible alternative to DeleteItem's permanent removal. Returns
+// ErrNotFound if the item doesn't exist or belongs to a different user.
+func (s *Store) ArchiveItem(ctx context.Context, userID, id int64, archived bool) error {
+	res, err := s.db.ExecContext(ctx, `
+		UPDATE items SET archived = ? WHERE id = ? AND user_id = ?`,
+		archived, id, userID)
+	if err != nil {
+		return fmt.Errorf("archive item: %w", err)
 	}
 	return requireRowsAffected(res)
 }

@@ -153,7 +153,8 @@ func listItemsHandler(s *store.Store) http.HandlerFunc {
 			return
 		}
 
-		items, err := s.ItemsByUser(r.Context(), user.ID)
+		archived := r.URL.Query().Get("archived") == "true"
+		items, err := s.ItemsByUser(r.Context(), user.ID, archived)
 		if err != nil {
 			slog.Error("list items", "error", err)
 			http.Error(w, "internal error", http.StatusInternalServerError)
@@ -237,6 +238,49 @@ func updateItemHandler(s *store.Store) http.HandlerFunc {
 		item, err := s.ItemByID(r.Context(), user.ID, id)
 		if err != nil {
 			slog.Error("update item: fetch", "error", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		writeItem(r.Context(), w, s, item, http.StatusOK)
+	}
+}
+
+// archiveItemHandler sets or clears an item's archived flag — the
+// reversible alternative to deleteItemHandler's permanent removal.
+func archiveItemHandler(s *store.Store) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := userFromContext(r.Context())
+		if !ok {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		id, err := itemIDFromPath(r)
+		if err != nil {
+			http.Error(w, "invalid item id", http.StatusBadRequest)
+			return
+		}
+
+		var req struct {
+			Archived bool `json:"archived"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid request", http.StatusBadRequest)
+			return
+		}
+
+		if err := s.ArchiveItem(r.Context(), user.ID, id, req.Archived); errors.Is(err, store.ErrNotFound) {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		} else if err != nil {
+			slog.Error("archive item", "error", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		item, err := s.ItemByID(r.Context(), user.ID, id)
+		if err != nil {
+			slog.Error("archive item: fetch", "error", err)
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}

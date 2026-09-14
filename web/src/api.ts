@@ -33,6 +33,7 @@ export type Item = TagsPayload & {
   // worn — computed by the same /api/items call, not a separate fetch.
   wear_count: number
   last_worn_on: string | null
+  archived: boolean
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -62,8 +63,8 @@ export function logout(): Promise<void> {
   return request('/api/logout', { method: 'POST' })
 }
 
-export function listItems(): Promise<Item[]> {
-  return request('/api/items')
+export function listItems(opts?: { archived?: boolean }): Promise<Item[]> {
+  return request(opts?.archived ? '/api/items?archived=true' : '/api/items')
 }
 
 export async function uploadItem(file: File): Promise<Item> {
@@ -78,6 +79,10 @@ export async function uploadItem(file: File): Promise<Item> {
 
 export function deleteItem(id: number): Promise<void> {
   return request(`/api/items/${id}`, { method: 'DELETE' })
+}
+
+export function archiveItem(id: number, archived: boolean): Promise<Item> {
+  return request(`/api/items/${id}/archive`, { method: 'PATCH', body: JSON.stringify({ archived }) })
 }
 
 export function updateItemTags(id: number, tags: TagsPayload): Promise<Item> {

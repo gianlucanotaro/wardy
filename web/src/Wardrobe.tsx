@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { deleteItem, listItems, logWear, todayISODate, uploadItem, type Item } from './api'
+import { archiveItem, deleteItem, listItems, logWear, todayISODate, uploadItem, type Item } from './api'
 import TagEditor from './TagEditor'
 import { FORMALITY_LABELS, WARMTH_LABELS } from './taxonomy'
 
@@ -16,9 +16,14 @@ const BUILDABLE_CATEGORIES = ['outerwear', 'top', 'bottom', 'shoes']
 // images.
 export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item) => void }) {
   const queryClient = useQueryClient()
+  const [showArchived, setShowArchived] = useState(false)
   const items = useQuery({
-    queryKey: ['items'],
-    queryFn: listItems,
+    // Plain ['items'] for the default (active) view — Build.tsx and
+    // Today.tsx query the same key with no archived filter, so this has
+    // to match exactly for them to share one cache entry rather than each
+    // re-fetching. The archived view gets its own separate key.
+    queryKey: showArchived ? ['items', 'archived'] : ['items'],
+    queryFn: () => listItems(showArchived ? { archived: true } : undefined),
     // Poll while any item is still being tagged; stop once none are —
     // tagging is a background job, so the UI can't just wait on the
     // upload response for the result.
@@ -47,6 +52,17 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
   const remove = useMutation({
     mutationFn: deleteItem,
     onSuccess: () => {
+      setSelectedId(null)
+      queryClient.invalidateQueries({ queryKey: ['items'] })
+    },
+  })
+
+  const archive = useMutation({
+    mutationFn: (input: { id: number; archived: boolean }) => archiveItem(input.id, input.archived),
+    onSuccess: () => {
+      // Archiving/unarchiving always moves the item out of whichever
+      // filtered view is currently showing, same as delete closing the
+      // modal.
       setSelectedId(null)
       queryClient.invalidateQueries({ queryKey: ['items'] })
     },
@@ -94,9 +110,24 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
         </p>
       )}
 
+      <div className="flex justify-end px-4 py-2 border-b border-(--color-line)">
+        <button
+          type="button"
+          onClick={() => {
+            setShowArchived((v) => !v)
+            setSelectedId(null)
+          }}
+          className="wy-chip"
+        >
+          {showArchived ? 'SHOW ACTIVE' : 'SHOW ARCHIVED'}
+        </button>
+      </div>
+
       {items.isLoading && <p className="px-4 py-4 wy-lbl">LOADING WARDROBE…</p>}
       {items.isSuccess && items.data.length === 0 && (
-        <p className="px-4 py-4 text-sm">No items yet — add your first photo above.</p>
+        <p className="px-4 py-4 text-sm">
+          {showArchived ? 'No archived items.' : 'No items yet — add your first photo above.'}
+        </p>
       )}
 
       {items.isSuccess && items.data.length > 0 && (
@@ -246,9 +277,17 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
               </p>
             )}
 
-            <div className="grid grid-cols-2 border-t-2 border-(--color-line-strong)">
+            <div className="grid grid-cols-3 border-t-2 border-(--color-line-strong)">
               <button type="button" onClick={() => setSelectedId(null)} className="wy-act">
                 DONE
+              </button>
+              <button
+                type="button"
+                onClick={() => archive.mutate({ id: selected.id, archived: !selected.archived })}
+                disabled={archive.isPending}
+                className="wy-act border-l-2 border-(--color-line-strong)"
+              >
+                {archive.isPending ? '...' : selected.archived ? 'UNARCHIVE' : 'ARCHIVE'}
               </button>
               <button
                 type="button"

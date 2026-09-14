@@ -27,7 +27,7 @@ export default function Build({
   onConsumePendingItem?: () => void
 }) {
   const queryClient = useQueryClient()
-  const items = useQuery({ queryKey: ['items'], queryFn: listItems })
+  const items = useQuery({ queryKey: ['items'], queryFn: () => listItems() })
   const [slots, setSlots] = useState<Partial<Record<Category, Item>>>({})
   const [pickSlot, setPickSlot] = useState<Category | null>(null)
   const [message, setMessage] = useState<string | null>(null)

@@ -56,6 +56,7 @@ func New(s *store.Store, frontend fs.FS, secureCookies bool, photosDir string, a
 	mux.Handle("GET /api/items/{id}", requireAuth(s, getItemHandler(s)))
 	mux.Handle("PATCH /api/items/{id}", requireAuth(s, updateItemHandler(s)))
 	mux.Handle("PATCH /api/items/{id}/tags", requireAuth(s, updateItemTagsHandler(s)))
+	mux.Handle("PATCH /api/items/{id}/archive", requireAuth(s, archiveItemHandler(s)))
 	mux.Handle("DELETE /api/items/{id}", requireAuth(s, deleteItemHandler(s, photosDir)))
 	mux.Handle("GET /api/items/{id}/photo", requireAuth(s, servePhotoHandler(s, photosDir, false)))
 	mux.Handle("GET /api/items/{id}/thumb", requireAuth(s, servePhotoHandler(s, photosDir, true)))
