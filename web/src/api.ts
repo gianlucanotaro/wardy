@@ -29,6 +29,10 @@ export type Item = TagsPayload & {
   // never attempted all read the same from here — the tag editor already
   // handles an untagged item gracefully either way).
   tagging_pending: boolean
+  // How many times, and when most recently, this item has been logged as
+  // worn — computed by the same /api/items call, not a separate fetch.
+  wear_count: number
+  last_worn_on: string | null
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {

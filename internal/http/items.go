@@ -137,6 +137,14 @@ func uploadItemHandler(s *store.Store, photosDir string, aiEnabled bool, jobLimi
 	}
 }
 
+// itemWithWearStatsResponse adds the same derived tagging_pending flag
+// itemResponse does, but on top of ItemsByUser's wear-count/last-worn
+// columns rather than plain store.Item — see itemResponse for why.
+type itemWithWearStatsResponse struct {
+	store.ItemWithWearStats
+	TaggingPending bool `json:"tagging_pending"`
+}
+
 func listItemsHandler(s *store.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := userFromContext(r.Context())
@@ -158,9 +166,9 @@ func listItemsHandler(s *store.Store) http.HandlerFunc {
 			pending = map[int64]bool{}
 		}
 
-		responses := make([]itemResponse, len(items))
+		responses := make([]itemWithWearStatsResponse, len(items))
 		for i, item := range items {
-			responses[i] = itemResponse{Item: item, TaggingPending: pending[item.ID]}
+			responses[i] = itemWithWearStatsResponse{ItemWithWearStats: item, TaggingPending: pending[item.ID]}
 		}
 
 		w.Header().Set("Content-Type", "application/json")

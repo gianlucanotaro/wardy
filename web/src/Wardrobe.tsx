@@ -54,6 +54,9 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
 
   const logAsWorn = useMutation({
     mutationFn: (itemId: number) => logWear({ item_ids: [itemId], worn_on: todayISODate() }),
+    // Refetch so the footer's wear count/last-worn updates immediately —
+    // the modal reads `selected` from this same cache without leaving it.
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['items'] }),
   })
 
   function meta(item: { subcategory: string; color_primary: string; material: string }) {
@@ -204,6 +207,11 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
 
             <div className="p-4">
               <TagEditor item={selected} />
+            </div>
+
+            <div className="px-4 py-2.5 border-t border-(--color-line) wy-lbl">
+              WORN {selected.wear_count}× ·{' '}
+              {selected.last_worn_on ? `LAST ${selected.last_worn_on}` : 'NEVER WORN'}
             </div>
 
             <div

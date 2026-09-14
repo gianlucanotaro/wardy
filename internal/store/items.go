@@ -76,19 +76,39 @@ func (s *Store) CreateItem(ctx context.Context, userID int64, photoPath, thumbPa
 	return id, nil
 }
 
-// ItemsByUser returns userID's non-archived items, newest first.
-func (s *Store) ItemsByUser(ctx context.Context, userID int64) ([]Item, error) {
-	rows, err := s.db.QueryContext(ctx, itemColumns+
-		` FROM items WHERE user_id = ? AND archived = 0 ORDER BY created_at DESC`,
-		userID)
+// ItemWithWearStats pairs an item with how many times it's been worn and
+// the most recent date, for the item detail modal's footer row —
+// LastWornOn is invalid for an item that's never been logged as worn.
+type ItemWithWearStats struct {
+	Item
+	WearCount  int        `json:"wear_count"`
+	LastWornOn NullString `json:"last_worn_on"`
+}
+
+// ItemsByUser returns userID's non-archived items, newest first, each
+// carrying its wear count and last-worn date — cheap enough at this
+// dataset size, per ItemsByLastWorn's own LEFT JOIN/GROUP BY shape.
+func (s *Store) ItemsByUser(ctx context.Context, userID int64) ([]ItemWithWearStats, error) {
+	// itemColumns' bare column names collide with the joined wears table's
+	// (see ItemsByLastWorn), so this needs its own items.-qualified list.
+	rows, err := s.db.QueryContext(ctx, `SELECT items.id, items.user_id, items.name, items.category, items.subcategory,
+		items.color_primary, items.color_secondary, items.pattern, items.material, items.formality, items.warmth,
+		items.fit, items.brand, items.notes, items.seasons, items.occasions, items.custom_tags, items.photo_path, items.thumb_path,
+		items.ai_tagged_at, items.user_edited_at, items.archived, items.created_at, COUNT(wi.wear_id), MAX(w.worn_on)
+		FROM items
+		LEFT JOIN wear_items wi ON wi.item_id = items.id
+		LEFT JOIN wears w ON w.id = wi.wear_id
+		WHERE items.user_id = ? AND items.archived = 0
+		GROUP BY items.id
+		ORDER BY items.created_at DESC`, userID)
 	if err != nil {
 		return nil, fmt.Errorf("query items: %w", err)
 	}
 	defer rows.Close()
 
-	var items []Item
+	var items []ItemWithWearStats
 	for rows.Next() {
-		item, err := scanItem(rows)
+		item, err := scanItemWithWearStats(rows)
 		if err != nil {
 			return nil, err
 		}
@@ -98,6 +118,23 @@ func (s *Store) ItemsByUser(ctx context.Context, userID int64) ([]Item, error) {
 		return nil, fmt.Errorf("iterate items: %w", err)
 	}
 	return items, nil
+}
+
+// scanItemWithWearStats scans a row from ItemsByUser's query: every
+// itemColumns field plus the trailing COUNT(wi.wear_id) and MAX(w.worn_on).
+func scanItemWithWearStats(row rowScanner) (ItemWithWearStats, error) {
+	var it ItemWithWearStats
+	err := row.Scan(
+		&it.ID, &it.UserID, &it.Name, &it.Category, &it.Subcategory, &it.ColorPrimary,
+		&it.ColorSecondary, &it.Pattern, &it.Material, &it.Formality, &it.Warmth, &it.Fit,
+		&it.Brand, &it.Notes, &it.Seasons, &it.Occasions, &it.CustomTags, &it.PhotoPath, &it.ThumbPath,
+		&it.AITaggedAt, &it.UserEditedAt, &it.Archived, &it.CreatedAt,
+		&it.WearCount, &it.LastWornOn,
+	)
+	if err != nil {
+		return ItemWithWearStats{}, fmt.Errorf("scan item with wear stats: %w", err)
+	}
+	return it, nil
 }
 
 // ItemByID returns the item with id, but only if it belongs to userID —
