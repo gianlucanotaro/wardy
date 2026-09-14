@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { createLook, getSuggestions, getWeather, listItems, logWear, todayISODate } from './api'
 import { OCCASIONS } from './taxonomy'
@@ -8,6 +8,9 @@ import { OCCASIONS } from './taxonomy'
 // rationale, not a filter"). Not part of taxonomy.ts since mood isn't a
 // closed vocabulary attached to items, only to a suggestion request.
 const MOODS = ['sharp', 'easy', 'bold', 'quiet']
+
+// Matches Wardy Prototype.dc.html's d > 90 / d < -90 swipe-out threshold.
+const SWIPE_THRESHOLD_PX = 90
 
 const CONDITION_LABELS: Record<string, string> = {
   clear: 'CLEAR',
@@ -74,6 +77,66 @@ export default function Today() {
     next()
     setDeckIndex(0)
   }
+
+  // Card drag — Wardy Prototype.dc.html's isToday pointer-drag: live
+  // translateX/rotate while dragging, snap-out past SWIPE_THRESHOLD_PX,
+  // spring back otherwise. dragStartX doubles as "is a drag in progress".
+  const [dragStartX, setDragStartX] = useState<number | null>(null)
+  const [dragX, setDragX] = useState(0)
+  const [exiting, setExiting] = useState<'left' | 'right' | null>(null)
+  const prefersReducedMotion = useState(
+    () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  )[0]
+
+  // A new outfit (from the deck advancing, or occasion/mood changing) always
+  // starts centered, never mid-drag or mid-exit from the card it replaced.
+  useEffect(() => {
+    setDragStartX(null)
+    setDragX(0)
+    setExiting(null)
+  }, [key])
+
+  // Fires the same action the buttons trigger, once the swipe-out animation
+  // (skipped entirely under prefers-reduced-motion) has had time to play.
+  useEffect(() => {
+    if (!exiting || !outfit) return
+    const itemIds = outfit.items.map((it) => it.id)
+    const t = setTimeout(
+      () => {
+        if (exiting === 'right') {
+          if (!logged && !logAsWorn.isPending) logAsWorn.mutate({ key, itemIds })
+        } else {
+          setDeckIndex((i) => i + 1)
+        }
+      },
+      prefersReducedMotion ? 0 : 220,
+    )
+    return () => clearTimeout(t)
+    // Deliberately keyed only on `exiting` — this fires exactly once per
+    // left/right transition, using outfit/key/logged from that render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exiting])
+
+  function onCardPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    if (exiting) return
+    setDragStartX(e.clientX)
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+
+  function onCardPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (dragStartX === null) return
+    setDragX(e.clientX - dragStartX)
+  }
+
+  function onCardPointerUp() {
+    if (dragStartX === null) return
+    setDragStartX(null)
+    if (dragX > SWIPE_THRESHOLD_PX) setExiting('right')
+    else if (dragX < -SWIPE_THRESHOLD_PX) setExiting('left')
+    else setDragX(0)
+  }
+
+  const cardOffset = exiting ? (exiting === 'right' ? 600 : -600) : dragX
 
   return (
     <div className="flex flex-col">
@@ -180,26 +243,39 @@ export default function Today() {
 
       {outfit && (
         <div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 border-b-2 border-(--color-line-strong)">
-            {outfit.items.map((item) => (
-              <div key={item.id} className="wy-tile">
-                <div className="h-[130px] border border-(--color-line-strong) bg-(--color-surface) overflow-hidden">
-                  <img
-                    src={`/api/items/${item.id}/thumb`}
-                    alt={item.name || item.category}
-                    className="w-full h-full object-cover"
-                  />
+          <div
+            onPointerDown={onCardPointerDown}
+            onPointerMove={onCardPointerMove}
+            onPointerUp={onCardPointerUp}
+            onPointerCancel={onCardPointerUp}
+            className="cursor-grab active:cursor-grabbing select-none"
+            style={{
+              transform: `translateX(${cardOffset}px) rotate(${cardOffset / 14}deg)`,
+              transition: prefersReducedMotion || dragStartX !== null ? 'none' : 'transform 220ms ease-out',
+              touchAction: 'pan-y',
+            }}
+          >
+            <div className="grid grid-cols-2 sm:grid-cols-4 border-b-2 border-(--color-line-strong)">
+              {outfit.items.map((item) => (
+                <div key={item.id} className="wy-tile">
+                  <div className="h-[130px] border border-(--color-line-strong) bg-(--color-surface) overflow-hidden">
+                    <img
+                      src={`/api/items/${item.id}/thumb`}
+                      alt={item.name || item.category}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="font-extrabold text-xs mt-1.5 tracking-tight truncate">
+                    {(item.name || item.subcategory || item.category).toUpperCase()}
+                  </div>
+                  <div className="text-[9.5px] text-(--color-neutral-700) tracking-wide truncate">
+                    {item.color_primary?.toUpperCase()}
+                  </div>
                 </div>
-                <div className="font-extrabold text-xs mt-1.5 tracking-tight truncate">
-                  {(item.name || item.subcategory || item.category).toUpperCase()}
-                </div>
-                <div className="text-[9.5px] text-(--color-neutral-700) tracking-wide truncate">
-                  {item.color_primary?.toUpperCase()}
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
+            <p className="px-4 py-3 border-b-2 border-(--color-line-strong) text-sm leading-relaxed">{outfit.note}</p>
           </div>
-          <p className="px-4 py-3 border-b-2 border-(--color-line-strong) text-sm leading-relaxed">{outfit.note}</p>
 
           <div className="grid grid-cols-3 border-b-2 border-(--color-line-strong)">
             <button
@@ -227,6 +303,9 @@ export default function Today() {
               NOT TODAY →
             </button>
           </div>
+          <p className="px-4 py-2 text-xs text-(--color-neutral-700) border-b border-(--color-line)">
+            Swipe the outfit left to skip, right to accept.
+          </p>
         </div>
       )}
     </div>
