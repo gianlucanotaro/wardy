@@ -111,8 +111,8 @@ func run() error {
 // created (see docs/backend.md).
 func createUser(args []string) error {
 	fs := flag.NewFlagSet("create-user", flag.ExitOnError)
-	email := fs.String("email", "", "account email (required)")
-	name := fs.String("name", "", "display name (defaults to the email's local part)")
+	email := fs.String("email", "", "login: an email or a plain username (required)")
+	name := fs.String("name", "", "display name (defaults to the part before any @)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
