@@ -1,16 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { deleteWear, getHistory } from './api'
+import { useToast } from './useToast'
 
 // One screen, two views over the same data: a chronological wear log, and
 // every item sorted by staleness (never-worn first) — /api/history returns
 // both in one call so the screen has a single loading state.
 export default function History() {
   const queryClient = useQueryClient()
+  const flash = useToast()
   const history = useQuery({ queryKey: ['history'], queryFn: getHistory })
 
   const remove = useMutation({
     mutationFn: deleteWear,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['history'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['history'] })
+      flash('WEAR REMOVED')
+    },
   })
 
   return (

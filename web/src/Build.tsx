@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createLook, listItems, type Item } from './api'
 import { FORMALITY_LABELS, WARMTH_LABELS, type Category } from './taxonomy'
+import { useToast } from './useToast'
 
 // Fixed 4 slots, matching Wardy Prototype.dc.html's isBuild block. Client-
 // only state — no new backend endpoint, "SAVE AS LOOK" reuses the same
@@ -30,7 +31,7 @@ export default function Build({
   const items = useQuery({ queryKey: ['items'], queryFn: () => listItems() })
   const [slots, setSlots] = useState<Partial<Record<Category, Item>>>({})
   const [pickSlot, setPickSlot] = useState<Category | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
+  const flash = useToast()
 
   // Pre-fill the matching slot from Wardrobe's "Add to outfit", overwriting
   // whatever was there — the more recent explicit user intent wins. Consume
@@ -50,13 +51,13 @@ export default function Build({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['looks'] })
       setSlots({})
-      setMessage('SAVED TO LOOKS')
+      flash('SAVED TO LOOKS')
     },
   })
 
   function save() {
     if (filled.length < 2) {
-      setMessage('PICK AT LEAST TWO PIECES')
+      flash('PICK AT LEAST TWO PIECES')
       return
     }
     saveAsLook.mutate({ itemIds: filled.map((it) => it.id) })
@@ -156,17 +157,13 @@ export default function Build({
         </button>
         <button
           type="button"
-          onClick={() => {
-            setSlots({})
-            setMessage(null)
-          }}
+          onClick={() => setSlots({})}
           className="wy-act border-l-2 border-(--color-line-strong)"
         >
           CLEAR SLOTS
         </button>
       </div>
 
-      {message && <p className="px-4 py-2 text-sm text-(--color-neutral-700)">{message}</p>}
     </div>
   )
 }

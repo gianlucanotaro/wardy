@@ -111,6 +111,26 @@ html {
 .wy-act[data-primary]:hover:not(:disabled) {
   background: var(--color-accent-600);
 }
+.wy-toast {
+  background: var(--color-ink);
+  color: var(--color-bg);
+  padding: 14px 16px;
+  font: 800 11px var(--font-sans);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  animation: wy-toast-in 140ms ease-out;
+}
+@keyframes wy-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wy-toast {
+    animation: none;
+  }
+}
 .wy-cell {
   padding: 10px 14px;
   border-right: 1px solid var(--color-line);

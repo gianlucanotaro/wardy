@@ -1,6 +1,6 @@
-import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getPlan, listLooks, setPlanDay } from './api'
+import { useToast } from './useToast'
 
 const WEEKDAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
 
@@ -26,7 +26,7 @@ function isoDate(d: Date): string {
 // not day-of-week-template-based").
 export default function Plan() {
   const queryClient = useQueryClient()
-  const [message, setMessage] = useState<string | null>(null)
+  const flash = useToast()
 
   const monday = mondayOf(new Date())
   const weekDates = Array.from({ length: 7 }, (_, i) => {
@@ -48,10 +48,9 @@ export default function Plan() {
   function cycle(date: string, currentLookId: number | null) {
     const list = looks.data ?? []
     if (list.length === 0) {
-      setMessage('SAVE A LOOK FIRST')
+      flash('SAVE A LOOK FIRST')
       return
     }
-    setMessage(null)
     if (currentLookId == null) {
       setDay.mutate({ date, lookId: list[0].id })
       return
@@ -109,7 +108,6 @@ export default function Plan() {
           ? 'Save a look from Today or Build, then plan the week around it.'
           : 'Tap a day to cycle through saved looks; tap past the last one to clear it.'}
       </p>
-      {message && <p className="px-4 py-2 text-sm text-(--color-neutral-700)">{message}</p>}
     </div>
   )
 }

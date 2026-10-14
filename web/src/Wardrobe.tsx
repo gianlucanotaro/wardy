@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { archiveItem, deleteItem, listItems, logWear, todayISODate, uploadItem, type Item } from './api'
 import TagEditor from './TagEditor'
+import { useToast } from './useToast'
 import { FORMALITY_LABELS, WARMTH_LABELS } from './taxonomy'
 
 // Mirrors Build.tsx's SLOTS categories — those are the only slots Build can
@@ -16,6 +17,7 @@ const BUILDABLE_CATEGORIES = ['outerwear', 'top', 'bottom', 'shoes']
 // images.
 export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item) => void }) {
   const queryClient = useQueryClient()
+  const flash = useToast()
   const [showArchived, setShowArchived] = useState(false)
   const items = useQuery({
     // Plain ['items'] for the default (active) view — Build.tsx and
@@ -76,17 +78,19 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
     onSuccess: () => {
       setSelectedId(null)
       queryClient.invalidateQueries({ queryKey: ['items'] })
+      flash('ITEM DELETED')
     },
   })
 
   const archive = useMutation({
     mutationFn: (input: { id: number; archived: boolean }) => archiveItem(input.id, input.archived),
-    onSuccess: () => {
+    onSuccess: (_item, input) => {
       // Archiving/unarchiving always moves the item out of whichever
       // filtered view is currently showing, same as delete closing the
       // modal.
       setSelectedId(null)
       queryClient.invalidateQueries({ queryKey: ['items'] })
+      flash(input.archived ? 'ITEM ARCHIVED' : 'ITEM RESTORED')
     },
   })
 
@@ -94,7 +98,10 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
     mutationFn: (itemId: number) => logWear({ item_ids: [itemId], worn_on: todayISODate() }),
     // Refetch so the footer's wear count/last-worn updates immediately —
     // the modal reads `selected` from this same cache without leaving it.
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['items'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['items'] })
+      flash('LOGGED AS WORN TODAY')
+    },
   })
 
   function meta(item: { subcategory: string; color_primary: string; material: string }) {
@@ -279,11 +286,6 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
                 </button>
               )}
             </div>
-            {logAsWorn.isSuccess && (
-              <p className="px-4 py-2 text-sm text-(--color-neutral-700) border-t border-(--color-line)">
-                Logged as worn today.
-              </p>
-            )}
 
             <div className="grid grid-cols-3 border-t-2 border-(--color-line-strong)">
               <button type="button" onClick={() => setSelectedId(null)} className="wy-act">

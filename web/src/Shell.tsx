@@ -8,6 +8,7 @@ import Looks from './Looks'
 import Plan from './Plan'
 import History from './History'
 import Settings from './Settings'
+import { ToastProvider } from './Toast'
 
 // The persistent chrome: a sticky header (brand + the utility screens the
 // design doesn't put in its 5-tab bar) and a sticky bottom tab bar, both
@@ -36,57 +37,59 @@ export default function Shell({ me, onLogout }: { me: Me; onLogout: () => void }
   })
 
   return (
-    <div className="min-h-svh flex flex-col bg-(--color-bg) text-(--color-ink)">
-      <header className="sticky top-0 z-10 border-b-2 border-(--color-line-strong) bg-(--color-bg) pt-[env(safe-area-inset-top)]">
-        <div className="flex items-center gap-4 px-4 py-3">
-          <span className="font-extrabold text-lg tracking-tight mr-auto">WARDY</span>
-          <span className="hidden sm:inline wy-lbl">{me.display_name}</span>
-          <button type="button" onClick={() => setView('history')} className="wy-lbl">
-            HISTORY
-          </button>
-          <button type="button" onClick={() => setView('settings')} className="wy-lbl">
-            SETTINGS
-          </button>
-          <button type="button" onClick={() => logoutMutation.mutate()} className="wy-lbl">
-            LOG OUT
-          </button>
-        </div>
-      </header>
-
-      <div className="flex-1 w-full max-w-2xl mx-auto pb-20">
-        {view === 'today' && <Today />}
-        {view === 'wardrobe' && (
-          <Wardrobe
-            onAddToOutfit={(item) => {
-              setPendingBuildItem(item)
-              setView('build')
-            }}
-          />
-        )}
-        {view === 'build' && (
-          <Build pendingItem={pendingBuildItem} onConsumePendingItem={() => setPendingBuildItem(null)} />
-        )}
-        {view === 'looks' && <Looks />}
-        {view === 'plan' && <Plan />}
-        {view === 'history' && <History />}
-        {view === 'settings' && <Settings />}
-      </div>
-
-      <nav className="fixed bottom-0 left-0 right-0 bg-(--color-bg) border-t-2 border-(--color-line-strong) z-10 safe-area-overlay">
-        <div className="max-w-2xl mx-auto grid grid-cols-5">
-          {TABS.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              className="wy-tab"
-              data-on={view === t.key || undefined}
-              onClick={() => setView(t.key)}
-            >
-              {t.label}
+    <ToastProvider>
+      <div className="min-h-svh flex flex-col bg-(--color-bg) text-(--color-ink)">
+        <header className="sticky top-0 z-10 border-b-2 border-(--color-line-strong) bg-(--color-bg) pt-[env(safe-area-inset-top)]">
+          <div className="flex items-center gap-4 px-4 py-3">
+            <span className="font-extrabold text-lg tracking-tight mr-auto">WARDY</span>
+            <span className="hidden sm:inline wy-lbl">{me.display_name}</span>
+            <button type="button" onClick={() => setView('history')} className="wy-lbl">
+              HISTORY
             </button>
-          ))}
+            <button type="button" onClick={() => setView('settings')} className="wy-lbl">
+              SETTINGS
+            </button>
+            <button type="button" onClick={() => logoutMutation.mutate()} className="wy-lbl">
+              LOG OUT
+            </button>
+          </div>
+        </header>
+
+        <div className="flex-1 w-full max-w-2xl mx-auto pb-20">
+          {view === 'today' && <Today />}
+          {view === 'wardrobe' && (
+            <Wardrobe
+              onAddToOutfit={(item) => {
+                setPendingBuildItem(item)
+                setView('build')
+              }}
+            />
+          )}
+          {view === 'build' && (
+            <Build pendingItem={pendingBuildItem} onConsumePendingItem={() => setPendingBuildItem(null)} />
+          )}
+          {view === 'looks' && <Looks />}
+          {view === 'plan' && <Plan />}
+          {view === 'history' && <History />}
+          {view === 'settings' && <Settings />}
         </div>
-      </nav>
-    </div>
+
+        <nav className="fixed bottom-0 left-0 right-0 bg-(--color-bg) border-t-2 border-(--color-line-strong) z-10 safe-area-overlay">
+          <div className="max-w-2xl mx-auto grid grid-cols-5">
+            {TABS.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                className="wy-tab"
+                data-on={view === t.key || undefined}
+                onClick={() => setView(t.key)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </nav>
+      </div>
+    </ToastProvider>
   )
 }

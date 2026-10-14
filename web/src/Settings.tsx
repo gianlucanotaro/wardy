@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getSettings, getWeather, updateSettings } from './api'
+import { useToast } from './useToast'
 
 const CONDITION_LABELS: Record<string, string> = {
   clear: 'Clear',
@@ -29,6 +30,7 @@ function isIOSInstallable(): boolean {
 
 export default function Settings() {
   const queryClient = useQueryClient()
+  const flash = useToast()
   const [showIOSInstallHint] = useState(isIOSInstallable)
   const settings = useQuery({ queryKey: ['settings'], queryFn: getSettings })
   const hasLocation = settings.data?.home_lat != null && settings.data?.home_lon != null
@@ -58,6 +60,7 @@ export default function Settings() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['settings'] })
       queryClient.invalidateQueries({ queryKey: ['weather'] })
+      flash('LOCATION SAVED')
     },
   })
 
