@@ -9,6 +9,8 @@ Read before touching login, uploads, or the worker.
 - Cookies `HttpOnly`, `Secure`, `SameSite=Lax`.
 - **No public signup.** `./wardrobe create-user --email x@y.z` only. This sits
   on the open internet; a registration form is an invitation.
+- Password resets are CLI-only too: `./wardrobe set-password --email x@y.z`
+  prompts for the new password and signs that account out everywhere.
 - Rate-limit login by IP and by email.
 
 With no signup form, the only attack surface is credential guessing against two

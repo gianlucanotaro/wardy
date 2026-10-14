@@ -34,6 +34,13 @@ func main() {
 		}
 		return
 	}
+	if len(os.Args) > 1 && os.Args[1] == "set-password" {
+		if err := setPassword(os.Args[2:]); err != nil {
+			slog.Error("fatal", "error", err)
+			os.Exit(1)
+		}
+		return
+	}
 
 	if err := run(); err != nil {
 		slog.Error("fatal", "error", err)
@@ -176,6 +183,46 @@ func readPassword() (string, error) {
 	}
 
 	return string(pw1), nil
+}
+
+// setPassword implements `wardrobe set-password --email x`: replaces an
+// existing account's password (prompted, like create-user) and signs that
+// account out of every device. There's no in-app password change.
+func setPassword(args []string) error {
+	fs := flag.NewFlagSet("set-password", flag.ExitOnError)
+	email := fs.String("email", "", "login of the account to change (required)")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if *email == "" {
+		return errors.New("--email is required")
+	}
+
+	password, err := readPassword()
+	if err != nil {
+		return err
+	}
+
+	hash, err := httpapi.HashPassword(password)
+	if err != nil {
+		return fmt.Errorf("hash password: %w", err)
+	}
+
+	ctx := context.Background()
+	s, err := openStore(ctx)
+	if err != nil {
+		return err
+	}
+	defer s.Close()
+
+	if err := s.SetPassword(ctx, *email, hash); errors.Is(err, store.ErrNotFound) {
+		return fmt.Errorf("no account with login %q", *email)
+	} else if err != nil {
+		return fmt.Errorf("set password: %w", err)
+	}
+
+	fmt.Printf("password updated for %s; all their sessions signed out\n", *email)
+	return nil
 }
 
 func openStore(ctx context.Context) (*store.Store, error) {
