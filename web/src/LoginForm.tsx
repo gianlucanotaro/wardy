@@ -6,7 +6,9 @@ export default function LoginForm({ onSuccess }: { onSuccess: () => void }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const mutation = useMutation({
-    mutationFn: () => login(email, password),
+    // Trimmed because phone keyboards like to append a space after
+    // autocomplete; the server matches the login exactly.
+    mutationFn: () => login(email.trim(), password),
     onSuccess,
   })
 
@@ -21,12 +23,15 @@ export default function LoginForm({ onSuccess }: { onSuccess: () => void }) {
       >
         <h1 className="font-extrabold text-3xl tracking-tight text-center mb-3">WARDY</h1>
         <label className="flex flex-col gap-1 text-sm" htmlFor="email">
-          <span className="wy-lbl">EMAIL</span>
+          <span className="wy-lbl">EMAIL OR USERNAME</span>
           <input
             id="email"
-            type="email"
+            type="text"
             required
-            autoComplete="email"
+            autoComplete="username"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             className="border border-(--color-line) bg-(--color-surface) px-3 py-2 focus:outline-2 focus:outline-(--color-accent)"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -47,7 +52,7 @@ export default function LoginForm({ onSuccess }: { onSuccess: () => void }) {
         <button type="submit" disabled={mutation.isPending} data-primary="1" className="wy-act mt-2 text-center">
           {mutation.isPending ? 'SIGNING IN…' : 'SIGN IN'}
         </button>
-        {mutation.isError && <p className="text-sm text-(--color-accent-700)">Invalid email or password.</p>}
+        {mutation.isError && <p className="text-sm text-(--color-accent-700)">Invalid login or password.</p>}
       </form>
     </main>
   )
