@@ -21,10 +21,22 @@
   --color-neutral-700: #605d5d;
 }
 
+:root {
+  /* Minimum horizontal breathing room on every screen edge — applied by
+     the safe-area rules below, which take whichever is larger. */
+  --gutter-x: 12px;
+}
+
 html,
 body {
   background: var(--color-bg);
   color: var(--color-ink);
+}
+
+/* No pinch- or double-tap-zoom (iOS ignores the viewport meta's
+   user-scalable=no; see index.html). Scrolling still works. */
+html {
+  touch-action: pan-x pan-y;
 }
 
 /* Component classes — the handful of compound patterns that repeat across
@@ -122,17 +134,20 @@ body {
    viewport-fit=cover in index.html's viewport meta, or these all
    evaluate to 0. Covers normal document flow; fixed-position overlays
    (modals) sit outside body's box model, so they repeat this via
-   .safe-area-overlay below. */
+   .safe-area-overlay below. Left/right never drop below --gutter-x, so
+   content doesn't touch the screen edge on phones without insets. These
+   rules are unlayered, so they beat Tailwind px-/py- utilities on the
+   same element — put utility padding on an inner element instead. */
 body {
   padding-top: env(safe-area-inset-top);
-  padding-right: env(safe-area-inset-right);
+  padding-right: max(var(--gutter-x), env(safe-area-inset-right));
   padding-bottom: env(safe-area-inset-bottom);
-  padding-left: env(safe-area-inset-left);
+  padding-left: max(var(--gutter-x), env(safe-area-inset-left));
 }
 
 .safe-area-overlay {
   padding-top: env(safe-area-inset-top);
-  padding-right: env(safe-area-inset-right);
+  padding-right: max(var(--gutter-x), env(safe-area-inset-right));
   padding-bottom: env(safe-area-inset-bottom);
-  padding-left: env(safe-area-inset-left);
+  padding-left: max(var(--gutter-x), env(safe-area-inset-left));
 }

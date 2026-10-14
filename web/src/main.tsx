@@ -6,6 +6,10 @@ import App from './App.tsx'
 
 const queryClient = new QueryClient()
 
+// iOS Safari ignores user-scalable=no and touch-action for pinch on some
+// versions; cancelling its proprietary gesture event is what reliably stops it.
+document.addEventListener('gesturestart', (e) => e.preventDefault())
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>

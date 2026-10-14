@@ -37,18 +37,20 @@ export default function Shell({ me, onLogout }: { me: Me; onLogout: () => void }
 
   return (
     <div className="min-h-svh flex flex-col bg-(--color-bg) text-(--color-ink)">
-      <header className="sticky top-0 z-10 flex items-center gap-4 px-4 py-3 border-b-2 border-(--color-line-strong) bg-(--color-bg) safe-area-overlay">
-        <span className="font-extrabold text-lg tracking-tight mr-auto">WARDY</span>
-        <span className="hidden sm:inline wy-lbl">{me.display_name}</span>
-        <button type="button" onClick={() => setView('history')} className="wy-lbl">
-          HISTORY
-        </button>
-        <button type="button" onClick={() => setView('settings')} className="wy-lbl">
-          SETTINGS
-        </button>
-        <button type="button" onClick={() => logoutMutation.mutate()} className="wy-lbl">
-          LOG OUT
-        </button>
+      <header className="sticky top-0 z-10 border-b-2 border-(--color-line-strong) bg-(--color-bg) pt-[env(safe-area-inset-top)]">
+        <div className="flex items-center gap-4 px-4 py-3">
+          <span className="font-extrabold text-lg tracking-tight mr-auto">WARDY</span>
+          <span className="hidden sm:inline wy-lbl">{me.display_name}</span>
+          <button type="button" onClick={() => setView('history')} className="wy-lbl">
+            HISTORY
+          </button>
+          <button type="button" onClick={() => setView('settings')} className="wy-lbl">
+            SETTINGS
+          </button>
+          <button type="button" onClick={() => logoutMutation.mutate()} className="wy-lbl">
+            LOG OUT
+          </button>
+        </div>
       </header>
 
       <div className="flex-1 w-full max-w-2xl mx-auto pb-20">
