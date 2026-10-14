@@ -15,6 +15,11 @@ const BUILDABLE_CATEGORIES = ['outerwear', 'top', 'bottom', 'shoes']
 // functional here (matching outfits by color is a core use case), not
 // decorative, so item photos stay in color unlike a marketing page's hero
 // images.
+// Top bar of a full-screen overlay: stays pinned while the overlay's
+// content scrolls, so its close button is always one tap away. Offset by
+// the top safe-area inset because the overlay's own padding scrolls away.
+const OVERLAY_BAR = 'sticky top-[env(safe-area-inset-top)] z-10 bg-(--color-bg)'
+
 export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item) => void }) {
   const queryClient = useQueryClient()
   const flash = useToast()
@@ -208,9 +213,9 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
             className="bg-(--color-bg) min-h-full sm:min-h-0 sm:max-w-lg sm:mx-auto sm:my-8 border-(--color-line-strong) sm:border-2"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center gap-3 px-4 py-3 border-b-2 border-(--color-line-strong)">
+            <div className={`${OVERLAY_BAR} flex items-center gap-3 px-4 py-3 border-b-2 border-(--color-line-strong)`}>
               <button type="button" onClick={() => setSelectedId(null)} className="wy-chip">
-                ← BACK
+                ✕ CLOSE
               </button>
               <span className="wy-lbl">ITEM #{selected.id}</span>
             </div>
@@ -314,7 +319,7 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
 
       {addFlow?.stage === 'idle' && (
         <div className="fixed inset-0 z-20 bg-(--color-bg) overflow-y-auto safe-area-overlay flex flex-col">
-          <div className="flex items-center gap-3 px-4 py-3 border-b-2 border-(--color-line-strong)">
+          <div className={`${OVERLAY_BAR} flex items-center gap-3 px-4 py-3 border-b-2 border-(--color-line-strong)`}>
             <button type="button" onClick={() => setAddFlow(null)} disabled={upload.isPending} className="wy-chip">
               ✕ CANCEL
             </button>
@@ -360,8 +365,11 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
 
       {addFlow?.stage === 'review' && addingItem && (
         <div className="fixed inset-0 z-20 bg-(--color-bg) overflow-y-auto safe-area-overlay">
-          <div className="flex items-center gap-3 px-4 py-3 border-b-2 border-(--color-line-strong)">
+          <div className={`${OVERLAY_BAR} flex items-center justify-between gap-3 px-4 py-3 border-b-2 border-(--color-line-strong)`}>
             <span className="wy-lbl">REVIEW NEW ITEM</span>
+            <button type="button" onClick={() => setAddFlow(null)} className="wy-chip">
+              ✓ DONE
+            </button>
           </div>
 
           <div className="border-b-2 border-(--color-line-strong) p-4">
