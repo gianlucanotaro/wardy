@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { createLook, getSuggestions, getWeather, listItems, logWear, todayISODate } from './api'
 import { OCCASIONS } from './taxonomy'
+import { useToast } from './useToast'
 
 // Suggestion context only — never a filter on the candidate set (see
 // internal/http/suggest.go's "?mood= is optional prompt context for the AI
@@ -33,6 +34,7 @@ const MONTH = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'O
 // with a button-driven deck instead of the mockup's pointer-drag swipe (see
 // the plan's "implementation-level calls").
 export default function Today() {
+  const flash = useToast()
   const [occasion, setOccasion] = useState<string>('casual')
   const [mood, setMood] = useState<string>('')
   const [deckIndex, setDeckIndex] = useState(0)
@@ -64,13 +66,19 @@ export default function Today() {
         name: `${occasion.charAt(0).toUpperCase()}${occasion.slice(1)} look`,
         item_ids: input.itemIds,
       }),
-    onSuccess: (_look, input) => setSavedKeys((prev) => new Set(prev).add(input.key)),
+    onSuccess: (_look, input) => {
+      setSavedKeys((prev) => new Set(prev).add(input.key))
+      flash('SAVED TO LOOKS')
+    },
   })
 
   const logAsWorn = useMutation({
     mutationFn: (input: { key: string; itemIds: number[] }) =>
       logWear({ item_ids: input.itemIds, worn_on: todayISODate(), occasion }),
-    onSuccess: (_wear, input) => setLoggedKeys((prev) => new Set(prev).add(input.key)),
+    onSuccess: (_wear, input) => {
+      setLoggedKeys((prev) => new Set(prev).add(input.key))
+      flash('LOGGED AS WORN TODAY')
+    },
   })
 
   function selectInput(next: () => void) {

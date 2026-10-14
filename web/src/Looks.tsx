@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { deleteLook, listLooks, logWear, todayISODate, updateLook } from './api'
+import { useToast } from './useToast'
 
 // The LOOKS tab: saved outfits, tap one open to rename, drop an item, log
 // as worn, or delete — matching Wardy Prototype.dc.html's isLooks block.
 export default function Looks() {
   const queryClient = useQueryClient()
+  const flash = useToast()
   const looks = useQuery({ queryKey: ['looks'], queryFn: listLooks })
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [nameDraft, setNameDraft] = useState('')
@@ -31,11 +33,13 @@ export default function Looks() {
     onSuccess: () => {
       setSelectedId(null)
       invalidate()
+      flash('LOOK DELETED')
     },
   })
 
   const logAsWorn = useMutation({
     mutationFn: (lookId: number) => logWear({ look_id: lookId, worn_on: todayISODate() }),
+    onSuccess: () => flash('LOGGED AS WORN TODAY'),
   })
 
   return (
