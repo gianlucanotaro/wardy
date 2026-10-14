@@ -78,3 +78,36 @@ func (s *Store) scanUser(row *sql.Row) (*User, error) {
 	}
 	return &u, nil
 }
+
+// SetPassword replaces the password hash for the user with this login and
+// deletes all of their sessions, so a changed password signs out every
+// device. Returns ErrNotFound if no such user exists.
+func (s *Store) SetPassword(ctx context.Context, email, passwordHash string) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer tx.Rollback()
+
+	var userID int64
+	err = tx.QueryRowContext(ctx, `SELECT id FROM users WHERE email = ?`, email).Scan(&userID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("look up user: %w", err)
+	}
+
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE users SET password_hash = ? WHERE id = ?`, passwordHash, userID); err != nil {
+		return fmt.Errorf("update password: %w", err)
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM sessions WHERE user_id = ?`, userID); err != nil {
+		return fmt.Errorf("delete sessions: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit: %w", err)
+	}
+	return nil
+}
