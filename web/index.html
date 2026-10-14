@@ -3,7 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- Zoom is disabled on purpose: this is an app, not a document. iOS
+         Safari ignores user-scalable=no, so index.css (touch-action) and
+         main.tsx (gesturestart) cover it there. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#ec3013" />
     <!-- iOS doesn't fully honor the web manifest for "Add to Home Screen" —
          these are the standard companions Safari actually reads. -->
