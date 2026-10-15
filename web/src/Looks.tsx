@@ -3,6 +3,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { deleteLook, listLooks, logWear, todayISODate, updateLook } from './api'
 import { useToast } from './useToast'
 
+// "TODAY" or e.g. "12 OCT", in the viewer's local time (created_at is UTC).
+function savedLabel(createdAt: string): string {
+  const d = new Date(createdAt)
+  if (Number.isNaN(d.getTime())) return ''
+  const local = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  if (local === todayISODate()) return 'TODAY'
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).toUpperCase()
+}
+
 // The LOOKS tab: saved outfits, tap one open to rename, drop an item, log
 // as worn, or delete — matching Wardy Prototype.dc.html's isLooks block.
 export default function Looks() {
@@ -69,7 +78,10 @@ export default function Looks() {
             className="w-full flex items-baseline justify-between px-4 py-3 text-left"
           >
             <span className="font-extrabold text-xl tracking-tight">{look.name?.toUpperCase() || 'UNTITLED'}</span>
-            <span className="wy-lbl">{look.items.length} PIECES</span>
+            <span className="wy-lbl">
+              {look.items.length} PIECES
+              {savedLabel(look.created_at) && ` · SAVED ${savedLabel(look.created_at)}`}
+            </span>
           </button>
 
           <div className="flex border-t border-(--color-line)">

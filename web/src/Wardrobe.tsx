@@ -3,13 +3,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { archiveItem, deleteItem, listItems, logWear, todayISODate, uploadItem, type Item } from './api'
 import TagEditor from './TagEditor'
 import { useToast } from './useToast'
-import { FORMALITY_LABELS, WARMTH_LABELS } from './taxonomy'
+import { CATEGORIES, FORMALITY_LABELS, WARMTH_LABELS, type Category } from './taxonomy'
 
 // Mirrors Build.tsx's SLOTS categories — those are the only slots Build can
 // pre-fill into, so "Add to outfit" only shows for items in this list.
 const BUILDABLE_CATEGORIES = ['outerwear', 'top', 'bottom', 'shoes']
 
-// The WARDROBE tab: grid + tag search + item detail, matching
+// The WARDROBE tab: grid + category chips + tag search + item detail, matching
 // Wardy Prototype.dc.html's isWardrobe/isDetail blocks. Deliberately does
 // NOT apply the design system's .grayscale photo treatment — color is
 // functional here (matching outfits by color is a core use case), not
@@ -38,6 +38,7 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
   })
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [tagQuery, setTagQuery] = useState('')
+  const [category, setCategory] = useState<Category | 'all'>('all')
   const fileInput = useRef<HTMLInputElement>(null)
 
   // The add-item flow (Wardy Prototype.dc.html's isAdd block): idle (choose
@@ -49,10 +50,13 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
 
   // Client-side — the grid already has the full item list loaded, so a
   // search endpoint would just be a second round trip for the same data.
+  // The category chip and the tag search combine (AND).
   const query = tagQuery.trim().toLowerCase()
-  const visibleItems = query
-    ? items.data?.filter((it) => (it.custom_tags ?? []).some((tag) => tag.toLowerCase().includes(query)))
-    : items.data
+  const visibleItems = items.data?.filter(
+    (it) =>
+      (category === 'all' || it.category === category) &&
+      (!query || (it.custom_tags ?? []).some((tag) => tag.toLowerCase().includes(query))),
+  )
 
   // Look the selected item up from the live query cache (rather than
   // holding a snapshot) so optimistic tag edits show up immediately.
@@ -109,6 +113,13 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
     },
   })
 
+  // The item is saved the moment its photo uploads, so leaving review is
+  // only ever confirming what's already there.
+  function finishAdd(next: { stage: 'idle' } | null) {
+    setAddFlow(next)
+    flash('ADDED TO WARDROBE')
+  }
+
   function meta(item: { subcategory: string; color_primary: string; material: string }) {
     return `${item.subcategory} · ${item.color_primary} · ${item.material}`.toUpperCase()
   }
@@ -151,7 +162,23 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
       )}
 
       {items.isSuccess && items.data.length > 0 && (
-        <div className="px-4 py-3 border-b-2 border-(--color-line-strong)">
+        <div className="px-4 py-3 border-b-2 border-(--color-line-strong) flex flex-col gap-3">
+          <div>
+            <div className="wy-lbl mb-1.5">CATEGORY</div>
+            <div className="flex flex-wrap gap-1.5">
+              {(['all', ...CATEGORIES] as const).map((c) => (
+                <button
+                  type="button"
+                  key={c}
+                  onClick={() => setCategory(c)}
+                  data-on={category === c || undefined}
+                  className="wy-chip"
+                >
+                  {c.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
           <input
             type="text"
             value={tagQuery}
@@ -164,7 +191,10 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
 
       {items.isSuccess && items.data.length > 0 && (
         <div className="flex justify-between px-4 py-2.5 border-b-2 border-(--color-line-strong) wy-lbl">
-          <span>{query ? `"${tagQuery.trim()}"` : 'EVERYTHING'}</span>
+          <span>
+            {category === 'all' ? 'EVERYTHING' : category.toUpperCase()}
+            {query && ` · "${tagQuery.trim()}"`}
+          </span>
           <span>{visibleItems?.length ?? 0} ITEMS</span>
         </div>
       )}
@@ -200,8 +230,10 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
           </button>
         ))}
       </div>
-      {query && visibleItems?.length === 0 && (
-        <p className="px-4 py-4 text-sm">No items tagged "{tagQuery.trim()}".</p>
+      {items.isSuccess && items.data.length > 0 && visibleItems?.length === 0 && (
+        <p className="px-4 py-4 text-sm">
+          {query ? `No ${category === 'all' ? '' : category + ' '}items tagged "${tagQuery.trim()}".` : `No ${category} items yet.`}
+        </p>
       )}
 
       {selected && (
@@ -284,6 +316,7 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
                   onClick={() => {
                     onAddToOutfit(selected)
                     setSelectedId(null)
+                    flash('ADDED TO BUILD')
                   }}
                   className="wy-act border-l-2 border-(--color-line-strong)"
                 >
@@ -367,7 +400,7 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
         <div className="fixed inset-0 z-20 bg-(--color-bg) overflow-y-auto safe-area-overlay">
           <div className={`${OVERLAY_BAR} flex items-center justify-between gap-3 px-4 py-3 border-b-2 border-(--color-line-strong)`}>
             <span className="wy-lbl">REVIEW NEW ITEM</span>
-            <button type="button" onClick={() => setAddFlow(null)} className="wy-chip">
+            <button type="button" onClick={() => finishAdd(null)} className="wy-chip">
               ✓ DONE
             </button>
           </div>
@@ -399,9 +432,16 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
             <TagEditor item={addingItem} markAiSuggested={aiJustSuggested} />
           </div>
 
-          <div className="border-t-2 border-(--color-line-strong)">
-            <button type="button" onClick={() => setAddFlow(null)} data-primary="1" className="wy-act w-full">
-              DONE
+          <div className="grid grid-cols-2 border-t-2 border-(--color-line-strong)">
+            <button type="button" onClick={() => finishAdd(null)} data-primary="1" className="wy-act">
+              SAVE TO WARDROBE
+            </button>
+            <button
+              type="button"
+              onClick={() => finishAdd({ stage: 'idle' })}
+              className="wy-act border-l-2 border-(--color-line-strong)"
+            >
+              ADD ANOTHER PHOTO
             </button>
           </div>
         </div>
