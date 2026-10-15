@@ -32,7 +32,8 @@ func TargetWarmth(f weather.Forecast) int {
 // outerwear over it, so tops only have a ceiling (no heavy knit in a
 // heatwave). Legs and feet don't layer, so bottoms, dresses and shoes
 // keep a floor too (no shorts or sandals in winter). Bags and accessories
-// are never ruled out by weather.
+// are never ruled out by weather. Mirrored in web/src/outfitRules.ts
+// (with TargetWarmth's bands) for the item view, so change both.
 func FitsWeather(category string, warmth, target int) bool {
 	switch taxonomy.Category(category) {
 	case taxonomy.CategoryTop:

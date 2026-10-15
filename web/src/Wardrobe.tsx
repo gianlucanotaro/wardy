@@ -4,6 +4,7 @@ import { archiveItem, deleteItem, listItems, logWear, todayISODate, uploadItem, 
 import TagEditor from './TagEditor'
 import { useToast } from './useToast'
 import { CATEGORIES, FORMALITY_LABELS, WARMTH_LABELS, type Category } from './taxonomy'
+import { occasionsFor, weatherRange } from './outfitRules'
 
 // Mirrors Build.tsx's SLOTS categories — those are the only slots Build can
 // pre-fill into, so "Add to outfit" only shows for items in this list.
@@ -61,6 +62,7 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
   // Look the selected item up from the live query cache (rather than
   // holding a snapshot) so optimistic tag edits show up immediately.
   const selected = items.data?.find((it) => it.id === selectedId) ?? null
+  const weather = selected ? weatherRange(selected.category, selected.warmth) : null
 
   const addingItem = addFlow?.stage === 'review' ? (items.data?.find((it) => it.id === addFlow.itemId) ?? null) : null
   // All-or-nothing, not diffed per field — see TagEditor's markAiSuggested
@@ -276,16 +278,21 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
             )}
 
             <div className="grid grid-cols-2 border-t border-(--color-line)">
-              <div className="wy-cell">
-                <div className="wy-lbl">FORMALITY</div>
-                <div className="font-extrabold text-[15px] tracking-tight">
-                  {FORMALITY_LABELS[selected.formality]}
-                </div>
-              </div>
-              <div className="wy-cell">
-                <div className="wy-lbl">WARMTH</div>
-                <div className="font-extrabold text-[15px] tracking-tight">{WARMTH_LABELS[selected.warmth]}</div>
-              </div>
+              <ScaleCell
+                label="FORMALITY"
+                value={selected.formality}
+                valueLabel={FORMALITY_LABELS[selected.formality]}
+                rangeLabel="WORKS FOR"
+                range={occasionsFor(selected.formality).join(' · ').toUpperCase() || '—'}
+              />
+              <ScaleCell
+                label="WARMTH"
+                value={selected.warmth}
+                valueLabel={WARMTH_LABELS[selected.warmth]}
+                rangeLabel="WEAR IT"
+                range={weather?.label ?? '—'}
+                note={weather?.layerBelow != null ? `LAYER UP BELOW ${weather.layerBelow}°` : undefined}
+              />
             </div>
 
             <div className="p-4">
@@ -446,6 +453,42 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// One scale (formality or warmth) in the item view: the piece's own value
+// as the design's 5-step bar, then the range the outfit rules give it
+// (see outfitRules.ts) — when it can actually be suggested.
+function ScaleCell({
+  label,
+  value,
+  valueLabel,
+  rangeLabel,
+  range,
+  note,
+}: {
+  label: string
+  value: number
+  valueLabel: string
+  rangeLabel: string
+  range: string
+  note?: string
+}) {
+  return (
+    <div className="wy-cell flex flex-col gap-1.5">
+      <div className="flex justify-between gap-2">
+        <span className="wy-lbl">{label}</span>
+        <span className="wy-lbl text-right">{valueLabel}</span>
+      </div>
+      <div className="grid grid-cols-5 gap-1" aria-hidden="true">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <div key={n} className={`h-3 ${n <= value ? 'bg-(--color-accent)' : 'bg-(--color-ink)/20'}`} />
+        ))}
+      </div>
+      <div className="wy-lbl mt-1">{rangeLabel}</div>
+      <div className="font-extrabold text-[13px] leading-tight tracking-[0.02em]">{range}</div>
+      {note && <div className="wy-lbl text-(--color-accent-700)">{note}</div>}
     </div>
   )
 }
