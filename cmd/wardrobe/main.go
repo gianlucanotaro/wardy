@@ -34,6 +34,13 @@ func main() {
 		}
 		return
 	}
+	if len(os.Args) > 1 && os.Args[1] == "seed-samples" {
+		if err := seedSamplesCmd(os.Args[2:]); err != nil {
+			slog.Error("fatal", "error", err)
+			os.Exit(1)
+		}
+		return
+	}
 	if len(os.Args) > 1 && os.Args[1] == "set-password" {
 		if err := setPassword(os.Args[2:]); err != nil {
 			slog.Error("fatal", "error", err)

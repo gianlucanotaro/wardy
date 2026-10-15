@@ -10,6 +10,14 @@ make dev                # Go :8080 + Vite :5173
 ./wardrobe create-user --email me@local
 ```
 
+**Sample garments for test accounts.** `./wardrobe seed-samples --email devtest`
+adds the ~30 tagged, illustrated garments in `samples/` (`garments.json` +
+`photos/`), every category covered, to that account. It skips samples the
+account still has (by name, tagged `sample`) and re-adds deleted ones, so it's
+safe on every start: the dev server runs it for `devtest` via a systemd drop-in
+(`wardrobe-dev-api.service.d/seed-samples.conf`). Never point it at a real
+account on prod.
+
 State in `./data/` — delete to reset. Gitignored.
 
 **Never burn credits in development.** `AI_PROVIDER=mock` returns fixture tags
