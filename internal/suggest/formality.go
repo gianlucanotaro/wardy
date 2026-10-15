@@ -13,7 +13,8 @@ type FormalityRange struct {
 // occasionFormality maps each occasion to the formality it accepts.
 // docs/taxonomy.md defines occasions and the formality scale separately
 // without tying them together — this mapping is a judgment call, not a
-// spec. Easy to adjust.
+// spec. Easy to adjust — and mirrored in web/src/outfitRules.ts for the
+// item view, so change both.
 var occasionFormality = map[taxonomy.Occasion]FormalityRange{
 	taxonomy.OccasionHome:    {1, 2},
 	taxonomy.OccasionSport:   {1, 2},
