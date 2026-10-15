@@ -20,8 +20,10 @@ type TagResult struct {
 	Pattern        string
 	Material       string
 	Fit            string
-	Formality      int
-	Warmth         int
+	FormalityMin   int
+	FormalityMax   int
+	WarmthMin      int
+	WarmthMax      int
 	Seasons        []string
 	Occasions      []string
 	// CustomTags are short, purely observational style/condition/era
@@ -47,8 +49,10 @@ type SuggestionCandidate struct {
 	Category     string
 	Subcategory  string
 	ColorPrimary string
-	Formality    int
-	Warmth       int
+	FormalityMin int
+	FormalityMax int
+	WarmthMin    int
+	WarmthMax    int
 	// CustomTags are the user's own personal tags (sentimental or
 	// organizational — "favorite", "gift from mom") — prompt context
 	// only, per docs/ai.md's mood/time_of_day pattern: they may shape

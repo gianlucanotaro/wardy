@@ -60,8 +60,9 @@ item, so friction here compounds.
 - **Every field is a picker, never a text input.** Segmented controls or selects
   bound to the enums in `docs/taxonomy.md`. A free-text field anywhere in this
   form defeats the entire taxonomy.
-- `formality` and `warmth` are 1–5 sliders or segmented controls with worded
-  endpoints ("loungewear" … "black tie"), not bare numbers.
+- `formality` and `warmth` are 1–5 ranges on segmented controls with worded
+  endpoints ("loungewear" … "black tie"), not bare numbers — tap two steps to
+  set a range.
 - Mark AI-suggested values visually so the user knows what to double-check.
   Material is the least reliable — draw the eye there.
 - Optimistic updates. Edits must feel instant; the round trip is irrelevant.

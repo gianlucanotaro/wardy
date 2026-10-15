@@ -27,10 +27,12 @@ func tagItemForSuggest(t *testing.T, s *store.Store, userID int64, category stri
 	if err != nil {
 		t.Fatalf("CreateItem: %v", err)
 	}
+	warmthMin, warmthMax := legacyRanges(category, warmth)
 	if err := s.UpdateItemTags(ctx, userID, itemID, store.ItemTags{
 		Category: category, Subcategory: "generic", ColorPrimary: "blue",
 		Pattern: "solid", Material: "cotton", Fit: "regular",
-		Formality: formality, Warmth: warmth, Seasons: seasons, Occasions: occasions,
+		FormalityMin: formality, FormalityMax: formality, WarmthMin: warmthMin, WarmthMax: warmthMax,
+		Seasons: seasons, Occasions: occasions,
 	}); err != nil {
 		t.Fatalf("UpdateItemTags: %v", err)
 	}
@@ -219,4 +221,20 @@ func TestSuggestEndpointOwnershipScoped(t *testing.T) {
 		t.Errorf("user B should not see user A's items in suggestions, got %d outfits", len(outfits))
 	}
 	_ = cookieA
+}
+
+// legacyRanges spreads a single formality/warmth value into ranges the
+// way migrations/0006_item_ranges.sql does for existing items, so fixtures
+// written as single values behave like a migrated wardrobe.
+func legacyRanges(category string, warmth int) (warmthMin, warmthMax int) {
+	switch category {
+	case "top":
+		return max(1, warmth-1), 5
+	case "outerwear":
+		return max(1, warmth-1), min(5, warmth+1)
+	case "bottom", "dress", "shoes":
+		return max(1, warmth-1), min(5, warmth+2)
+	default:
+		return 1, 5
+	}
 }

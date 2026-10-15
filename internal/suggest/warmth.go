@@ -1,6 +1,7 @@
 package suggest
 
 import (
+	"github.com/gianlucanotaro/wardy/internal/store"
 	"github.com/gianlucanotaro/wardy/internal/taxonomy"
 	"github.com/gianlucanotaro/wardy/internal/weather"
 )
@@ -26,25 +27,21 @@ func TargetWarmth(f weather.Forecast) int {
 	}
 }
 
-// FitsWeather reports whether a single piece can be part of an outfit for
-// the target warmth. Warmth is judged per outfit, not per piece: a light
-// top is fine on a cold day because assembleOutfits layers a knit or
-// outerwear over it, so tops only have a ceiling (no heavy knit in a
-// heatwave). Legs and feet don't layer, so bottoms, dresses and shoes
-// keep a floor too (no shorts or sandals in winter). Bags and accessories
-// are never ruled out by weather. Mirrored in web/src/outfitRules.ts
-// (with TargetWarmth's bands) for the item view, so change both.
-func FitsWeather(category string, warmth, target int) bool {
-	switch taxonomy.Category(category) {
-	case taxonomy.CategoryTop:
-		return warmth <= target+1
-	case taxonomy.CategoryOuterwear:
-		return warmth >= target-1 && warmth <= target+1
-	case taxonomy.CategoryBottom, taxonomy.CategoryDress, taxonomy.CategoryShoes:
-		return warmth >= target-2 && warmth <= target+1
-	default:
-		return true
-	}
+// FitsWeather reports whether a piece can be part of an outfit for the
+// target warmth: the day has to fall inside the piece's own warmth range.
+// The range already counts layering — a light shirt tagged 1-5 goes under
+// a knit or coat in winter, which assembleOutfits then adds. Mirrored in
+// web/src/outfitRules.ts (with TargetWarmth's bands) for the item view, so
+// change both.
+func FitsWeather(it store.Item, target int) bool {
+	return it.WarmthMin <= target && target <= it.WarmthMax
+}
+
+// pieceWarmth is how warm a piece is on its own, for layering: one step
+// above the hottest weather it suits. A shirt tagged 1-5 is a light 2 (it
+// needs a layer over it in the cold); a coat tagged 4-5 is a 5.
+func pieceWarmth(it store.Item) int {
+	return min(it.WarmthMin+1, taxonomy.MaxScale)
 }
 
 // neededWarmth is the warmth an outfit's warmest upper-body layer must

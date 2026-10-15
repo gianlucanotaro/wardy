@@ -59,8 +59,10 @@ type suggestionCandidateJSON struct {
 	Category     string   `json:"category"`
 	Subcategory  string   `json:"subcategory"`
 	ColorPrimary string   `json:"color_primary"`
-	Formality    int      `json:"formality"`
-	Warmth       int      `json:"warmth"`
+	FormalityMin int      `json:"formality_min"`
+	FormalityMax int      `json:"formality_max"`
+	WarmthMin    int      `json:"warmth_min"`
+	WarmthMax    int      `json:"warmth_max"`
 	CustomTags   []string `json:"custom_tags,omitempty"`
 }
 
@@ -90,8 +92,12 @@ exactly one of its listed values below — never invent a new one, even if it se
   "pattern": one of %s,
   "material": one of %s,
   "fit": one of %s,
-  "formality": integer 1 (loungewear) to 5 (black tie),
-  "warmth": integer 1 (hot weather only) to 5 (deep winter),
+  "formality_min", "formality_max": integers 1 (loungewear) to 5 (black tie) — the least and
+    most formal settings the piece can be worn in, e.g. a plain white shirt 2 to 4, a tuxedo
+    jacket 5 to 5,
+  "warmth_min", "warmth_max": integers 1 (hot weather) to 5 (deep winter) — the weather the
+    piece can be worn in, counting layering: a light shirt that goes under a knit in winter is
+    1 to 5, a wool coat 4 to 5, shorts 1 to 2,
   "seasons": array, any of %s,
   "occasions": array, any of %s,
   "custom_tags": array, 0 to 3 short style/condition/era descriptors not covered by the fields
@@ -248,8 +254,10 @@ func buildSuggestionPrompt(candidates []SuggestionCandidate, occasion, mood, tim
 			Category:     c.Category,
 			Subcategory:  c.Subcategory,
 			ColorPrimary: c.ColorPrimary,
-			Formality:    c.Formality,
-			Warmth:       c.Warmth,
+			FormalityMin: c.FormalityMin,
+			FormalityMax: c.FormalityMax,
+			WarmthMin:    c.WarmthMin,
+			WarmthMax:    c.WarmthMax,
 			CustomTags:   c.CustomTags,
 		}
 	}
@@ -305,8 +313,10 @@ func parseTagResponse(text string) (TagResult, error) {
 		Pattern        string   `json:"pattern"`
 		Material       string   `json:"material"`
 		Fit            string   `json:"fit"`
-		Formality      int      `json:"formality"`
-		Warmth         int      `json:"warmth"`
+		FormalityMin   int      `json:"formality_min"`
+		FormalityMax   int      `json:"formality_max"`
+		WarmthMin      int      `json:"warmth_min"`
+		WarmthMax      int      `json:"warmth_max"`
 		Seasons        []string `json:"seasons"`
 		Occasions      []string `json:"occasions"`
 		// Optional — an older or malformed response omitting it is not a
@@ -317,6 +327,9 @@ func parseTagResponse(text string) (TagResult, error) {
 		return TagResult{}, fmt.Errorf("parse model response: %w", err)
 	}
 
+	// A model that lists a range high-to-low still meant that range, so
+	// order it rather than failing the whole tag; tags.Validate still
+	// checks both bounds are on the 1-5 scale.
 	return TagResult{
 		Category:       raw.Category,
 		Subcategory:    raw.Subcategory,
@@ -325,8 +338,10 @@ func parseTagResponse(text string) (TagResult, error) {
 		Pattern:        raw.Pattern,
 		Material:       raw.Material,
 		Fit:            raw.Fit,
-		Formality:      raw.Formality,
-		Warmth:         raw.Warmth,
+		FormalityMin:   min(raw.FormalityMin, raw.FormalityMax),
+		FormalityMax:   max(raw.FormalityMin, raw.FormalityMax),
+		WarmthMin:      min(raw.WarmthMin, raw.WarmthMax),
+		WarmthMax:      max(raw.WarmthMin, raw.WarmthMax),
 		Seasons:        raw.Seasons,
 		Occasions:      raw.Occasions,
 		CustomTags:     raw.CustomTags,

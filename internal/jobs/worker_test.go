@@ -34,7 +34,7 @@ func validFakeResult() ai.TagResult {
 	return ai.TagResult{
 		Category: "top", Subcategory: "t-shirt", ColorPrimary: "blue",
 		Pattern: "solid", Material: "cotton", Fit: "regular",
-		Formality: 2, Warmth: 3,
+		FormalityMin: 2, FormalityMax: 2, WarmthMin: 3, WarmthMax: 3,
 		Seasons: []string{"summer"}, Occasions: []string{"casual"},
 	}
 }
@@ -214,7 +214,7 @@ func TestProcessOneNeverOverwritesUserEditedItem(t *testing.T) {
 	if err := s.UpdateItemTags(ctx, userID, itemID, store.ItemTags{
 		Category: "bottom", Subcategory: "jeans", ColorPrimary: "navy",
 		Pattern: "solid", Material: "denim", Fit: "slim",
-		Formality: 2, Warmth: 3, Seasons: []string{"autumn"}, Occasions: []string{"casual"},
+		FormalityMin: 2, FormalityMax: 2, WarmthMin: 3, WarmthMax: 3, Seasons: []string{"autumn"}, Occasions: []string{"casual"},
 	}); err != nil {
 		t.Fatalf("UpdateItemTags: %v", err)
 	}

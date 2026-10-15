@@ -64,10 +64,11 @@ export default function Build({
     saveAsLook.mutate({ itemIds: filled.map((it) => it.id) })
   }
 
+  // Each piece counts at the middle of its formality/warmth range.
   const avgFormality = filled.length
-    ? filled.reduce((sum, it) => sum + it.formality, 0) / filled.length
+    ? filled.reduce((sum, it) => sum + (it.formality_min + it.formality_max) / 2, 0) / filled.length
     : null
-  const avgWarmth = filled.length ? filled.reduce((sum, it) => sum + it.warmth, 0) / filled.length : null
+  const avgWarmth = filled.length ? filled.reduce((sum, it) => sum + (it.warmth_min + it.warmth_max) / 2, 0) / filled.length : null
 
   return (
     <div className="flex flex-col">

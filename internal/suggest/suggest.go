@@ -214,7 +214,7 @@ func candidateItems(ctx context.Context, s *store.Store, userID int64, filter st
 	}
 	kept := items[:0]
 	for _, it := range items {
-		if FitsWeather(it.Category, it.Warmth, *targetWarmth) {
+		if FitsWeather(it, *targetWarmth) {
 			kept = append(kept, it)
 		}
 	}
@@ -250,8 +250,10 @@ func toAICandidates(items []store.Item) []ai.SuggestionCandidate {
 			Category:     it.Category,
 			Subcategory:  it.Subcategory,
 			ColorPrimary: it.ColorPrimary,
-			Formality:    it.Formality,
-			Warmth:       it.Warmth,
+			FormalityMin: it.FormalityMin,
+			FormalityMax: it.FormalityMax,
+			WarmthMin:    it.WarmthMin,
+			WarmthMax:    it.WarmthMax,
 			CustomTags:   it.CustomTags,
 		}
 	}
@@ -402,7 +404,7 @@ func layerForWeather(base, tops, outerwear []store.Item, offset int, targetWarmt
 
 	hasTop := slices.ContainsFunc(items, func(it store.Item) bool { return it.Category == string(taxonomy.CategoryTop) })
 	if hasTop && upperWarmth(items) < need {
-		mid := pick(tops, items, offset, func(t store.Item) bool { return t.Warmth >= need })
+		mid := pick(tops, items, offset, func(t store.Item) bool { return pieceWarmth(t) >= need })
 		if mid != nil {
 			items = append(items, *mid)
 			layered = true
@@ -426,7 +428,7 @@ func upperWarmth(items []store.Item) int {
 	for _, it := range items {
 		switch taxonomy.Category(it.Category) {
 		case taxonomy.CategoryTop, taxonomy.CategoryDress, taxonomy.CategoryOuterwear:
-			w = max(w, it.Warmth)
+			w = max(w, pieceWarmth(it))
 		}
 	}
 	return w
@@ -452,18 +454,19 @@ func pick(list, outfit []store.Item, offset int, ok func(store.Item) bool) *stor
 	return nil
 }
 
-// coherent reports whether items' formality stays within
-// MaxFormalitySpread: dressing one piece up works, mixing black tie with
-// loungewear doesn't.
+// coherent reports whether items' formality ranges come within
+// MaxFormalitySpread of each other: dressing one piece up works, mixing
+// black tie with loungewear doesn't. The gap is between the most formal
+// piece's lowest setting and the least formal piece's highest one.
 func coherent(items []store.Item) bool {
 	if len(items) == 0 {
 		return true
 	}
-	lo, hi := items[0].Formality, items[0].Formality
+	highestMin, lowestMax := items[0].FormalityMin, items[0].FormalityMax
 	for _, it := range items[1:] {
-		lo, hi = min(lo, it.Formality), max(hi, it.Formality)
+		highestMin, lowestMax = max(highestMin, it.FormalityMin), min(lowestMax, it.FormalityMax)
 	}
-	return hi-lo <= MaxFormalitySpread
+	return highestMin-lowestMax <= MaxFormalitySpread
 }
 
 // outfitWorks applies the same outfit-level rules the rules pass builds

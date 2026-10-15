@@ -20,7 +20,8 @@ func tagItem(t *testing.T, s *Store, userID int64, formality, warmth int, season
 	if err := s.UpdateItemTags(ctx, userID, itemID, ItemTags{
 		Category: "top", Subcategory: "t-shirt", ColorPrimary: "blue",
 		Pattern: "solid", Material: "cotton", Fit: "regular",
-		Formality: formality, Warmth: warmth, Seasons: seasons, Occasions: occasions,
+		FormalityMin: formality, FormalityMax: formality, WarmthMin: warmth, WarmthMax: warmth,
+		Seasons: seasons, Occasions: occasions,
 	}); err != nil {
 		t.Fatalf("UpdateItemTags: %v", err)
 	}
@@ -45,10 +46,46 @@ func TestCandidateItemsFormalityRange(t *testing.T) {
 		t.Fatalf("got %d items, want 3 (formality 3,4,5 within range 3-5)", len(items))
 	}
 	for _, it := range items {
-		if it.Formality < 3 {
-			t.Errorf("item with formality %d is below the range 3-5", it.Formality)
+		if it.FormalityMax < 3 {
+			t.Errorf("item with formality %d-%d is below the range 3-5", it.FormalityMin, it.FormalityMax)
 		}
 	}
+}
+
+// An item qualifies when its own formality range overlaps the filter's: a
+// shirt tagged 1-3 is a work candidate (3-5), one tagged 1-2 isn't.
+func TestCandidateItemsFormalityRangeOverlap(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	userID, _ := s.CreateUser(ctx, "me@example.com", "hash", "Me")
+
+	overlapping := createRanged(t, s, userID, 1, 3)
+	createRanged(t, s, userID, 1, 2)
+
+	items, err := s.CandidateItems(ctx, userID, CandidateFilter{FormalityMin: 3, FormalityMax: 5})
+	if err != nil {
+		t.Fatalf("CandidateItems: %v", err)
+	}
+	if len(items) != 1 || items[0].ID != overlapping {
+		t.Errorf("want only the 1-3 item, got %+v", items)
+	}
+}
+
+func createRanged(t *testing.T, s *Store, userID int64, fMin, fMax int) int64 {
+	t.Helper()
+	ctx := context.Background()
+	itemID, err := s.CreateItem(ctx, userID, "photo.jpg", "thumb.jpg")
+	if err != nil {
+		t.Fatalf("CreateItem: %v", err)
+	}
+	if err := s.UpdateItemTags(ctx, userID, itemID, ItemTags{
+		Category: "top", Subcategory: "t-shirt", ColorPrimary: "blue",
+		Pattern: "solid", Material: "cotton", Fit: "regular",
+		FormalityMin: fMin, FormalityMax: fMax, WarmthMin: 1, WarmthMax: 5,
+	}); err != nil {
+		t.Fatalf("UpdateItemTags: %v", err)
+	}
+	return itemID
 }
 
 // Occasion and season tags are preferences ranked in internal/suggest,

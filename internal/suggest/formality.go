@@ -25,9 +25,10 @@ var occasionFormality = map[taxonomy.Occasion]FormalityRange{
 	taxonomy.OccasionFormal:  {4, 5},
 }
 
-// MaxFormalitySpread is how far apart the most and least formal pieces of
-// one outfit may be: blazer (4) with jeans (2) works, blazer with joggers
-// (1) doesn't.
+// MaxFormalitySpread is how far apart the formality ranges of one outfit's
+// pieces may be: a blazer (4) with jeans (2) works, a blazer with joggers
+// (1) doesn't. A piece with a wider range bridges more — a blazer tagged
+// 3-5 also pairs with joggers, because it can be worn smart-casual.
 const MaxFormalitySpread = 2
 
 // OccasionFormality returns occasion's accepted formality range,

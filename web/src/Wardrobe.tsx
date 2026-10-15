@@ -62,7 +62,7 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
   // Look the selected item up from the live query cache (rather than
   // holding a snapshot) so optimistic tag edits show up immediately.
   const selected = items.data?.find((it) => it.id === selectedId) ?? null
-  const weather = selected ? weatherRange(selected.category, selected.warmth) : null
+  const weather = selected ? weatherRange(selected.category, selected.warmth_min, selected.warmth_max) : null
 
   const addingItem = addFlow?.stage === 'review' ? (items.data?.find((it) => it.id === addFlow.itemId) ?? null) : null
   // All-or-nothing, not diffed per field — see TagEditor's markAiSuggested
@@ -280,15 +280,17 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
             <div className="grid grid-cols-2 border-t border-(--color-line)">
               <ScaleCell
                 label="FORMALITY"
-                value={selected.formality}
-                valueLabel={FORMALITY_LABELS[selected.formality]}
+                min={selected.formality_min}
+                max={selected.formality_max}
+                labels={FORMALITY_LABELS}
                 rangeLabel="WORKS FOR"
-                range={occasionsFor(selected.formality).join(' · ').toUpperCase() || '—'}
+                range={occasionsFor(selected.formality_min, selected.formality_max).join(' · ').toUpperCase() || '—'}
               />
               <ScaleCell
                 label="WARMTH"
-                value={selected.warmth}
-                valueLabel={WARMTH_LABELS[selected.warmth]}
+                min={selected.warmth_min}
+                max={selected.warmth_max}
+                labels={WARMTH_LABELS}
                 rangeLabel="WEAR IT"
                 range={weather?.label ?? '—'}
                 note={weather?.layerBelow != null ? `LAYER UP BELOW ${weather.layerBelow}°` : undefined}
@@ -457,20 +459,22 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
   )
 }
 
-// One scale (formality or warmth) in the item view: the piece's own value
-// as the design's 5-step bar, then the range the outfit rules give it
-// (see outfitRules.ts) — when it can actually be suggested.
+// One scale (formality or warmth) in the item view: the piece's own range
+// as the design's 5-step bar, then what that range means for suggestions
+// (see outfitRules.ts).
 function ScaleCell({
   label,
-  value,
-  valueLabel,
+  min,
+  max,
+  labels,
   rangeLabel,
   range,
   note,
 }: {
   label: string
-  value: number
-  valueLabel: string
+  min: number
+  max: number
+  labels: Record<number, string>
   rangeLabel: string
   range: string
   note?: string
@@ -479,13 +483,14 @@ function ScaleCell({
     <div className="wy-cell flex flex-col gap-1.5">
       <div className="flex justify-between gap-2">
         <span className="wy-lbl">{label}</span>
-        <span className="wy-lbl text-right">{valueLabel}</span>
+        <span className="wy-lbl text-right">{min === max ? min : `${min}–${max}`}</span>
       </div>
       <div className="grid grid-cols-5 gap-1" aria-hidden="true">
         {[1, 2, 3, 4, 5].map((n) => (
-          <div key={n} className={`h-3 ${n <= value ? 'bg-(--color-accent)' : 'bg-(--color-ink)/20'}`} />
+          <div key={n} className={`h-3 ${n >= min && n <= max ? 'bg-(--color-accent)' : 'bg-(--color-ink)/20'}`} />
         ))}
       </div>
+      <div className="wy-lbl">{(min === max ? labels[min] : `${labels[min]} – ${labels[max]}`).toUpperCase()}</div>
       <div className="wy-lbl mt-1">{rangeLabel}</div>
       <div className="font-extrabold text-[13px] leading-tight tracking-[0.02em]">{range}</div>
       {note && <div className="wy-lbl text-(--color-accent-700)">{note}</div>}

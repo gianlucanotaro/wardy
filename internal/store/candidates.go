@@ -22,10 +22,11 @@ type CandidateFilter struct {
 	ExcludeWornSinceDays int // 0 disables this filter
 }
 
-// CandidateItems returns userID's non-archived items matching filter.
+// CandidateItems returns userID's non-archived items matching filter. An
+// item qualifies when its own formality range overlaps the filter's.
 func (s *Store) CandidateItems(ctx context.Context, userID int64, f CandidateFilter) ([]Item, error) {
-	query := itemColumns + ` FROM items WHERE user_id = ? AND archived = 0 AND formality BETWEEN ? AND ?`
-	args := []any{userID, f.FormalityMin, f.FormalityMax}
+	query := itemColumns + ` FROM items WHERE user_id = ? AND archived = 0 AND formality_min <= ? AND formality_max >= ?`
+	args := []any{userID, f.FormalityMax, f.FormalityMin}
 
 	if f.ExcludeWornSinceDays > 0 {
 		since := time.Now().UTC().AddDate(0, 0, -f.ExcludeWornSinceDays).Format("2006-01-02")

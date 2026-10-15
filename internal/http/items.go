@@ -314,8 +314,10 @@ func updateItemTagsHandler(s *store.Store) http.HandlerFunc {
 			Pattern        string   `json:"pattern"`
 			Material       string   `json:"material"`
 			Fit            string   `json:"fit"`
-			Formality      int      `json:"formality"`
-			Warmth         int      `json:"warmth"`
+			FormalityMin   int      `json:"formality_min"`
+			FormalityMax   int      `json:"formality_max"`
+			WarmthMin      int      `json:"warmth_min"`
+			WarmthMax      int      `json:"warmth_max"`
 			Seasons        []string `json:"seasons"`
 			Occasions      []string `json:"occasions"`
 			// Not part of the closed taxonomy — no Validate() below,
@@ -335,8 +337,10 @@ func updateItemTagsHandler(s *store.Store) http.HandlerFunc {
 			Pattern:        taxonomy.Pattern(req.Pattern),
 			Material:       taxonomy.Material(req.Material),
 			Fit:            taxonomy.Fit(req.Fit),
-			Formality:      req.Formality,
-			Warmth:         req.Warmth,
+			FormalityMin:   req.FormalityMin,
+			FormalityMax:   req.FormalityMax,
+			WarmthMin:      req.WarmthMin,
+			WarmthMax:      req.WarmthMax,
 			Seasons:        req.Seasons,
 			Occasions:      req.Occasions,
 		}
@@ -353,8 +357,10 @@ func updateItemTagsHandler(s *store.Store) http.HandlerFunc {
 			Pattern:        string(tags.Pattern),
 			Material:       string(tags.Material),
 			Fit:            string(tags.Fit),
-			Formality:      tags.Formality,
-			Warmth:         tags.Warmth,
+			FormalityMin:   tags.FormalityMin,
+			FormalityMax:   tags.FormalityMax,
+			WarmthMin:      tags.WarmthMin,
+			WarmthMax:      tags.WarmthMax,
 			Seasons:        tags.Seasons,
 			Occasions:      tags.Occasions,
 			CustomTags:     req.CustomTags,

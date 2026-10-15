@@ -8,8 +8,12 @@ export type TagsPayload = {
   pattern: string
   material: string
   fit: string
-  formality: number
-  warmth: number
+  // Ranges on the 1-5 scales, min <= max: a shirt can be formality 2-4
+  // and warmth 1-5 (worn layered in winter).
+  formality_min: number
+  formality_max: number
+  warmth_min: number
+  warmth_max: number
   seasons: string[]
   occasions: string[]
   // Free-form, user- or AI-authored — not part of the closed taxonomy
