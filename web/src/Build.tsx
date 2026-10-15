@@ -1,26 +1,76 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { createLook, listItems, type Item } from './api'
-import { FORMALITY_LABELS, WARMTH_LABELS, type Category } from './taxonomy'
+import {
+  createLook,
+  getSuggestions,
+  getWeather,
+  listItems,
+  MOODS,
+  type Item,
+  type SuggestOutfit,
+  type SuggestSource,
+} from './api'
+import { useLocationSource, useWeatherCoords } from './location'
+import { FORMALITY_LABELS, OCCASIONS, WARMTH_LABELS, type Category } from './taxonomy'
 import { useToast } from './useToast'
 
 // One slot per clothing category plus an accessories slot, matching the
 // design's isBuild block (stacked slot rows, each with an inline picker
-// strip). Client-only state — no new backend endpoint, "SAVE AS LOOK"
-// reuses the same createLook call Today.tsx and Looks.tsx already use.
-const SLOTS: { category: Category; label: string }[] = [
-  { category: 'outerwear', label: 'OUTER' },
-  { category: 'top', label: 'TOP' },
-  { category: 'bottom', label: 'BOTTOM' },
-  { category: 'shoes', label: 'SHOES' },
+// strip). Client-only state — "SAVE AS LOOK" reuses the same createLook
+// call Today.tsx and Looks.tsx already use, and SUGGEST OUTFIT the same
+// /api/suggest.
+//
+// LAYER and DRESS only show once something is in them: a suggestion for a
+// cold day can put a knit over the shirt, and one for a dress has no top
+// or bottom. Picking by hand never needs them.
+type SlotKey = 'outerwear' | 'layer' | 'top' | 'bottom' | 'dress' | 'shoes'
+const SLOTS: { key: SlotKey; category: Category; label: string; onlyWhenFilled?: boolean }[] = [
+  { key: 'outerwear', category: 'outerwear', label: 'OUTER' },
+  { key: 'layer', category: 'top', label: 'LAYER', onlyWhenFilled: true },
+  { key: 'top', category: 'top', label: 'TOP' },
+  { key: 'bottom', category: 'bottom', label: 'BOTTOM' },
+  { key: 'dress', category: 'dress', label: 'DRESS', onlyWhenFilled: true },
+  { key: 'shoes', category: 'shoes', label: 'SHOES' },
 ]
+type Slots = Partial<Record<SlotKey, Item>>
 
-// Which categories Build can take — dress/bag don't have a slot.
-// Accessories hold several pieces at once (a belt and a watch), so they
-// live outside SLOTS. Wardrobe's "Add to outfit" button keeps its own copy
-// of this list (see Wardrobe.tsx) to avoid exporting a non-component value
-// out of this file, which breaks fast refresh.
-const BUILDABLE_CATEGORIES: string[] = [...SLOTS.map((s) => s.category), 'accessory']
+// Which categories Build can take — bags don't have a slot. Accessories
+// hold several pieces at once (a belt and a watch), so they live outside
+// SLOTS. Wardrobe's "Add to outfit" button keeps its own copy of this list
+// (see Wardrobe.tsx) to avoid exporting a non-component value out of this
+// file, which breaks fast refresh.
+const BUILDABLE_CATEGORIES: string[] = ['outerwear', 'top', 'bottom', 'dress', 'shoes', 'accessory']
+
+// Spreads a suggested outfit over the slots. Of two tops, the lighter one
+// goes underneath and the warmer one is the layer over it; anything without
+// a slot of its own (accessories, a bag) rides along as an accessory.
+function placeOutfit(outfit: Item[]): { slots: Slots; accessories: Item[] } {
+  const slots: Slots = {}
+  const accessories: Item[] = []
+  const tops = outfit.filter((it) => it.category === 'top').sort((a, b) => a.warmth_min - b.warmth_min)
+  if (tops[0]) slots.top = tops[0]
+  if (tops[1]) slots.layer = tops[1]
+  for (const it of outfit) {
+    if (it.category === 'outerwear' || it.category === 'bottom' || it.category === 'dress' || it.category === 'shoes') {
+      slots[it.category] ??= it
+    } else if (it.category !== 'top') {
+      accessories.push(it)
+    }
+  }
+  return { slots, accessories }
+}
+
+// The suggestion currently shown in the slots: the full response, so NEXT
+// can step through it without another API call, and whether the user has
+// since changed a slot by hand.
+type Suggestion = {
+  occasion: string
+  mood: string
+  outfits: SuggestOutfit[]
+  index: number
+  source?: SuggestSource
+  edited: boolean
+}
 
 function itemTitle(it: Item): string {
   return (it.name || it.subcategory || it.category).toUpperCase()
@@ -115,10 +165,59 @@ export default function Build({
 }) {
   const queryClient = useQueryClient()
   const items = useQuery({ queryKey: ['items'], queryFn: () => listItems() })
-  const [slots, setSlots] = useState<Partial<Record<Category, Item>>>({})
+  const [slots, setSlots] = useState<Slots>({})
   const [accessories, setAccessories] = useState<Item[]>([])
-  const [pickSlot, setPickSlot] = useState<Category | null>(null)
+  const [pickSlot, setPickSlot] = useState<SlotKey | 'accessory' | null>(null)
   const flash = useToast()
+
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [occasion, setOccasion] = useState<string>('casual')
+  const [mood, setMood] = useState<string>('')
+  const [suggestion, setSuggestion] = useState<Suggestion | null>(null)
+  const [noMatch, setNoMatch] = useState<string | null>(null)
+
+  // Same location and weather as Today, so the sheet can say what weather
+  // the suggestion will be dressed for.
+  const [locationSource] = useLocationSource()
+  const { coords, ready } = useWeatherCoords(locationSource)
+  const weather = useQuery({
+    queryKey: ['weather', coords],
+    queryFn: () => getWeather(coords),
+    enabled: sheetOpen && ready,
+  })
+
+  function markEdited() {
+    setSuggestion((prev) => (prev && !prev.edited ? { ...prev, edited: true } : prev))
+  }
+
+  function showOutfit(outfit: SuggestOutfit) {
+    const placed = placeOutfit(outfit.items)
+    setSlots(placed.slots)
+    setAccessories(placed.accessories)
+    setPickSlot(null)
+  }
+
+  const suggest = useMutation({
+    mutationFn: () => getSuggestions(occasion, mood || undefined, coords),
+    onSuccess: (res) => {
+      setSheetOpen(false)
+      if (res.outfits.length === 0) {
+        setNoMatch(res.no_match_reason ?? 'Nothing in your wardrobe matches right now.')
+        return
+      }
+      setNoMatch(null)
+      showOutfit(res.outfits[0])
+      setSuggestion({ occasion, mood, outfits: res.outfits, index: 0, source: res.source, edited: false })
+    },
+    onError: () => flash("COULDN'T SUGGEST — TRY AGAIN"),
+  })
+
+  function nextSuggestion() {
+    if (!suggestion) return
+    const index = (suggestion.index + 1) % suggestion.outfits.length
+    showOutfit(suggestion.outfits[index])
+    setSuggestion({ ...suggestion, index, edited: false })
+  }
 
   // Pre-fill the matching slot from Wardrobe's "Add to outfit", overwriting
   // whatever was there — the more recent explicit user intent wins. Consume
@@ -128,27 +227,43 @@ export default function Build({
     if (pendingItem.category === 'accessory') {
       setAccessories((prev) => (prev.some((it) => it.id === pendingItem.id) ? prev : [...prev, pendingItem]))
     } else if (BUILDABLE_CATEGORIES.includes(pendingItem.category)) {
-      setSlots((prev) => ({ ...prev, [pendingItem.category as Category]: pendingItem }))
+      setSlots((prev) => ({ ...prev, [pendingItem.category as SlotKey]: pendingItem }))
     }
+    markEdited()
     onConsumePendingItem?.()
   }, [pendingItem, onConsumePendingItem])
 
   // Clothes drive the formality/warmth read-out; accessories ride along in
   // the saved look but don't move the averages (most fit any weather).
-  const clothes = SLOTS.map((s) => slots[s.category]).filter((it): it is Item => !!it)
+  const visibleSlots = SLOTS.filter((s) => !s.onlyWhenFilled || slots[s.key])
+  const clothes = visibleSlots.map((s) => slots[s.key]).filter((it): it is Item => !!it)
   const filled = [...clothes, ...accessories]
   const filledSlots = clothes.length + (accessories.length > 0 ? 1 : 0)
 
   function toggleAccessory(it: Item) {
     setAccessories((prev) => (prev.some((a) => a.id === it.id) ? prev.filter((a) => a.id !== it.id) : [...prev, it]))
+    markEdited()
   }
 
+  function clearAll() {
+    setSlots({})
+    setAccessories([])
+    setPickSlot(null)
+    setSuggestion(null)
+    setNoMatch(null)
+  }
+
+  // A suggested look is named after what it was asked for ("Bold date
+  // look"); one built by hand stays a "Custom look".
+  const lookName = suggestion
+    ? `${[suggestion.mood, suggestion.occasion].filter(Boolean).join(' ')} look`.replace(/^./, (c) => c.toUpperCase())
+    : 'Custom look'
+
   const saveAsLook = useMutation({
-    mutationFn: (input: { itemIds: number[] }) => createLook({ name: 'Custom look', item_ids: input.itemIds }),
+    mutationFn: (input: { itemIds: number[] }) => createLook({ name: lookName, item_ids: input.itemIds }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['looks'] })
-      setSlots({})
-      setAccessories([])
+      clearAll()
       flash('SAVED TO LOOKS')
     },
   })
@@ -173,26 +288,60 @@ export default function Build({
     <div className="flex flex-col">
       <div className="flex items-baseline justify-between px-4 py-3 border-b-2 border-(--color-line-strong)">
         <span className="font-extrabold text-3xl tracking-tight">BUILD</span>
-        <span className="wy-lbl">{filledSlots}/{SLOTS.length + 1} SLOTS</span>
+        <span className="wy-lbl">
+          {filledSlots}/{visibleSlots.length + 1} SLOTS
+        </span>
       </div>
+
+      {suggestion ? (
+        <div className="grid grid-cols-[1fr_auto] border-b-2 border-(--color-line-strong)">
+          <button
+            type="button"
+            data-primary="1"
+            onClick={() => setSheetOpen(true)}
+            className="wy-act flex items-center justify-between"
+          >
+            SUGGEST AGAIN <span aria-hidden="true">→</span>
+          </button>
+          <button
+            type="button"
+            onClick={nextSuggestion}
+            disabled={suggestion.outfits.length < 2}
+            className="wy-act border-l-2 border-(--color-line-strong)"
+          >
+            NEXT {suggestion.index + 1}/{suggestion.outfits.length}
+          </button>
+        </div>
+      ) : (
+        <div className="border-b-2 border-(--color-line-strong)">
+          <button
+            type="button"
+            data-primary="1"
+            onClick={() => setSheetOpen(true)}
+            className="wy-act w-full flex items-center justify-between"
+          >
+            SUGGEST OUTFIT <span aria-hidden="true">→</span>
+          </button>
+        </div>
+      )}
 
       {/* One row per slot; tapping a row opens a strip of matching pieces
           right under it (only one open at a time), so picking never moves
           the user away from the slot they're filling. */}
       <div className="border-b-2 border-(--color-line-strong)">
-        {SLOTS.map((slot) => {
-          const item = slots[slot.category]
-          const open = pickSlot === slot.category
+        {visibleSlots.map((slot) => {
+          const item = slots[slot.key]
+          const open = pickSlot === slot.key
           const options = open ? (items.data?.filter((it) => it.category === slot.category) ?? []) : []
           return (
-            <div key={slot.category} className="border-b border-(--color-line)">
+            <div key={slot.key} className="border-b border-(--color-line)">
               <SlotRow
                 label={slot.label}
                 thumb={item}
                 title={item ? itemTitle(item) : 'EMPTY'}
                 action={item ? 'SWAP ▾' : 'PICK ▾'}
                 open={open}
-                onToggle={() => setPickSlot(open ? null : slot.category)}
+                onToggle={() => setPickSlot(open ? null : slot.key)}
               />
               {open && (
                 <div className={STRIP_CLASS}>
@@ -202,8 +351,9 @@ export default function Build({
                       item={it}
                       picked={item?.id === it.id}
                       onPick={() => {
-                        setSlots((prev) => ({ ...prev, [slot.category]: it }))
+                        setSlots((prev) => ({ ...prev, [slot.key]: it }))
                         setPickSlot(null)
+                        markEdited()
                       }}
                     />
                   ))}
@@ -216,10 +366,11 @@ export default function Build({
                       onClick={() => {
                         setSlots((prev) => {
                           const next = { ...prev }
-                          delete next[slot.category]
+                          delete next[slot.key]
                           return next
                         })
                         setPickSlot(null)
+                        markEdited()
                       }}
                       className={STRIP_ACTION_CLASS}
                     >
@@ -261,7 +412,14 @@ export default function Build({
                     <p className="px-4 py-4 text-sm">No accessories in your wardrobe yet.</p>
                   )}
                   {accessories.length > 0 && (
-                    <button type="button" onClick={() => setAccessories([])} className={STRIP_ACTION_CLASS}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAccessories([])
+                        markEdited()
+                      }}
+                      className={STRIP_ACTION_CLASS}
+                    >
                       ✕ REMOVE ALL
                     </button>
                   )}
@@ -272,12 +430,39 @@ export default function Build({
         })()}
       </div>
 
+      {suggestion && (
+        <div className="px-4 py-3 border-b-2 border-(--color-line-strong)">
+          <div className="wy-lbl mb-1" style={{ color: 'var(--color-accent-700)' }}>
+            {[
+              suggestion.source === 'ai' ? 'AI' : 'SIMPLE MATCH',
+              suggestion.occasion,
+              suggestion.mood,
+              suggestion.edited ? 'EDITED' : '',
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </div>
+          <p className="text-sm leading-relaxed">{suggestion.outfits[suggestion.index].note}</p>
+          {suggestion.source === 'rules_fallback' && (
+            <p className="text-xs text-(--color-neutral-700) mt-1">
+              AI suggestions are unavailable right now — this is a simple match on weather and occasion.
+            </p>
+          )}
+        </div>
+      )}
+      {noMatch && (
+        <div className="px-4 py-3 border-b-2 border-(--color-line-strong)">
+          <div className="wy-lbl mb-1">NO OUTFIT FOUND</div>
+          <p className="text-sm leading-relaxed">{noMatch}</p>
+        </div>
+      )}
+
       <p className="px-4 py-3 border-b-2 border-(--color-line-strong) text-sm leading-relaxed">
         {clothes.length
           ? `Average formality ${avgFormality?.toFixed(1)} (${FORMALITY_LABELS[Math.round(avgFormality ?? 3)]}) · warmth ${avgWarmth?.toFixed(1)} (${WARMTH_LABELS[Math.round(avgWarmth ?? 3)]})${filled.length < 3 ? ' — add a piece or two before saving.' : '.'}`
           : accessories.length
             ? 'Accessories picked — add some clothes to see how formal and warm the outfit is.'
-            : 'Empty rack. Tap a slot to pull something in from the wardrobe.'}
+            : 'Empty rack. Tap a slot to pull something in — or let the AI suggest an outfit.'}
       </p>
 
       <div className="grid grid-cols-2 border-b-2 border-(--color-line-strong)">
@@ -286,17 +471,86 @@ export default function Build({
         </button>
         <button
           type="button"
-          onClick={() => {
-            setSlots({})
-            setAccessories([])
-            setPickSlot(null)
-          }}
+          onClick={clearAll}
           className="wy-act border-l-2 border-(--color-line-strong)"
         >
           CLEAR SLOTS
         </button>
       </div>
 
+
+      {/* The suggest sheet: occasion and mood (context for the AI, never a
+          filter), and the weather it will dress for. Above the tab bar. */}
+      {sheetOpen && (
+        <div className="fixed inset-0 z-20 flex flex-col justify-end" role="dialog" aria-label="Suggest outfit">
+          <button
+            type="button"
+            aria-label="Close"
+            className="absolute inset-0 bg-(--color-ink)/45"
+            onClick={() => setSheetOpen(false)}
+          />
+          <div className="relative bg-(--color-bg) border-t-2 border-(--color-line-strong) safe-area-overlay max-h-full overflow-y-auto">
+            <div className="flex items-center justify-between px-4 py-3 border-b-2 border-(--color-line-strong)">
+              <span className="font-extrabold text-2xl tracking-tight">SUGGEST OUTFIT</span>
+              <button type="button" onClick={() => setSheetOpen(false)} className="wy-chip">
+                ✕ CLOSE
+              </button>
+            </div>
+            <div className="px-4 py-3 border-b border-(--color-line)">
+              <div className="wy-lbl mb-1.5">OCCASION</div>
+              <div className="flex flex-wrap gap-1.5">
+                {OCCASIONS.map((o) => (
+                  <button
+                    key={o}
+                    type="button"
+                    className="wy-chip"
+                    data-on={o === occasion || undefined}
+                    aria-pressed={o === occasion}
+                    onClick={() => setOccasion(o)}
+                  >
+                    {o.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="px-4 py-3 border-b border-(--color-line)">
+              <div className="wy-lbl mb-1.5">MOOD</div>
+              <div className="flex flex-wrap gap-1.5">
+                {MOODS.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    className="wy-chip"
+                    data-on={m === mood || undefined}
+                    aria-pressed={m === mood}
+                    onClick={() => setMood(m === mood ? '' : m)}
+                  >
+                    {m.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="px-4 py-2.5 wy-lbl">
+              {!ready || weather.isLoading
+                ? 'CHECKING THE WEATHER…'
+                : weather.data?.available
+                  ? `${Math.round(weather.data.temp_high_c)}°/${Math.round(weather.data.temp_low_c)}° · ${coords ? 'HERE' : 'HOME'} — WEATHER IS TAKEN INTO ACCOUNT`
+                  : 'NO WEATHER — SUGGESTING WITHOUT IT'}
+            </div>
+            <div className="border-t-2 border-(--color-line-strong)">
+              <button
+                type="button"
+                data-primary="1"
+                onClick={() => suggest.mutate()}
+                disabled={suggest.isPending || !ready}
+                className="wy-act w-full flex items-center justify-between"
+              >
+                {suggest.isPending ? 'FINDING AN OUTFIT…' : 'SUGGEST'} <span aria-hidden="true">→</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

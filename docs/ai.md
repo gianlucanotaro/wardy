@@ -36,7 +36,10 @@ wardrobe costs well under a dollar, once.
    forecast.
 
 Mood and time of day are prompt context, not filters — they shape the rationale
-and ranking, not the candidate set.
+and ranking, not the candidate set. Mood is a closed list (`suggest.Moods`:
+sharp, easy, bold, quiet, cosy, playful); the server rejects anything else,
+since it goes straight into the prompt. Outfits may carry one or two
+accessories (never bags); Build puts them in its accessories slot.
 
 **If the API is unreachable, fall back to rules-only.** The app must stay fully
 usable with `AI_PROVIDER=off`.

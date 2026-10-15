@@ -8,7 +8,7 @@ import "context"
 type mockProvider struct{}
 
 // SuggestOutfits builds fake outfits slot by slot — the i-th top with the
-// i-th bottom, plus shoes and outerwear when there are any — so the
+// i-th bottom, plus shoes, outerwear and an accessory when there are any — so the
 // outfits look like outfits on the dev instance. No network, no fashion
 // logic beyond that: the rules pass's own checks (internal/suggest) still
 // decide whether each one survives, exactly as they would for a real
@@ -31,6 +31,7 @@ func (mockProvider) SuggestOutfits(_ context.Context, candidates []SuggestionCan
 		ids := append(nth("top", i), nth("bottom", i)...)
 		ids = append(ids, nth("shoes", i)...)
 		ids = append(ids, nth("outerwear", i)...)
+		ids = append(ids, nth("accessory", i)...)
 		suggestions = append(suggestions, AISuggestion{
 			ItemIDs:   ids,
 			Rationale: "Mock pick for " + occasion + " — set AI_PROVIDER=anthropic for real rationale.",
