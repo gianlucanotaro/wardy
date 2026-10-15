@@ -34,7 +34,7 @@ type suggestResponse struct {
 // Suggest runs without warmth-matching (docs/ai.md: "Weather down ->
 // suggest anyway"), never an error to the client. ?lat=&lon= is the
 // device's current position, used over the home location when sent
-// (weatherLocation). ?mood= and
+// (weatherLocation). ?mood= (one of suggest.Moods) and
 // ?time_of_day= are optional prompt context for the AI rationale, not
 // filters on the candidate set.
 func suggestHandler(s *store.Store, wc *weather.Client, provider ai.Provider, aiEnabled bool, monthlyBudgetUSD float64) http.HandlerFunc {
@@ -51,6 +51,10 @@ func suggestHandler(s *store.Store, wc *weather.Client, provider ai.Provider, ai
 			return
 		}
 		mood := r.URL.Query().Get("mood")
+		if !suggest.ValidMood(mood) {
+			http.Error(w, "invalid mood", http.StatusBadRequest)
+			return
+		}
 		timeOfDay := r.URL.Query().Get("time_of_day")
 
 		var forecast *weather.Forecast

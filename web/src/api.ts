@@ -136,6 +136,10 @@ export function getWeather(coords: Coords | null): Promise<Weather> {
   return request(`/api/weather?${params.toString()}`)
 }
 
+// suggest.Moods (Go): context for the AI's picks and rationale, never a
+// filter on the candidate set. The server rejects anything else.
+export const MOODS = ['sharp', 'easy', 'bold', 'quiet', 'cosy', 'playful']
+
 export type SuggestOutfit = { items: Item[]; note: string }
 
 export type SuggestSource = 'ai' | 'rules_fallback'

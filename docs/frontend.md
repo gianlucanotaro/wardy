@@ -18,6 +18,7 @@ Proposed set — confirm before building beyond phase 3.
 | `/items/new` | Capture or pick a photo, upload, land on review. |
 | `/items/:id` | Detail and tag editing. |
 | `/suggest` | Pick occasion + mood → outfit cards. |
+| Build | Fill slots by hand, or SUGGEST OUTFIT (occasion + mood) → AI fills the slots; NEXT steps through the other suggestions, every slot stays swappable. |
 | `/looks` | Saved outfits. |
 | `/looks/:id` | Look detail, edit, log as worn. |
 | `/history` | Wear log, "not worn in a while". |

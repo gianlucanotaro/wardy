@@ -1,15 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { createLook, getSuggestions, getWeather, listItems, logWear, todayISODate } from './api'
+import { createLook, getSuggestions, getWeather, listItems, logWear, MOODS, todayISODate } from './api'
 import { useLocationSource, useWeatherCoords } from './location'
 import { OCCASIONS } from './taxonomy'
 import { useToast } from './useToast'
-
-// Suggestion context only — never a filter on the candidate set (see
-// internal/http/suggest.go's "?mood= is optional prompt context for the AI
-// rationale, not a filter"). Not part of taxonomy.ts since mood isn't a
-// closed vocabulary attached to items, only to a suggestion request.
-const MOODS = ['sharp', 'easy', 'bold', 'quiet']
 
 // Matches Wardy Prototype.dc.html's d > 90 / d < -90 swipe-out threshold.
 const SWIPE_THRESHOLD_PX = 90

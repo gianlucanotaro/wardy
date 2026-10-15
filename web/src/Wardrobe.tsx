@@ -8,7 +8,7 @@ import { occasionsFor, weatherRange } from './outfitRules'
 
 // Mirrors Build.tsx's BUILDABLE_CATEGORIES — those are the only slots Build
 // can pre-fill into, so "Add to outfit" only shows for items in this list.
-const BUILDABLE_CATEGORIES = ['outerwear', 'top', 'bottom', 'shoes', 'accessory']
+const BUILDABLE_CATEGORIES = ['outerwear', 'top', 'bottom', 'dress', 'shoes', 'accessory']
 
 // The WARDROBE tab: grid + category chips + tag search + item detail, matching
 // Wardy Prototype.dc.html's isWardrobe/isDetail blocks. Deliberately does
