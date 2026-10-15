@@ -94,6 +94,15 @@ func buildFixtureWardrobe(t *testing.T, s *store.Store, userID int64) {
 	createTaggedItem(t, s, userID, "shoes", "dress-shoes", 4, 2, []string{"summer"}, []string{"work"})
 }
 
+// Casual summer basics only (formality 2) — nothing a formal occasion
+// (4-5) can use.
+func buildCasualOnlyWardrobe(t *testing.T, s *store.Store, userID int64) {
+	t.Helper()
+	createTaggedItem(t, s, userID, "top", "t-shirt", 2, 1, []string{"summer"}, []string{"casual"})
+	createTaggedItem(t, s, userID, "bottom", "shorts", 2, 1, []string{"summer"}, []string{"casual"})
+	createTaggedItem(t, s, userID, "shoes", "sneakers", 2, 1, []string{"summer"}, []string{"casual"})
+}
+
 func hotSummerForecast() weather.Forecast {
 	return weather.Forecast{TempHighC: 30, TempLowC: 22}
 }
@@ -125,13 +134,13 @@ func TestSuggestBasicMatch(t *testing.T) {
 		t.Fatalf("expected at least one outfit, got none (reason: %q)", result.NoMatchReason)
 	}
 
-	// Every item in the outfit should actually be tagged casual/summer —
-	// spot check the assembled outfit isn't pulling in the winter or work
-	// items.
+	// Nothing too warm for a hot day: the fixture's sweater, jeans, coat
+	// and boots (warmth 4-5) must stay out.
+	target := TargetWarmth(forecast)
 	for _, outfit := range result.Outfits {
 		for _, item := range outfit.Items {
-			if !contains(item.Seasons, "summer") {
-				t.Errorf("outfit included a non-summer item: %+v", item)
+			if item.Warmth > target+1 {
+				t.Errorf("hot-day outfit included a too-warm item (warmth %d, target %d): %+v", item.Warmth, target, item)
 			}
 		}
 	}
@@ -241,18 +250,18 @@ func TestSuggestOccasionMatchesWork(t *testing.T) {
 	}
 	for _, outfit := range result.Outfits {
 		for _, item := range outfit.Items {
-			if !contains(item.Occasions, "work") {
-				t.Errorf("work suggestion included a non-work item: %+v", item)
+			if item.Formality < OccasionFormality(taxonomy.OccasionWork).Min {
+				t.Errorf("work suggestion included a too-casual item (formality %d): %+v", item.Formality, item)
 			}
 		}
 	}
 }
 
-func TestSuggestNothingMatchesNamesOccasion(t *testing.T) {
+func TestSuggestNothingMatchesNamesFormality(t *testing.T) {
 	ctx := context.Background()
 	s := newTestStore(t)
 	userID, _ := s.CreateUser(ctx, "me@example.com", "hash", "Me")
-	buildFixtureWardrobe(t, s, userID) // no "formal" occasion items at all
+	buildCasualOnlyWardrobe(t, s, userID) // nothing formal enough
 
 	forecast := hotSummerForecast()
 	result, err := Suggest(ctx, s, userID, taxonomy.OccasionFormal, &forecast, true, julyDate)
@@ -260,13 +269,13 @@ func TestSuggestNothingMatchesNamesOccasion(t *testing.T) {
 		t.Fatalf("Suggest: %v", err)
 	}
 	if len(result.Outfits) != 0 {
-		t.Fatalf("expected no outfits for an occasion with zero tagged items, got %d", len(result.Outfits))
+		t.Fatalf("expected no outfits when nothing is formal enough, got %d", len(result.Outfits))
 	}
 	if result.NoMatchReason == "" {
 		t.Fatal("expected a non-empty no-match reason")
 	}
-	if !strings.Contains(result.NoMatchReason, "occasion") {
-		t.Errorf("expected the reason to point at the occasion, got: %q", result.NoMatchReason)
+	if !strings.Contains(result.NoMatchReason, "formality") {
+		t.Errorf("expected the reason to point at formality, got: %q", result.NoMatchReason)
 	}
 }
 
@@ -579,7 +588,7 @@ func TestSuggestAI_NothingMatchesNeverCallsProvider(t *testing.T) {
 	ctx := context.Background()
 	s := newTestStore(t)
 	userID, _ := s.CreateUser(ctx, "me@example.com", "hash", "Me")
-	buildFixtureWardrobe(t, s, userID) // no "formal" occasion items at all
+	buildCasualOnlyWardrobe(t, s, userID) // nothing formal enough
 
 	provider := &fakeAIProvider{}
 	forecast := hotSummerForecast()

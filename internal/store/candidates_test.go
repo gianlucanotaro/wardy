@@ -5,8 +5,6 @@ import (
 	"testing"
 )
 
-func strPtr(s string) *string { return &s }
-
 // tagItem is a test helper: creates an item and immediately tags it with
 // the given attributes via UpdateItemTags, so candidate-query tests can
 // build a fixture wardrobe without going through the HTTP/taxonomy layers.
@@ -30,28 +28,7 @@ func tagItem(t *testing.T, s *Store, userID int64, formality, warmth int, season
 	return itemID
 }
 
-func TestCandidateItemsMatchesOccasionAndSeason(t *testing.T) {
-	ctx := context.Background()
-	s := newTestStore(t)
-	userID, _ := s.CreateUser(ctx, "me@example.com", "hash", "Me")
-
-	casualSummer := tagItem(t, s, userID, 2, 2, []string{"summer"}, []string{"casual"})
-	tagItem(t, s, userID, 2, 2, []string{"winter"}, []string{"casual"}) // wrong season
-	tagItem(t, s, userID, 2, 2, []string{"summer"}, []string{"formal"}) // wrong occasion
-
-	items, err := s.CandidateItems(ctx, userID, CandidateFilter{
-		Occasion: strPtr("casual"), Season: strPtr("summer"),
-		TargetFormality: 2, FormalityWindow: 1,
-	})
-	if err != nil {
-		t.Fatalf("CandidateItems: %v", err)
-	}
-	if len(items) != 1 || items[0].ID != casualSummer {
-		t.Errorf("got %d items, want exactly the casual+summer item; got %+v", len(items), items)
-	}
-}
-
-func TestCandidateItemsFormalityWindow(t *testing.T) {
+func TestCandidateItemsFormalityRange(t *testing.T) {
 	ctx := context.Background()
 	s := newTestStore(t)
 	userID, _ := s.CreateUser(ctx, "me@example.com", "hash", "Me")
@@ -60,65 +37,36 @@ func TestCandidateItemsFormalityWindow(t *testing.T) {
 		tagItem(t, s, userID, formality, 3, []string{"summer"}, []string{"work"})
 	}
 
-	items, err := s.CandidateItems(ctx, userID, CandidateFilter{
-		Occasion: strPtr("work"), Season: strPtr("summer"),
-		TargetFormality: 3, FormalityWindow: 1,
-	})
+	items, err := s.CandidateItems(ctx, userID, CandidateFilter{FormalityMin: 3, FormalityMax: 5})
 	if err != nil {
 		t.Fatalf("CandidateItems: %v", err)
 	}
 	if len(items) != 3 {
-		t.Fatalf("got %d items, want 3 (formality 2,3,4 within window of target 3)", len(items))
+		t.Fatalf("got %d items, want 3 (formality 3,4,5 within range 3-5)", len(items))
 	}
 	for _, it := range items {
-		if it.Formality < 2 || it.Formality > 4 {
-			t.Errorf("item with formality %d should be outside the ±1 window of 3", it.Formality)
+		if it.Formality < 3 {
+			t.Errorf("item with formality %d is below the range 3-5", it.Formality)
 		}
 	}
 }
 
-func TestCandidateItemsWarmthNilSkipsFilter(t *testing.T) {
+// Occasion and season tags are preferences ranked in internal/suggest,
+// never filters here: an item tagged only for another occasion and season
+// still comes back.
+func TestCandidateItemsIgnoresOccasionAndSeasonTags(t *testing.T) {
 	ctx := context.Background()
 	s := newTestStore(t)
 	userID, _ := s.CreateUser(ctx, "me@example.com", "hash", "Me")
 
-	for warmth := 1; warmth <= 5; warmth++ {
-		tagItem(t, s, userID, 2, warmth, []string{"summer"}, []string{"casual"})
-	}
+	tagItem(t, s, userID, 2, 2, []string{"winter"}, []string{"formal"})
 
-	items, err := s.CandidateItems(ctx, userID, CandidateFilter{
-		Occasion: strPtr("casual"), Season: strPtr("summer"),
-		TargetFormality: 2, FormalityWindow: 1,
-		TargetWarmth: nil, // weather unavailable — degrade gracefully, don't filter
-	})
+	items, err := s.CandidateItems(ctx, userID, CandidateFilter{FormalityMin: 1, FormalityMax: 5})
 	if err != nil {
 		t.Fatalf("CandidateItems: %v", err)
 	}
-	if len(items) != 5 {
-		t.Errorf("got %d items, want all 5 (warmth filter should be skipped when nil)", len(items))
-	}
-}
-
-func TestCandidateItemsWarmthWindow(t *testing.T) {
-	ctx := context.Background()
-	s := newTestStore(t)
-	userID, _ := s.CreateUser(ctx, "me@example.com", "hash", "Me")
-
-	for warmth := 1; warmth <= 5; warmth++ {
-		tagItem(t, s, userID, 2, warmth, []string{"summer"}, []string{"casual"})
-	}
-
-	target := 3
-	items, err := s.CandidateItems(ctx, userID, CandidateFilter{
-		Occasion: strPtr("casual"), Season: strPtr("summer"),
-		TargetFormality: 2, FormalityWindow: 1,
-		TargetWarmth: &target, WarmthWindow: 1,
-	})
-	if err != nil {
-		t.Fatalf("CandidateItems: %v", err)
-	}
-	if len(items) != 3 {
-		t.Fatalf("got %d items, want 3 (warmth 2,3,4 within window of target 3)", len(items))
+	if len(items) != 1 {
+		t.Errorf("got %d items, want the item regardless of its occasion/season tags", len(items))
 	}
 }
 
@@ -133,8 +81,7 @@ func TestCandidateItemsExcludesArchived(t *testing.T) {
 	}
 
 	items, err := s.CandidateItems(ctx, userID, CandidateFilter{
-		Occasion: strPtr("casual"), Season: strPtr("summer"),
-		TargetFormality: 2, FormalityWindow: 1,
+		FormalityMin: 1, FormalityMax: 3,
 	})
 	if err != nil {
 		t.Fatalf("CandidateItems: %v", err)
@@ -164,8 +111,7 @@ func TestCandidateItemsExcludesRecentlyWorn(t *testing.T) {
 	}
 
 	items, err := s.CandidateItems(ctx, userID, CandidateFilter{
-		Occasion: strPtr("casual"), Season: strPtr("summer"),
-		TargetFormality: 2, FormalityWindow: 1,
+		FormalityMin: 1, FormalityMax: 3,
 		ExcludeWornSinceDays: 7,
 	})
 	if err != nil {
@@ -185,8 +131,7 @@ func TestCandidateItemsOwnershipScoped(t *testing.T) {
 	tagItem(t, s, userA, 2, 2, []string{"summer"}, []string{"casual"})
 
 	items, err := s.CandidateItems(ctx, userB, CandidateFilter{
-		Occasion: strPtr("casual"), Season: strPtr("summer"),
-		TargetFormality: 2, FormalityWindow: 1,
+		FormalityMin: 1, FormalityMax: 3,
 	})
 	if err != nil {
 		t.Fatalf("CandidateItems: %v", err)
