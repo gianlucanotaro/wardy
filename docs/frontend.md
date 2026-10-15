@@ -21,7 +21,7 @@ Proposed set — confirm before building beyond phase 3.
 | `/looks` | Saved outfits. |
 | `/looks/:id` | Look detail, edit, log as worn. |
 | `/history` | Wear log, "not worn in a while". |
-| `/settings` | Home location, account. |
+| `/settings` | Weather location (where I am / home), home location, account. |
 
 ## Photo capture
 

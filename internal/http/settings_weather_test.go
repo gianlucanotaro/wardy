@@ -213,3 +213,73 @@ func TestWeatherUpstreamFailureDegradesGracefully(t *testing.T) {
 		t.Errorf("expected available:false reason:fetch_failed, got %v", resp)
 	}
 }
+
+// weatherAt serves weatherFixture and records the latitude/longitude each
+// upstream request asked for, so a test can check whose location was used.
+func weatherAt(t *testing.T) (*weather.Client, *[]string) {
+	t.Helper()
+	var asked []string
+	fakeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		asked = append(asked, r.URL.Query().Get("latitude")+","+r.URL.Query().Get("longitude"))
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(weatherFixture))
+	}))
+	t.Cleanup(fakeServer.Close)
+	return weather.NewClientWithBaseURL(fakeServer.URL), &asked
+}
+
+func getWeatherAt(h http.Handler, cookie *http.Cookie, query string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodGet, "/api/weather?"+query, nil)
+	req.AddCookie(cookie)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	return rec
+}
+
+// The device's current position (?lat=&lon=) wins over the home location,
+// and works with no home location set at all; anything unusable falls back
+// to home.
+func TestWeatherCurrentLocation(t *testing.T) {
+	cases := []struct {
+		name      string
+		home      bool
+		query     string
+		wantAsked string // "" = no upstream call
+	}{
+		{"current, no home set", false, "lat=40.4168&lon=-3.7038", "40.416800,-3.703800"},
+		{"current beats home", true, "lat=40.4168&lon=-3.7038", "40.416800,-3.703800"},
+		{"no query uses home", true, "", "47.376900,8.541700"},
+		{"out of range falls back to home", true, "lat=91&lon=0", "47.376900,8.541700"},
+		{"NaN falls back to home", true, "lat=NaN&lon=NaN", "47.376900,8.541700"},
+		{"only lat falls back to home", true, "lat=40.4", "47.376900,8.541700"},
+		{"unusable and no home", false, "lat=abc&lon=1", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			s := newTestStore(t)
+			wc, asked := weatherAt(t)
+			h := newTestHandlerFull(t, s, true, wc)
+			cookie := loginAndGetCookie(t, h, s, "me@example.com", "correct horse battery staple")
+			if c.home {
+				patchSettings(h, cookie, 47.3769, 8.5417)
+			}
+
+			rec := getWeatherAt(h, cookie, c.query)
+			var resp map[string]any
+			json.Unmarshal(rec.Body.Bytes(), &resp)
+
+			if c.wantAsked == "" {
+				if resp["available"] != false || resp["reason"] != "no_location_set" || len(*asked) != 0 {
+					t.Errorf("want no_location_set and no upstream call, got %v, asked %v", resp, *asked)
+				}
+				return
+			}
+			if resp["available"] != true {
+				t.Fatalf("want available:true, got %v", resp)
+			}
+			if len(*asked) != 1 || (*asked)[0] != c.wantAsked {
+				t.Errorf("upstream asked for %v, want [%s]", *asked, c.wantAsked)
+			}
+		})
+	}
+}

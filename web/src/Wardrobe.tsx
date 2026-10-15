@@ -6,9 +6,9 @@ import { useToast } from './useToast'
 import { CATEGORIES, FORMALITY_LABELS, WARMTH_LABELS, type Category } from './taxonomy'
 import { occasionsFor, weatherRange } from './outfitRules'
 
-// Mirrors Build.tsx's SLOTS categories — those are the only slots Build can
-// pre-fill into, so "Add to outfit" only shows for items in this list.
-const BUILDABLE_CATEGORIES = ['outerwear', 'top', 'bottom', 'shoes']
+// Mirrors Build.tsx's BUILDABLE_CATEGORIES — those are the only slots Build
+// can pre-fill into, so "Add to outfit" only shows for items in this list.
+const BUILDABLE_CATEGORIES = ['outerwear', 'top', 'bottom', 'shoes', 'accessory']
 
 // The WARDROBE tab: grid + category chips + tag search + item detail, matching
 // Wardy Prototype.dc.html's isWardrobe/isDetail blocks. Deliberately does

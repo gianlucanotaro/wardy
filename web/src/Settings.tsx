@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getSettings, getWeather, updateSettings } from './api'
+import { type LocationSource, useLocationSource, useWeatherCoords } from './location'
 import { useToast } from './useToast'
 
 const CONDITION_LABELS: Record<string, string> = {
@@ -34,11 +35,14 @@ export default function Settings() {
   const [showIOSInstallHint] = useState(isIOSInstallable)
   const settings = useQuery({ queryKey: ['settings'], queryFn: getSettings })
   const hasLocation = settings.data?.home_lat != null && settings.data?.home_lon != null
+  const [locationSource, setLocationSource] = useLocationSource()
+  const { coords, ready } = useWeatherCoords(locationSource)
+  const usingCurrent = locationSource === 'current' && coords !== null
 
   const weather = useQuery({
-    queryKey: ['weather'],
-    queryFn: getWeather,
-    enabled: hasLocation,
+    queryKey: ['weather', coords],
+    queryFn: () => getWeather(coords),
+    enabled: ready && (usingCurrent || hasLocation),
   })
 
   const [lat, setLat] = useState('')
@@ -64,8 +68,8 @@ export default function Settings() {
     },
   })
 
-  // Deliberately not requested automatically — the user taps this, we
-  // never demand browser geolocation (docs/ai.md).
+  // Fills the home location form from this device's position, for
+  // whoever wants weather pinned to home rather than wherever they are.
   function useMyLocation() {
     setGeoError(null)
     if (!navigator.geolocation) {
@@ -98,8 +102,44 @@ export default function Settings() {
       )}
 
       <section className="px-4 py-3 border-b-2 border-(--color-line-strong) flex flex-col gap-2">
+        <div className="wy-lbl">WEATHER LOCATION</div>
+        <div className="flex flex-wrap gap-1.5">
+          {(
+            [
+              ['current', 'WHERE I AM'],
+              ['home', 'HOME LOCATION'],
+            ] as [LocationSource, string][]
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              className="wy-chip"
+              data-on={value === locationSource || undefined}
+              aria-pressed={value === locationSource}
+              onClick={() => setLocationSource(value)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="text-sm text-(--color-neutral-700)">
+          {locationSource === 'home'
+            ? 'Outfit suggestions use the weather at your home location.'
+            : !ready
+              ? 'Finding where you are…'
+              : usingCurrent
+                ? 'Outfit suggestions use the weather where this device is.'
+                : hasLocation
+                  ? "Couldn't get this device's location — using your home location instead. Check that location access is allowed for this app."
+                  : "Couldn't get this device's location. Allow location access for this app, or set a home location below."}
+        </p>
+      </section>
+
+      <section className="px-4 py-3 border-b-2 border-(--color-line-strong) flex flex-col gap-2">
         <div className="wy-lbl">HOME LOCATION</div>
-        <p className="text-sm text-(--color-neutral-700)">Used to fetch the weather for outfit suggestions.</p>
+        <p className="text-sm text-(--color-neutral-700)">
+          Used for the weather when you choose it above, or when this device's location isn't available.
+        </p>
 
         <form
           className="flex flex-col gap-2 mt-1"
@@ -145,9 +185,9 @@ export default function Settings() {
         </form>
       </section>
 
-      {hasLocation && (
+      {(usingCurrent || hasLocation) && (
         <section className="px-4 py-3 border-b-2 border-(--color-line-strong) flex flex-col gap-1">
-          <div className="wy-lbl">CURRENT WEATHER</div>
+          <div className="wy-lbl">{usingCurrent ? 'CURRENT WEATHER · HERE' : 'CURRENT WEATHER · HOME'}</div>
           {weather.isLoading && <p className="text-sm text-(--color-neutral-700)">Loading…</p>}
           {weather.data?.available === false && (
             <p className="text-sm text-(--color-neutral-700)">

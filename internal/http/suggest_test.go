@@ -238,3 +238,29 @@ func legacyRanges(category string, warmth int) (warmthMin, warmthMax int) {
 		return 1, 5
 	}
 }
+
+// The device's current position is enough for weather-aware suggestions,
+// with no home location saved.
+func TestSuggestEndpointUsesCurrentLocation(t *testing.T) {
+	s := newTestStore(t)
+	wc, asked := weatherAt(t)
+	h := newTestHandlerFull(t, s, true, wc)
+	cookie := loginAndGetCookie(t, h, s, "me@example.com", "correct horse battery staple")
+
+	season := currentSeason()
+	tagItemForSuggest(t, s, 1, "top", 2, 1, []string{season}, []string{"casual"})
+	tagItemForSuggest(t, s, 1, "bottom", 2, 1, []string{season}, []string{"casual"})
+
+	rec := getSuggestWithParams(h, cookie, "occasion=casual&lat=40.4168&lon=-3.7038")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("get suggest: status %d, body %s", rec.Code, rec.Body.String())
+	}
+	var resp map[string]any
+	json.Unmarshal(rec.Body.Bytes(), &resp)
+	if resp["weather_available"] != true {
+		t.Errorf("weather_available = %v, want true", resp["weather_available"])
+	}
+	if len(*asked) != 1 || (*asked)[0] != "40.416800,-3.703800" {
+		t.Errorf("upstream asked for %v, want the current location", *asked)
+	}
+}
