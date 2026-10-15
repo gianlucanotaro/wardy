@@ -28,8 +28,10 @@ func validTagsPayload() map[string]any {
 		"pattern":         "solid",
 		"material":        "cotton",
 		"fit":             "regular",
-		"formality":       2,
-		"warmth":          3,
+		"formality_min":   2,
+		"formality_max":   3,
+		"warmth_min":      2,
+		"warmth_max":      4,
 		"seasons":         []string{"summer", "spring"},
 		"occasions":       []string{"casual"},
 	}

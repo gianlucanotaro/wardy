@@ -16,8 +16,8 @@ fit          slim | regular | relaxed | oversized
 color        fixed ~20-value palette
 seasons      [spring | summer | autumn | winter]
 occasions    [work | casual | formal | date | sport | outdoor | home]
-formality    1 (loungewear) … 5 (black tie)
-warmth       1 (hot weather only) … 5 (deep winter)
+formality    range min–max on 1 (loungewear) … 5 (black tie)
+warmth       range min–max on 1 (hot weather) … 5 (deep winter)
 ```
 
 ## Why the numeric scales matter
@@ -26,16 +26,19 @@ warmth       1 (hot weather only) … 5 (deep winter)
 `warmth`; occasion matching is arithmetic on `formality`. Keep it that way —
 cheap, instant, debuggable, and it works with zero AI.
 
-Both are judged per **outfit**, not per piece (`internal/suggest`):
+Both are **ranges per item**, not single values: a plain shirt can be formality
+2–4 and warmth 1–5 (worn under a knit in winter), a wool coat warmth 4–5. They
+are judged per **outfit** (`internal/suggest`):
 
-- **Warmth layers.** Tops only have a ceiling (no heavy knit in a heatwave) —
-  on a cold day a light shirt is a base layer, and the outfit adds a warmer top
-  and/or outerwear until its warmest upper layer is within one step of the
-  forecast's target. Bottoms, dresses and shoes don't layer, so they also have
-  a floor (no shorts in winter).
-- **Formality is a range per occasion** (casual 1–4, work 3–5, …): dressing a
-  piece up is fine, dressing down below the floor isn't. Pieces in one outfit
-  stay within 2 steps of each other — blazer with jeans, not with joggers.
+- **Warmth layers.** A piece fits the day when the forecast's target falls in
+  its warmth range — the range already counts layering. A piece is about one
+  step warmer than the hottest weather it suits, and the outfit adds a warmer
+  top and/or outerwear until its warmest upper layer is within one step of the
+  target.
+- **Formality ranges meet.** Each occasion accepts a range too (casual 1–4,
+  work 3–5, …); a piece qualifies when the two overlap. Pieces in one outfit
+  stay within 2 steps of each other — blazer with jeans, not with joggers —
+  and a piece with a wider range bridges more.
 - **Occasion and season tags are preferences.** Tagged items are suggested
   first; untagged ones still qualify.
 

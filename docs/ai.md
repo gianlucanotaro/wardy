@@ -21,10 +21,9 @@ wardrobe costs well under a dollar, once.
 
 ## Suggestions — `claude-sonnet-5`
 
-1. **Pre-filter** (SQL, plus a per-category weather check in Go):
-   `formality` within the occasion's range, not archived, not worn in last N
-   days, and no piece too warm (or, for bottoms/dresses/shoes, too light) for
-   the forecast. Occasion and season tags only rank candidates — tagged ones
+1. **Pre-filter** (SQL, plus a weather check in Go): the item's `formality`
+   range overlaps the occasion's, not archived, not worn in last N days, and
+   the forecast falls inside its `warmth` range. Occasion and season tags only rank candidates — tagged ones
    first — they never exclude. See `docs/taxonomy.md`.
 2. Cap at ~60 candidates, sampled across categories so every slot has options.
 3. Send compact JSON — ids and relevant attributes only. No paths, no

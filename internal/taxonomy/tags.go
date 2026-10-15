@@ -14,10 +14,15 @@ type Tags struct {
 	Pattern        Pattern
 	Material       Material
 	Fit            Fit
-	Formality      int
-	Warmth         int
-	Seasons        []string
-	Occasions      []string
+	// Ranges, not single values: a shirt can be formality 2-4 and warmth
+	// 1-5 (worn layered in winter). Each bound is on the 1-5 scale and
+	// min <= max.
+	FormalityMin int
+	FormalityMax int
+	WarmthMin    int
+	WarmthMax    int
+	Seasons      []string
+	Occasions    []string
 }
 
 func (t Tags) Validate() error {
@@ -42,11 +47,11 @@ func (t Tags) Validate() error {
 	if !t.Fit.Valid() {
 		return &ErrInvalid{Field: "fit", Value: string(t.Fit)}
 	}
-	if !ValidScale(t.Formality) {
-		return &ErrInvalid{Field: "formality", Value: fmt.Sprint(t.Formality)}
+	if err := validRange("formality", t.FormalityMin, t.FormalityMax); err != nil {
+		return err
 	}
-	if !ValidScale(t.Warmth) {
-		return &ErrInvalid{Field: "warmth", Value: fmt.Sprint(t.Warmth)}
+	if err := validRange("warmth", t.WarmthMin, t.WarmthMax); err != nil {
+		return err
 	}
 	for _, s := range t.Seasons {
 		if !Season(s).Valid() {
@@ -57,6 +62,20 @@ func (t Tags) Validate() error {
 		if !Occasion(o).Valid() {
 			return &ErrInvalid{Field: "occasions", Value: o}
 		}
+	}
+	return nil
+}
+
+// validRange checks one min/max pair of a 1-5 scale.
+func validRange(field string, lo, hi int) error {
+	if !ValidScale(lo) {
+		return &ErrInvalid{Field: field + "_min", Value: fmt.Sprint(lo)}
+	}
+	if !ValidScale(hi) {
+		return &ErrInvalid{Field: field + "_max", Value: fmt.Sprint(hi)}
+	}
+	if lo > hi {
+		return &ErrInvalid{Field: field + "_max", Value: fmt.Sprintf("%d (below %s_min %d)", hi, field, lo)}
 	}
 	return nil
 }

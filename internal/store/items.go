@@ -9,7 +9,7 @@ import (
 )
 
 // Item is a wardrobe item. Tagging fields (category, subcategory, colors,
-// pattern, material, formality, warmth, fit, seasons, occasions) are
+// pattern, material, formality and warmth ranges, fit, seasons, occasions) are
 // populated by manual tagging (phase 4) and AI tagging (phase 5); on
 // upload they start blank/default.
 type Item struct {
@@ -22,8 +22,10 @@ type Item struct {
 	ColorSecondary string     `json:"color_secondary"`
 	Pattern        string     `json:"pattern"`
 	Material       string     `json:"material"`
-	Formality      int        `json:"formality"`
-	Warmth         int        `json:"warmth"`
+	FormalityMin   int        `json:"formality_min"`
+	FormalityMax   int        `json:"formality_max"`
+	WarmthMin      int        `json:"warmth_min"`
+	WarmthMax      int        `json:"warmth_max"`
 	Fit            string     `json:"fit"`
 	Brand          string     `json:"brand"`
 	Notes          string     `json:"notes"`
@@ -50,8 +52,10 @@ var defaultItemTags = ItemTags{
 	Pattern:      "solid",
 	Material:     "unknown",
 	Fit:          "regular",
-	Formality:    3,
-	Warmth:       3,
+	FormalityMin: 3,
+	FormalityMax: 3,
+	WarmthMin:    2,
+	WarmthMax:    5,
 }
 
 // CreateItem inserts a new item for userID with its photo paths and
@@ -61,10 +65,10 @@ func (s *Store) CreateItem(ctx context.Context, userID int64, photoPath, thumbPa
 	res, err := s.db.ExecContext(ctx, `
 		INSERT INTO items (
 			user_id, category, subcategory, color_primary, pattern, material, fit,
-			formality, warmth, photo_path, thumb_path
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			formality_min, formality_max, warmth_min, warmth_max, photo_path, thumb_path
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		userID, t.Category, t.Subcategory, t.ColorPrimary, t.Pattern, t.Material, t.Fit,
-		t.Formality, t.Warmth, photoPath, thumbPath)
+		t.FormalityMin, t.FormalityMax, t.WarmthMin, t.WarmthMax, photoPath, thumbPath)
 	if err != nil {
 		return 0, fmt.Errorf("insert item: %w", err)
 	}
@@ -92,7 +96,7 @@ func (s *Store) ItemsByUser(ctx context.Context, userID int64, archived bool) ([
 	// itemColumns' bare column names collide with the joined wears table's
 	// (see ItemsByLastWorn), so this needs its own items.-qualified list.
 	rows, err := s.db.QueryContext(ctx, `SELECT items.id, items.user_id, items.name, items.category, items.subcategory,
-		items.color_primary, items.color_secondary, items.pattern, items.material, items.formality, items.warmth,
+		items.color_primary, items.color_secondary, items.pattern, items.material, items.formality_min, items.formality_max, items.warmth_min, items.warmth_max,
 		items.fit, items.brand, items.notes, items.seasons, items.occasions, items.custom_tags, items.photo_path, items.thumb_path,
 		items.ai_tagged_at, items.user_edited_at, items.archived, items.created_at, COUNT(wi.wear_id), MAX(w.worn_on)
 		FROM items
@@ -126,7 +130,7 @@ func scanItemWithWearStats(row rowScanner) (ItemWithWearStats, error) {
 	var it ItemWithWearStats
 	err := row.Scan(
 		&it.ID, &it.UserID, &it.Name, &it.Category, &it.Subcategory, &it.ColorPrimary,
-		&it.ColorSecondary, &it.Pattern, &it.Material, &it.Formality, &it.Warmth, &it.Fit,
+		&it.ColorSecondary, &it.Pattern, &it.Material, &it.FormalityMin, &it.FormalityMax, &it.WarmthMin, &it.WarmthMax, &it.Fit,
 		&it.Brand, &it.Notes, &it.Seasons, &it.Occasions, &it.CustomTags, &it.PhotoPath, &it.ThumbPath,
 		&it.AITaggedAt, &it.UserEditedAt, &it.Archived, &it.CreatedAt,
 		&it.WearCount, &it.LastWornOn,
@@ -193,8 +197,10 @@ type ItemTags struct {
 	Pattern        string
 	Material       string
 	Fit            string
-	Formality      int
-	Warmth         int
+	FormalityMin   int
+	FormalityMax   int
+	WarmthMin      int
+	WarmthMax      int
 	Seasons        []string
 	Occasions      []string
 	// CustomTags are free-form, user- or AI-authored — not part of the
@@ -246,12 +252,13 @@ func (s *Store) UpdateItemTags(ctx context.Context, userID, id int64, t ItemTags
 	res, err := s.db.ExecContext(ctx, `
 		UPDATE items
 		SET category = ?, subcategory = ?, color_primary = ?, color_secondary = ?,
-		    pattern = ?, material = ?, fit = ?, formality = ?, warmth = ?,
+		    pattern = ?, material = ?, fit = ?,
+		    formality_min = ?, formality_max = ?, warmth_min = ?, warmth_max = ?,
 		    seasons = ?, occasions = ?, custom_tags = ?,
 		    user_edited_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
 		WHERE id = ? AND user_id = ?`,
 		t.Category, t.Subcategory, t.ColorPrimary, t.ColorSecondary,
-		t.Pattern, t.Material, t.Fit, t.Formality, t.Warmth,
+		t.Pattern, t.Material, t.Fit, t.FormalityMin, t.FormalityMax, t.WarmthMin, t.WarmthMax,
 		StringList(t.Seasons), StringList(t.Occasions), StringList(validateCustomTags(t.CustomTags)), id, userID)
 	if err != nil {
 		return fmt.Errorf("update item tags: %w", err)
@@ -269,12 +276,13 @@ func (s *Store) UpdateItemAITags(ctx context.Context, id int64, t ItemTags) (app
 	res, err := s.db.ExecContext(ctx, `
 		UPDATE items
 		SET category = ?, subcategory = ?, color_primary = ?, color_secondary = ?,
-		    pattern = ?, material = ?, fit = ?, formality = ?, warmth = ?,
+		    pattern = ?, material = ?, fit = ?,
+		    formality_min = ?, formality_max = ?, warmth_min = ?, warmth_max = ?,
 		    seasons = ?, occasions = ?, custom_tags = ?,
 		    ai_tagged_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
 		WHERE id = ? AND user_edited_at IS NULL`,
 		t.Category, t.Subcategory, t.ColorPrimary, t.ColorSecondary,
-		t.Pattern, t.Material, t.Fit, t.Formality, t.Warmth,
+		t.Pattern, t.Material, t.Fit, t.FormalityMin, t.FormalityMax, t.WarmthMin, t.WarmthMax,
 		StringList(t.Seasons), StringList(t.Occasions), StringList(validateCustomTags(t.CustomTags)), id)
 	if err != nil {
 		return false, fmt.Errorf("update item ai tags: %w", err)
@@ -308,7 +316,7 @@ func (s *Store) DeleteItem(ctx context.Context, userID, id int64) (photoPath, th
 }
 
 const itemColumns = `SELECT id, user_id, name, category, subcategory, color_primary,
-	color_secondary, pattern, material, formality, warmth, fit, brand, notes,
+	color_secondary, pattern, material, formality_min, formality_max, warmth_min, warmth_max, fit, brand, notes,
 	seasons, occasions, custom_tags, photo_path, thumb_path, ai_tagged_at, user_edited_at,
 	archived, created_at`
 
@@ -321,7 +329,7 @@ func scanItem(row rowScanner) (Item, error) {
 	var it Item
 	err := row.Scan(
 		&it.ID, &it.UserID, &it.Name, &it.Category, &it.Subcategory, &it.ColorPrimary,
-		&it.ColorSecondary, &it.Pattern, &it.Material, &it.Formality, &it.Warmth, &it.Fit,
+		&it.ColorSecondary, &it.Pattern, &it.Material, &it.FormalityMin, &it.FormalityMax, &it.WarmthMin, &it.WarmthMax, &it.Fit,
 		&it.Brand, &it.Notes, &it.Seasons, &it.Occasions, &it.CustomTags, &it.PhotoPath, &it.ThumbPath,
 		&it.AITaggedAt, &it.UserEditedAt, &it.Archived, &it.CreatedAt,
 	)

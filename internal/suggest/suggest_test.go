@@ -62,10 +62,12 @@ func createTaggedItem(t *testing.T, s *store.Store, userID int64, category, subc
 		t.Fatalf("CreateItem: %v", err)
 	}
 
+	warmthMin, warmthMax := legacyRanges(category, warmth)
 	if err := s.UpdateItemTags(ctx, userID, itemID, store.ItemTags{
 		Category: category, Subcategory: subcategory, ColorPrimary: "blue",
 		Pattern: "solid", Material: "cotton", Fit: "regular",
-		Formality: formality, Warmth: warmth, Seasons: seasons, Occasions: occasions,
+		FormalityMin: formality, FormalityMax: formality, WarmthMin: warmthMin, WarmthMax: warmthMax,
+		Seasons: seasons, Occasions: occasions,
 	}); err != nil {
 		t.Fatalf("UpdateItemTags: %v", err)
 	}
@@ -139,8 +141,8 @@ func TestSuggestBasicMatch(t *testing.T) {
 	target := TargetWarmth(forecast)
 	for _, outfit := range result.Outfits {
 		for _, item := range outfit.Items {
-			if item.Warmth > target+1 {
-				t.Errorf("hot-day outfit included a too-warm item (warmth %d, target %d): %+v", item.Warmth, target, item)
+			if !FitsWeather(item, target) {
+				t.Errorf("hot-day outfit included an item outside its warmth range (%d-%d, target %d): %+v", item.WarmthMin, item.WarmthMax, target, item)
 			}
 		}
 	}
@@ -161,7 +163,8 @@ func TestSuggestRulesPreFilterIgnoresCustomTags(t *testing.T) {
 	if err := s.UpdateItemTags(ctx, userID, topID, store.ItemTags{
 		Category: "top", Subcategory: "t-shirt", ColorPrimary: "blue",
 		Pattern: "solid", Material: "cotton", Fit: "regular",
-		Formality: 2, Warmth: 1, Seasons: []string{"summer"}, Occasions: []string{"casual"},
+		FormalityMin: 2, FormalityMax: 2, WarmthMin: 1, WarmthMax: 5,
+		Seasons: []string{"summer"}, Occasions: []string{"casual"},
 		CustomTags: []string{"needs mending"},
 	}); err != nil {
 		t.Fatalf("UpdateItemTags: %v", err)
@@ -250,8 +253,8 @@ func TestSuggestOccasionMatchesWork(t *testing.T) {
 	}
 	for _, outfit := range result.Outfits {
 		for _, item := range outfit.Items {
-			if item.Formality < OccasionFormality(taxonomy.OccasionWork).Min {
-				t.Errorf("work suggestion included a too-casual item (formality %d): %+v", item.Formality, item)
+			if item.FormalityMax < OccasionFormality(taxonomy.OccasionWork).Min {
+				t.Errorf("work suggestion included a too-casual item (formality %d-%d): %+v", item.FormalityMin, item.FormalityMax, item)
 			}
 		}
 	}
@@ -392,7 +395,8 @@ func TestSuggestAI_PassesCustomTagsAsContext(t *testing.T) {
 	if err := s.UpdateItemTags(ctx, userID, topID, store.ItemTags{
 		Category: "top", Subcategory: "t-shirt", ColorPrimary: "blue",
 		Pattern: "solid", Material: "cotton", Fit: "regular",
-		Formality: 2, Warmth: 1, Seasons: []string{"summer"}, Occasions: []string{"casual"},
+		FormalityMin: 2, FormalityMax: 2, WarmthMin: 1, WarmthMax: 5,
+		Seasons: []string{"summer"}, Occasions: []string{"casual"},
 		CustomTags: []string{"favorite"},
 	}); err != nil {
 		t.Fatalf("UpdateItemTags: %v", err)
@@ -611,4 +615,20 @@ func contains(list []string, want string) bool {
 		}
 	}
 	return false
+}
+
+// legacyRanges spreads a single formality/warmth value into ranges the
+// way migrations/0006_item_ranges.sql does for existing items, so fixtures
+// written as single values behave like a migrated wardrobe.
+func legacyRanges(category string, warmth int) (warmthMin, warmthMax int) {
+	switch category {
+	case "top":
+		return max(1, warmth-1), 5
+	case "outerwear":
+		return max(1, warmth-1), min(5, warmth+1)
+	case "bottom", "dress", "shoes":
+		return max(1, warmth-1), min(5, warmth+2)
+	default:
+		return 1, 5
+	}
 }

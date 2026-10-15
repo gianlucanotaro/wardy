@@ -27,8 +27,10 @@ function draftFromItem(item: Item): TagsPayload {
     pattern: item.pattern || PATTERNS[0],
     material: item.material || 'unknown',
     fit: item.fit || 'regular',
-    formality: item.formality || 3,
-    warmth: item.warmth || 3,
+    formality_min: item.formality_min || 3,
+    formality_max: item.formality_max || 3,
+    warmth_min: item.warmth_min || 1,
+    warmth_max: item.warmth_max || 5,
     seasons: item.seasons ?? [],
     occasions: item.occasions ?? [],
     custom_tags: item.custom_tags ?? [],
@@ -137,17 +139,19 @@ export default function TagEditor({ item, markAiSuggested }: { item: Item; markA
       <ScaleField
         label="FORMALITY"
         aiSuggested={markAiSuggested}
-        value={draft.formality}
+        min={draft.formality_min}
+        max={draft.formality_max}
         labels={FORMALITY_LABELS}
-        onChange={(formality) => save({ ...draft, formality })}
+        onChange={(formality_min, formality_max) => save({ ...draft, formality_min, formality_max })}
       />
 
       <ScaleField
         label="WARMTH"
         aiSuggested={markAiSuggested}
-        value={draft.warmth}
+        min={draft.warmth_min}
+        max={draft.warmth_max}
         labels={WARMTH_LABELS}
-        onChange={(warmth) => save({ ...draft, warmth })}
+        onChange={(warmth_min, warmth_max) => save({ ...draft, warmth_min, warmth_max })}
       />
 
       <MultiField
@@ -299,46 +303,75 @@ function ChipGroup({
   )
 }
 
+// A range on a 1-5 scale, set with two taps: the first tap picks a single
+// step (and saves it), the second makes the range between the two. A
+// third tap starts over. Ranges, not single values, because a shirt can
+// be formality 2-4 and warmth 1-5 (worn layered in winter).
 function ScaleField({
   label,
   aiSuggested,
-  value,
+  min,
+  max,
   labels,
   onChange,
 }: {
   label: string
   aiSuggested?: boolean
-  value: number
+  min: number
+  max: number
   labels: Record<number, string>
-  onChange: (value: number) => void
+  onChange: (min: number, max: number) => void
 }) {
   const values = Array.from({ length: SCALE_MAX - SCALE_MIN + 1 }, (_, i) => SCALE_MIN + i)
+  // The first tap of a pair, waiting for the second.
+  const [anchor, setAnchor] = useState<number | null>(null)
+
+  function tap(v: number) {
+    if (anchor === null) {
+      setAnchor(v)
+      onChange(v, v)
+    } else {
+      setAnchor(null)
+      onChange(Math.min(anchor, v), Math.max(anchor, v))
+    }
+  }
+
+  const rangeLabel = min === max ? labels[min] : `${labels[min]} – ${labels[max]}`
   return (
     <div className="flex flex-col gap-1.5 text-sm">
-      <div className="flex justify-between">
+      <div className="flex justify-between gap-2">
         <span className="wy-lbl flex items-center gap-1.5">
           {label}
           {aiSuggested && <AiDot />}
         </span>
-        <span className="wy-lbl">{labels[value].toUpperCase()}</span>
+        <span className="wy-lbl text-right">{rangeLabel.toUpperCase()}</span>
       </div>
       <div className="grid grid-cols-5 gap-1">
-        {values.map((v) => (
-          <button
-            type="button"
-            key={v}
-            onClick={() => onChange(v)}
-            aria-label={`${label} ${v}: ${labels[v]}`}
-            className="min-h-11 border border-(--color-line) font-extrabold text-xs"
-            style={{
-              background: v === value ? 'var(--color-accent)' : 'transparent',
-              color: v === value ? 'var(--color-bg)' : 'var(--color-ink)',
-            }}
-          >
-            {v}
-          </button>
-        ))}
+        {values.map((v) => {
+          const on = v >= min && v <= max
+          return (
+            <button
+              type="button"
+              key={v}
+              onClick={() => tap(v)}
+              aria-label={`${label} ${v}: ${labels[v]}`}
+              aria-pressed={on}
+              className={`min-h-11 border font-extrabold text-xs ${
+                v === anchor ? 'border-(--color-ink) border-2' : 'border-(--color-line)'
+              }`}
+              style={{
+                background: on ? 'var(--color-accent)' : 'transparent',
+                color: on ? 'var(--color-bg)' : 'var(--color-ink)',
+              }}
+            >
+              {v}
+            </button>
+          )
+        })}
       </div>
+      <span className="wy-lbl text-(--color-neutral-500)">
+        {anchor === null ? 'TAP TWO STEPS FOR A RANGE' : 'NOW TAP THE OTHER END — OR LEAVE IT AS ONE STEP'}
+      </span>
     </div>
   )
 }

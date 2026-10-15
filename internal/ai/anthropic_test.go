@@ -19,8 +19,10 @@ const cleanJSON = `{
   "pattern": "striped",
   "material": "cotton",
   "fit": "regular",
-  "formality": 2,
-  "warmth": 2,
+  "formality_min": 2,
+  "formality_max": 3,
+  "warmth_min": 1,
+  "warmth_max": 2,
   "seasons": ["summer", "spring"],
   "occasions": ["casual"]
 }`
@@ -35,6 +37,31 @@ func TestParseTagResponse_Clean(t *testing.T) {
 	}
 	if len(got.Seasons) != 2 || got.Seasons[0] != "summer" {
 		t.Errorf("seasons not parsed: %+v", got.Seasons)
+	}
+}
+
+func TestParseTagResponse_Ranges(t *testing.T) {
+	got, err := parseTagResponse(cleanJSON)
+	if err != nil {
+		t.Fatalf("parseTagResponse: %v", err)
+	}
+	if got.FormalityMin != 2 || got.FormalityMax != 3 || got.WarmthMin != 1 || got.WarmthMax != 2 {
+		t.Errorf("ranges = formality %d-%d warmth %d-%d, want 2-3 and 1-2",
+			got.FormalityMin, got.FormalityMax, got.WarmthMin, got.WarmthMax)
+	}
+}
+
+// A model listing a range high-to-low still meant that range.
+func TestParseTagResponse_InvertedRangeIsOrdered(t *testing.T) {
+	got, err := parseTagResponse(`{"category":"top","subcategory":"t-shirt","color_primary":"blue",
+		"pattern":"solid","material":"cotton","fit":"regular",
+		"formality_min":4,"formality_max":2,"warmth_min":5,"warmth_max":1}`)
+	if err != nil {
+		t.Fatalf("parseTagResponse: %v", err)
+	}
+	if got.FormalityMin != 2 || got.FormalityMax != 4 || got.WarmthMin != 1 || got.WarmthMax != 5 {
+		t.Errorf("ranges = formality %d-%d warmth %d-%d, want 2-4 and 1-5",
+			got.FormalityMin, got.FormalityMax, got.WarmthMin, got.WarmthMax)
 	}
 }
 
@@ -55,7 +82,7 @@ func TestParseTagResponse_CustomTagsOmittedIsNotAnError(t *testing.T) {
 func TestParseTagResponse_CustomTagsPresent(t *testing.T) {
 	withTags := `{"category":"top","subcategory":"t-shirt","color_primary":"blue",
 		"color_secondary":"","pattern":"solid","material":"cotton","fit":"regular",
-		"formality":2,"warmth":2,"seasons":["summer"],"occasions":["casual"],
+		"formality_min":2,"formality_max":2,"warmth_min":2,"warmth_max":2,"seasons":["summer"],"occasions":["casual"],
 		"custom_tags":["vintage","distressed"]}`
 
 	got, err := parseTagResponse(withTags)
@@ -100,7 +127,7 @@ func TestParseTagResponse_LeadingTrailingWhitespace(t *testing.T) {
 func TestParseTagResponse_IgnoresUnknownFields(t *testing.T) {
 	withExtra := `{"category":"top","subcategory":"t-shirt","color_primary":"blue",
 		"color_secondary":"","pattern":"solid","material":"cotton","fit":"regular",
-		"formality":2,"warmth":2,"seasons":["summer"],"occasions":["casual"],
+		"formality_min":2,"formality_max":2,"warmth_min":2,"warmth_max":2,"seasons":["summer"],"occasions":["casual"],
 		"confidence":0.97,"reasoning":"looks like a plain blue tee"}`
 
 	got, err := parseTagResponse(withExtra)
@@ -114,11 +141,11 @@ func TestParseTagResponse_IgnoresUnknownFields(t *testing.T) {
 
 func TestParseTagResponse_MalformedJSON(t *testing.T) {
 	cases := []string{
-		`{"category": "top", "subcategory":`,      // truncated
-		`{"category": "top" "subcategory": "x"}`,  // missing comma
-		`not json at all, just a sentence.`,       // prose instead of JSON
-		``,                                        // empty response
-		`{"category": "top", "formality": "two"}`, // wrong type for formality
+		`{"category": "top", "subcategory":`,     // truncated
+		`{"category": "top" "subcategory": "x"}`, // missing comma
+		`not json at all, just a sentence.`,      // prose instead of JSON
+		``,                                       // empty response
+		`{"category": "top", "formality_min": "two"}`, // wrong type for formality_min
 	}
 	for _, c := range cases {
 		if _, err := parseTagResponse(c); err == nil {
@@ -232,25 +259,25 @@ func TestParseThenValidate_RejectsOutOfVocabValues(t *testing.T) {
 			name: "invented category",
 			json: `{"category":"sock","subcategory":"ankle-sock","color_primary":"white",
 				"color_secondary":"","pattern":"solid","material":"cotton","fit":"regular",
-				"formality":1,"warmth":2,"seasons":["summer"],"occasions":["home"]}`,
+				"formality_min":1,"formality_max":1,"warmth_min":2,"warmth_max":2,"seasons":["summer"],"occasions":["home"]}`,
 		},
 		{
 			name: "invented color",
 			json: `{"category":"top","subcategory":"t-shirt","color_primary":"sage mist",
 				"color_secondary":"","pattern":"solid","material":"cotton","fit":"regular",
-				"formality":1,"warmth":2,"seasons":["summer"],"occasions":["casual"]}`,
+				"formality_min":1,"formality_max":1,"warmth_min":2,"warmth_max":2,"seasons":["summer"],"occasions":["casual"]}`,
 		},
 		{
 			name: "formality out of range",
 			json: `{"category":"top","subcategory":"t-shirt","color_primary":"white",
 				"color_secondary":"","pattern":"solid","material":"cotton","fit":"regular",
-				"formality":11,"warmth":2,"seasons":["summer"],"occasions":["casual"]}`,
+				"formality_min":11,"formality_max":11,"warmth_min":2,"warmth_max":2,"seasons":["summer"],"occasions":["casual"]}`,
 		},
 		{
 			name: "invented season",
 			json: `{"category":"top","subcategory":"t-shirt","color_primary":"white",
 				"color_secondary":"","pattern":"solid","material":"cotton","fit":"regular",
-				"formality":1,"warmth":2,"seasons":["monsoon"],"occasions":["casual"]}`,
+				"formality_min":1,"formality_max":1,"warmth_min":2,"warmth_max":2,"seasons":["monsoon"],"occasions":["casual"]}`,
 		},
 	}
 
@@ -269,8 +296,10 @@ func TestParseThenValidate_RejectsOutOfVocabValues(t *testing.T) {
 				Pattern:        taxonomy.Pattern(result.Pattern),
 				Material:       taxonomy.Material(result.Material),
 				Fit:            taxonomy.Fit(result.Fit),
-				Formality:      result.Formality,
-				Warmth:         result.Warmth,
+				FormalityMin:   result.FormalityMin,
+				FormalityMax:   result.FormalityMax,
+				WarmthMin:      result.WarmthMin,
+				WarmthMax:      result.WarmthMax,
 				Seasons:        result.Seasons,
 				Occasions:      result.Occasions,
 			}

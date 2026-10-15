@@ -15,7 +15,7 @@ func TestUpdateItemAITagsAppliesWhenNotUserEdited(t *testing.T) {
 	applied, err := s.UpdateItemAITags(ctx, itemID, ItemTags{
 		Category: "top", Subcategory: "t-shirt", ColorPrimary: "blue",
 		Pattern: "solid", Material: "cotton", Fit: "regular",
-		Formality: 2, Warmth: 3, Seasons: []string{"summer"}, Occasions: []string{"casual"},
+		FormalityMin: 2, FormalityMax: 2, WarmthMin: 3, WarmthMax: 3, Seasons: []string{"summer"}, Occasions: []string{"casual"},
 	})
 	if err != nil {
 		t.Fatalf("UpdateItemAITags: %v", err)
@@ -44,7 +44,7 @@ func TestUpdateItemAITagsSkipsUserEditedItem(t *testing.T) {
 	if err := s.UpdateItemTags(ctx, userID, itemID, ItemTags{
 		Category: "bottom", Subcategory: "jeans", ColorPrimary: "navy",
 		Pattern: "solid", Material: "denim", Fit: "slim",
-		Formality: 2, Warmth: 3, Seasons: []string{"autumn"}, Occasions: []string{"casual"},
+		FormalityMin: 2, FormalityMax: 2, WarmthMin: 3, WarmthMax: 3, Seasons: []string{"autumn"}, Occasions: []string{"casual"},
 	}); err != nil {
 		t.Fatalf("UpdateItemTags: %v", err)
 	}
@@ -52,7 +52,7 @@ func TestUpdateItemAITagsSkipsUserEditedItem(t *testing.T) {
 	applied, err := s.UpdateItemAITags(ctx, itemID, ItemTags{
 		Category: "top", Subcategory: "t-shirt", ColorPrimary: "blue",
 		Pattern: "solid", Material: "cotton", Fit: "regular",
-		Formality: 2, Warmth: 3, Seasons: []string{"summer"}, Occasions: []string{"casual"},
+		FormalityMin: 2, FormalityMax: 2, WarmthMin: 3, WarmthMax: 3, Seasons: []string{"summer"}, Occasions: []string{"casual"},
 	})
 	if err != nil {
 		t.Fatalf("UpdateItemAITags: %v", err)
@@ -82,7 +82,7 @@ func TestUpdateItemTagsRoundTripsCustomTags(t *testing.T) {
 	if err := s.UpdateItemTags(ctx, userID, itemID, ItemTags{
 		Category: "top", Subcategory: "t-shirt", ColorPrimary: "blue",
 		Pattern: "solid", Material: "cotton", Fit: "regular",
-		Formality: 2, Warmth: 3, Seasons: []string{"summer"}, Occasions: []string{"casual"},
+		FormalityMin: 2, FormalityMax: 2, WarmthMin: 3, WarmthMax: 3, Seasons: []string{"summer"}, Occasions: []string{"casual"},
 		CustomTags: []string{"favorite", "gift from mom"},
 	}); err != nil {
 		t.Fatalf("UpdateItemTags: %v", err)
@@ -108,7 +108,7 @@ func TestUpdateItemAITagsSetsCustomTagsOnlyWhenNotUserEdited(t *testing.T) {
 	if _, err := s.UpdateItemAITags(ctx, itemID, ItemTags{
 		Category: "top", Subcategory: "t-shirt", ColorPrimary: "blue",
 		Pattern: "solid", Material: "cotton", Fit: "regular",
-		Formality: 2, Warmth: 3, Seasons: []string{"summer"}, Occasions: []string{"casual"},
+		FormalityMin: 2, FormalityMax: 2, WarmthMin: 3, WarmthMax: 3, Seasons: []string{"summer"}, Occasions: []string{"casual"},
 		CustomTags: []string{"vintage", "distressed"},
 	}); err != nil {
 		t.Fatalf("UpdateItemAITags: %v", err)
@@ -128,7 +128,7 @@ func TestUpdateItemAITagsSetsCustomTagsOnlyWhenNotUserEdited(t *testing.T) {
 	if err := s.UpdateItemTags(ctx, userID, itemID, ItemTags{
 		Category: "top", Subcategory: "t-shirt", ColorPrimary: "blue",
 		Pattern: "solid", Material: "cotton", Fit: "regular",
-		Formality: 2, Warmth: 3, Seasons: []string{"summer"}, Occasions: []string{"casual"},
+		FormalityMin: 2, FormalityMax: 2, WarmthMin: 3, WarmthMax: 3, Seasons: []string{"summer"}, Occasions: []string{"casual"},
 		CustomTags: []string{"vintage"},
 	}); err != nil {
 		t.Fatalf("UpdateItemTags: %v", err)
@@ -137,7 +137,7 @@ func TestUpdateItemAITagsSetsCustomTagsOnlyWhenNotUserEdited(t *testing.T) {
 	applied, err := s.UpdateItemAITags(ctx, itemID, ItemTags{
 		Category: "top", Subcategory: "t-shirt", ColorPrimary: "blue",
 		Pattern: "solid", Material: "cotton", Fit: "regular",
-		Formality: 2, Warmth: 3, Seasons: []string{"summer"}, Occasions: []string{"casual"},
+		FormalityMin: 2, FormalityMax: 2, WarmthMin: 3, WarmthMax: 3, Seasons: []string{"summer"}, Occasions: []string{"casual"},
 		CustomTags: []string{"vintage", "distressed", "logo-print"},
 	})
 	if err != nil {

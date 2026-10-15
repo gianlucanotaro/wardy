@@ -8,7 +8,8 @@ SQLite, WAL mode, `foreign_keys=ON`, `busy_timeout=5000`.
 users        id, email, password_hash, display_name, created_at
 sessions     token, user_id, expires_at
 items        id, user_id, name, category, subcategory, color_primary,
-             color_secondary, pattern, material, formality, warmth, fit,
+             color_secondary, pattern, material, formality_min,
+             formality_max, warmth_min, warmth_max, fit,
              brand, notes, seasons(JSON), occasions(JSON), photo_path,
              thumb_path, ai_tagged_at, user_edited_at, archived, created_at
 looks        id, user_id, name, notes, cover_item_id, created_at

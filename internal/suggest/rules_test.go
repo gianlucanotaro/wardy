@@ -8,6 +8,7 @@ import (
 	"github.com/gianlucanotaro/wardy/internal/ai"
 	"github.com/gianlucanotaro/wardy/internal/store"
 	"github.com/gianlucanotaro/wardy/internal/taxonomy"
+	"github.com/gianlucanotaro/wardy/internal/weather"
 )
 
 // Outfit-level rules (#29): warmth is reached by layering, formality is a
@@ -215,14 +216,109 @@ func TestSuggestAI_DropsOutfitsThatBreakOutfitRules(t *testing.T) {
 }
 
 // Layers worn together are as warm as the warmest one; bottoms don't
-// count towards upper-body warmth.
+// count towards upper-body warmth. A piece is one step warmer than the
+// hottest weather it suits.
 func TestUpperWarmthCountsLayers(t *testing.T) {
 	items := []store.Item{
-		{Category: "top", Warmth: 1},
-		{Category: "bottom", Warmth: 5},
-		{Category: "outerwear", Warmth: 4},
+		{Category: "top", WarmthMin: 1, WarmthMax: 5},       // light shirt: 2
+		{Category: "bottom", WarmthMin: 5, WarmthMax: 5},    // ignored
+		{Category: "outerwear", WarmthMin: 3, WarmthMax: 5}, // jacket: 4
 	}
 	if got := upperWarmth(items); got != 4 {
 		t.Errorf("upperWarmth = %d, want 4 (warmest upper layer; bottoms don't count)", got)
+	}
+}
+
+// createRangedItem is createTaggedItem with explicit ranges, the way a
+// user (or the AI) tags items since #33.
+func createRangedItem(t *testing.T, s *store.Store, userID int64, category, subcategory string, fMin, fMax, wMin, wMax int, occasions []string) int64 {
+	t.Helper()
+	ctx := context.Background()
+	itemID, err := s.CreateItem(ctx, userID, "photo.jpg", "thumb.jpg")
+	if err != nil {
+		t.Fatalf("CreateItem: %v", err)
+	}
+	if err := s.UpdateItemTags(ctx, userID, itemID, store.ItemTags{
+		Category: category, Subcategory: subcategory, ColorPrimary: "blue",
+		Pattern: "solid", Material: "cotton", Fit: "regular",
+		FormalityMin: fMin, FormalityMax: fMax, WarmthMin: wMin, WarmthMax: wMax,
+		Occasions: occasions,
+	}); err != nil {
+		t.Fatalf("UpdateItemTags: %v", err)
+	}
+	return itemID
+}
+
+// A shirt tagged 2-4 is suggested for both casual and work.
+func TestSuggestFormalityRangeSpansOccasions(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	userID, _ := s.CreateUser(ctx, "me@example.com", "hash", "Me")
+
+	shirt := createRangedItem(t, s, userID, "top", "button-down", 2, 4, 1, 5, nil)
+	createRangedItem(t, s, userID, "bottom", "jeans", 1, 2, 1, 5, nil)
+	createRangedItem(t, s, userID, "bottom", "trousers", 4, 4, 1, 5, nil)
+
+	forecast := hotSummerForecast()
+	for _, occasion := range []taxonomy.Occasion{taxonomy.OccasionCasual, taxonomy.OccasionWork} {
+		result, err := Suggest(ctx, s, userID, occasion, &forecast, true, julyDate)
+		if err != nil {
+			t.Fatalf("Suggest(%s): %v", occasion, err)
+		}
+		if !anyOutfitHas(result.Outfits, shirt) {
+			t.Errorf("%s: expected the 2-4 shirt, got %+v (reason %q)", occasion, result.Outfits, result.NoMatchReason)
+		}
+	}
+}
+
+// Warmth ranges are the user's call: a tank top tagged 1-2 never shows up
+// on a cold day, even though tops can be layered.
+func TestSuggestRespectsWarmthRangeForTops(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	userID, _ := s.CreateUser(ctx, "me@example.com", "hash", "Me")
+
+	tank := createRangedItem(t, s, userID, "top", "tank", 2, 2, 1, 2, nil)
+	createRangedItem(t, s, userID, "top", "knit", 2, 3, 3, 5, nil)
+	createRangedItem(t, s, userID, "bottom", "jeans", 2, 2, 2, 5, nil)
+	createRangedItem(t, s, userID, "outerwear", "coat", 2, 3, 4, 5, nil)
+
+	forecast := freezingForecast()
+	result, err := Suggest(ctx, s, userID, taxonomy.OccasionCasual, &forecast, true, januaryDate)
+	if err != nil {
+		t.Fatalf("Suggest: %v", err)
+	}
+	if len(result.Outfits) == 0 {
+		t.Fatalf("expected a winter outfit, got none (reason %q)", result.NoMatchReason)
+	}
+	if anyOutfitHas(result.Outfits, tank) {
+		t.Error("a top tagged warmth 1-2 must not be suggested on a freezing day")
+	}
+}
+
+// A wider formality range bridges more: a blazer tagged 3-5 (wearable
+// smart-casual) pairs with joggers, a blazer tagged 4-5 doesn't.
+func TestSuggestWiderFormalityRangeBridgesPieces(t *testing.T) {
+	for _, c := range []struct {
+		blazerMin int
+		want      bool
+	}{{3, true}, {4, false}} {
+		ctx := context.Background()
+		s := newTestStore(t)
+		userID, _ := s.CreateUser(ctx, "me@example.com", "hash", "Me")
+
+		createRangedItem(t, s, userID, "top", "t-shirt", 1, 1, 1, 5, nil)
+		createRangedItem(t, s, userID, "bottom", "sweatpants", 1, 1, 1, 5, nil)
+		blazer := createRangedItem(t, s, userID, "outerwear", "blazer", c.blazerMin, 5, 3, 4, nil)
+
+		// Cool: target 4, so outfits always get outerwear over the tee.
+		forecast := weather.Forecast{TempHighC: 11, TempLowC: 5}
+		result, err := Suggest(ctx, s, userID, taxonomy.OccasionCasual, &forecast, true, julyDate)
+		if err != nil {
+			t.Fatalf("Suggest: %v", err)
+		}
+		if got := anyOutfitHas(result.Outfits, blazer); got != c.want {
+			t.Errorf("blazer %d-5 with joggers: suggested = %v, want %v (outfits %+v)", c.blazerMin, got, c.want, result.Outfits)
+		}
 	}
 }
