@@ -44,9 +44,13 @@ usable with `AI_PROVIDER=off`.
 ## Weather — Open-Meteo
 
 Free, no API key, no signup. Don't add a provider requiring registration.
-Cache in-memory by rounded lat/lon, 1 hour TTL. Users set a home location in
-settings; don't demand browser geolocation. On failure, suggest anyway with a
-note — never block.
+Cache in-memory by rounded lat/lon, 1 hour TTL. The app sends the device's
+current position (`?lat=&lon=` on `/api/weather` and `/api/suggest`, rounded to
+~1 km) when the browser shares it; otherwise, or when the user picks "home" in
+settings (per device, localStorage), the server uses the saved home location.
+Location access is asked for, never required: a denial falls back to home, and
+no location at all still suggests. On failure, suggest anyway with a note —
+never block.
 
 ## Billing
 

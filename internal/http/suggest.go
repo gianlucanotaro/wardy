@@ -32,7 +32,9 @@ type suggestResponse struct {
 // app must stay fully usable with AI_PROVIDER=off"). Weather is fetched
 // best-effort — a missing location or a failed fetch both just mean
 // Suggest runs without warmth-matching (docs/ai.md: "Weather down ->
-// suggest anyway"), never an error to the client. ?mood= and
+// suggest anyway"), never an error to the client. ?lat=&lon= is the
+// device's current position, used over the home location when sent
+// (weatherLocation). ?mood= and
 // ?time_of_day= are optional prompt context for the AI rationale, not
 // filters on the candidate set.
 func suggestHandler(s *store.Store, wc *weather.Client, provider ai.Provider, aiEnabled bool, monthlyBudgetUSD float64) http.HandlerFunc {
@@ -52,15 +54,16 @@ func suggestHandler(s *store.Store, wc *weather.Client, provider ai.Provider, ai
 		timeOfDay := r.URL.Query().Get("time_of_day")
 
 		var forecast *weather.Forecast
-		if user.HomeLat.Valid && user.HomeLon.Valid {
-			if f, err := wc.Forecast(r.Context(), user.HomeLat.Float64, user.HomeLon.Float64); err != nil {
+		lat, lon, hasLocation := weatherLocation(r, user)
+		if hasLocation {
+			if f, err := wc.Forecast(r.Context(), lat, lon); err != nil {
 				slog.Warn("suggest: fetch weather", "error", err)
 			} else {
 				forecast = &f
 			}
 		}
 
-		northernHemisphere := !user.HomeLat.Valid || user.HomeLat.Float64 >= 0
+		northernHemisphere := !hasLocation || lat >= 0
 
 		result, err := suggest.SuggestAI(r.Context(), s, provider, aiEnabled, monthlyBudgetUSD, suggest.DailySuggestionCap, user.ID, occasion, mood, timeOfDay, forecast, northernHemisphere, time.Now())
 		if err != nil {

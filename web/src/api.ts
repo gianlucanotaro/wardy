@@ -1,3 +1,5 @@
+import { type Coords } from './location'
+
 export type Me = { email: string; display_name: string }
 
 export type TagsPayload = {
@@ -119,8 +121,19 @@ export type Weather =
   | { available: true; temp_high_c: number; temp_low_c: number; precip_probability: number; wind_speed_kph: number; condition: string }
   | { available: false; reason: string }
 
-export function getWeather(): Promise<Weather> {
-  return request('/api/weather')
+// coords is this device's current position (location.ts); without it the
+// server uses the home location.
+function withCoords(params: URLSearchParams, coords: Coords | null) {
+  if (coords) {
+    params.set('lat', String(coords.lat))
+    params.set('lon', String(coords.lon))
+  }
+}
+
+export function getWeather(coords: Coords | null): Promise<Weather> {
+  const params = new URLSearchParams()
+  withCoords(params, coords)
+  return request(`/api/weather?${params.toString()}`)
 }
 
 export type SuggestOutfit = { items: Item[]; note: string }
@@ -137,9 +150,10 @@ export type SuggestResponse = {
 // mood is optional prompt context for the AI rationale only — it never
 // changes which items are eligible (the "context not filter" design;
 // see internal/http/suggest.go).
-export function getSuggestions(occasion: string, mood?: string): Promise<SuggestResponse> {
+export function getSuggestions(occasion: string, mood: string | undefined, coords: Coords | null): Promise<SuggestResponse> {
   const params = new URLSearchParams({ occasion })
   if (mood) params.set('mood', mood)
+  withCoords(params, coords)
   return request(`/api/suggest?${params.toString()}`)
 }
 

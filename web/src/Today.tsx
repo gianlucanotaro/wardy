@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { createLook, getSuggestions, getWeather, listItems, logWear, todayISODate } from './api'
+import { useLocationSource, useWeatherCoords } from './location'
 import { OCCASIONS } from './taxonomy'
 import { useToast } from './useToast'
 
@@ -48,10 +49,15 @@ export default function Today() {
   const dateLabel = `${WEEKDAY[now.getDay()]} ${now.getDate()} ${MONTH[now.getMonth()]}`
 
   const items = useQuery({ queryKey: ['items'], queryFn: () => listItems() })
-  const weather = useQuery({ queryKey: ['weather'], queryFn: getWeather })
+  // Both wait for the browser's answer on location, so they fetch once for
+  // here rather than once for home and again for here.
+  const [locationSource] = useLocationSource()
+  const { coords, ready } = useWeatherCoords(locationSource)
+  const weather = useQuery({ queryKey: ['weather', coords], queryFn: () => getWeather(coords), enabled: ready })
   const suggestions = useQuery({
-    queryKey: ['suggest', occasion, mood],
-    queryFn: () => getSuggestions(occasion, mood || undefined),
+    queryKey: ['suggest', occasion, mood, coords],
+    queryFn: () => getSuggestions(occasion, mood || undefined, coords),
+    enabled: ready,
   })
 
   const outfits = suggestions.data?.outfits ?? []
@@ -155,7 +161,7 @@ export default function Today() {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 border-b-2 border-(--color-line-strong)">
         <div className="wy-cell">
-          <div className="wy-lbl">TEMP</div>
+          <div className="wy-lbl">{weather.data?.available ? (coords ? 'TEMP · HERE' : 'TEMP · HOME') : 'TEMP'}</div>
           <div className="font-extrabold text-2xl tracking-tight">
             {weather.data?.available ? `${Math.round(weather.data.temp_high_c)}°/${Math.round(weather.data.temp_low_c)}°` : '—'}
           </div>
@@ -226,12 +232,14 @@ export default function Today() {
         <span>{outfits.length > 0 ? `${(deckIndex % outfits.length) + 1}/${outfits.length}` : '0/0'}</span>
       </div>
 
-      {suggestions.isLoading && <p className="px-4 py-4 wy-lbl">FINDING OUTFITS…</p>}
+      {(!ready || suggestions.isLoading) && <p className="px-4 py-4 wy-lbl">FINDING OUTFITS…</p>}
       {suggestions.isError && <p className="px-4 py-4 text-sm text-(--color-accent-700)">Couldn't load suggestions.</p>}
 
       {suggestions.data && !suggestions.data.weather_available && (
         <p className="px-4 py-2 text-xs text-(--color-neutral-700) border-b border-(--color-line)">
-          Weather unavailable — suggestions don't account for today's temperature.
+          {weather.data?.available === false && weather.data.reason === 'no_location_set'
+            ? 'No location — allow location access, or set a home location in Settings, so suggestions account for the weather.'
+            : "Weather unavailable — suggestions don't account for today's temperature."}
         </p>
       )}
       {suggestions.data?.source === 'rules_fallback' && (
