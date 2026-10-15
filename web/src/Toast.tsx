@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { ToastContext } from './useToast'
 
-// One app-wide toast, matching the design's single flash(msg): a dark
-// banner pinned above the tab bar that clears itself after ~2s. A new
+// One app-wide toast, matching the design's single flash(msg): a small
+// dark box centred above the tab bar that clears itself after ~2s. A new
 // flash replaces whatever is showing (no queue — nothing here fires fast
 // enough to need one) and restarts the timer, even for the same text.
 const DURATION_MS = 2000
@@ -31,7 +31,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       <div
         role="status"
         aria-live="polite"
-        className="fixed left-0 right-0 z-30 pointer-events-none"
+        className="fixed left-0 right-0 z-30 pointer-events-none flex justify-center"
         style={{
           bottom: 'calc(env(safe-area-inset-bottom) + 64px)',
           paddingLeft: 'max(var(--gutter-x), env(safe-area-inset-left))',
@@ -39,7 +39,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         }}
       >
         {toast && (
-          <div className="wy-toast max-w-2xl mx-auto" key={toast.id}>
+          <div className="wy-toast" key={toast.id}>
             {toast.message}
           </div>
         )}

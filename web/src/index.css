@@ -114,9 +114,10 @@ html {
 .wy-toast {
   background: var(--color-ink);
   color: var(--color-bg);
-  padding: 14px 16px;
+  padding: 11px 16px;
   font: 800 11px var(--font-sans);
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
+  box-shadow: 0 3px 10px color-mix(in srgb, #2d2b2b 16%, transparent);
   text-transform: uppercase;
   animation: wy-toast-in 140ms ease-out;
 }
