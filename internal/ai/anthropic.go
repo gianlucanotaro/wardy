@@ -52,7 +52,7 @@ Respond with ONLY a JSON array — no markdown fences, no prose before or after:
   ...
 ]
 
-Return 2 to 3 outfits. Use ONLY item ids from the candidate list you are given — never invent an id, and never include an item not in the list. Each outfit should combine items that work together (e.g. a top and bottom, or a dress, plus shoes and outerwear where appropriate). Mood and time of day, when given, should shape the rationale and which outfits you pick — they are not additional filters. Some candidates carry custom_tags: the user's own personal tags (sentimental or organizational, like "favorite" or "needs mending") — use them as context for the rationale when relevant, never as a reason to include or exclude an item, since the candidate list is already final.`
+Return 2 to 3 outfits. Use ONLY item ids from the candidate list you are given — never invent an id, and never include an item not in the list. Each outfit should combine items that work together (e.g. a top and bottom, or a dress, plus shoes and outerwear where appropriate), keeping its pieces within about two formality steps of each other. Mood and time of day, when given, should shape the rationale and which outfits you pick — they are not additional filters. Some candidates carry custom_tags: the user's own personal tags (sentimental or organizational, like "favorite" or "needs mending") — use them as context for the rationale when relevant, never as a reason to include or exclude an item, since the candidate list is already final.`
 
 type suggestionCandidateJSON struct {
 	ID           int64    `json:"id"`

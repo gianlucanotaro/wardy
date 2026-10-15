@@ -21,15 +21,20 @@ wardrobe costs well under a dollar, once.
 
 ## Suggestions — `claude-sonnet-5`
 
-1. **Pre-filter in SQL**: season match, `warmth` near forecast, `formality`
-   within ±1 of the occasion, not archived, not worn in last N days.
+1. **Pre-filter** (SQL, plus a per-category weather check in Go):
+   `formality` within the occasion's range, not archived, not worn in last N
+   days, and no piece too warm (or, for bottoms/dresses/shoes, too light) for
+   the forecast. Occasion and season tags only rank candidates — tagged ones
+   first — they never exclude. See `docs/taxonomy.md`.
 2. Cap at ~60 candidates, sampled across categories so every slot has options.
 3. Send compact JSON — ids and relevant attributes only. No paths, no
    timestamps.
 4. Ask for 2–3 outfits: arrays of item ids + one-sentence rationale each.
 5. **Validate every returned id** exists, belongs to this user, and was in the
    candidate set. Models hallucinate ids. Drop invalid outfits rather than
-   rendering a broken card.
+   rendering a broken card. Also drop outfits that break the outfit-level rules
+   (formality spread, warm enough once layered) — the model never sees the
+   forecast.
 
 Mood and time of day are prompt context, not filters — they shape the rationale
 and ranking, not the candidate set.

@@ -7,45 +7,25 @@ import (
 )
 
 // CandidateFilter narrows down items for the phase-7 rules-based outfit
-// pre-filter (internal/suggest builds this from occasion/season/weather).
-// It's deliberately arithmetic and cheap — no AI involved — since it's
-// also the permanent fallback when AI suggestions are unavailable.
+// pre-filter (internal/suggest builds this from the occasion). It's
+// deliberately arithmetic and cheap — no AI involved — since it's also the
+// permanent fallback when AI suggestions are unavailable.
 //
-// Occasion, Season, and TargetWarmth are all pointers so the "nothing
-// matches" diagnostic (internal/suggest) can relax exactly one constraint
-// at a time by nil-ing it out and re-running the same query, rather than
-// duplicating the filter logic to answer "would dropping X help?".
+// Only the hard limits live here. Weather fit depends on the item's
+// category and how outfits get layered, and occasion/season tags are
+// preferences rather than filters, so internal/suggest handles both. The
+// "nothing matches" diagnostic there relaxes one field at a time and
+// re-runs this same query.
 type CandidateFilter struct {
-	Occasion             *string
-	Season               *string
-	TargetFormality      int
-	FormalityWindow      int
-	TargetWarmth         *int
-	WarmthWindow         int
+	FormalityMin         int
+	FormalityMax         int
 	ExcludeWornSinceDays int // 0 disables this filter
 }
 
 // CandidateItems returns userID's non-archived items matching filter.
 func (s *Store) CandidateItems(ctx context.Context, userID int64, f CandidateFilter) ([]Item, error) {
-	query := itemColumns + ` FROM items WHERE user_id = ? AND archived = 0`
-	args := []any{userID}
-
-	if f.Occasion != nil {
-		query += ` AND EXISTS (SELECT 1 FROM json_each(items.occasions) WHERE value = ?)`
-		args = append(args, *f.Occasion)
-	}
-	if f.Season != nil {
-		query += ` AND EXISTS (SELECT 1 FROM json_each(items.seasons) WHERE value = ?)`
-		args = append(args, *f.Season)
-	}
-
-	query += ` AND ABS(formality - ?) <= ?`
-	args = append(args, f.TargetFormality, f.FormalityWindow)
-
-	if f.TargetWarmth != nil {
-		query += ` AND ABS(warmth - ?) <= ?`
-		args = append(args, *f.TargetWarmth, f.WarmthWindow)
-	}
+	query := itemColumns + ` FROM items WHERE user_id = ? AND archived = 0 AND formality BETWEEN ? AND ?`
+	args := []any{userID, f.FormalityMin, f.FormalityMax}
 
 	if f.ExcludeWornSinceDays > 0 {
 		since := time.Now().UTC().AddDate(0, 0, -f.ExcludeWornSinceDays).Format("2006-01-02")

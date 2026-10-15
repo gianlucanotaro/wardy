@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"sort"
 	"time"
 
@@ -86,7 +87,7 @@ func Suggest(ctx context.Context, s *store.Store, userID int64, occasion taxonom
 		return Result{Outfits: outfits, Source: SourceRulesFallback}, nil
 	}
 
-	reason, err := diagnoseNoMatch(ctx, s, userID, filter)
+	reason, err := diagnoseNoMatch(ctx, s, userID, filter, targetWarmth)
 	if err != nil {
 		return Result{}, fmt.Errorf("diagnose no match: %w", err)
 	}
@@ -110,7 +111,7 @@ func SuggestAI(ctx context.Context, s *store.Store, provider ai.Provider, aiEnab
 
 	rulesOutfits := assembleOutfits(groupByCategory(candidates), targetWarmth)
 	if len(rulesOutfits) == 0 {
-		reason, err := diagnoseNoMatch(ctx, s, userID, filter)
+		reason, err := diagnoseNoMatch(ctx, s, userID, filter, targetWarmth)
 		if err != nil {
 			return Result{}, fmt.Errorf("diagnose no match: %w", err)
 		}
@@ -159,7 +160,7 @@ func SuggestAI(ctx context.Context, s *store.Store, provider ai.Provider, aiEnab
 		return rulesResult, nil
 	}
 
-	outfits := validateAISuggestions(suggestions, candidates)
+	outfits := validateAISuggestions(suggestions, candidates, targetWarmth)
 	if len(outfits) == 0 {
 		slog.Warn("suggest: ai returned no outfits with valid candidate ids, falling back to rules")
 		return rulesResult, nil
@@ -171,12 +172,11 @@ func SuggestAI(ctx context.Context, s *store.Store, provider ai.Provider, aiEnab
 	return Result{Outfits: outfits, Source: SourceAI}, nil
 }
 
-// gatherCandidates runs the shared SQL pre-filter and sampling that both
+// gatherCandidates runs the shared pre-filter and sampling that both
 // Suggest and SuggestAI build their outfits from, so an AI suggestion is
 // always drawn from the exact same pool as its rules-based fallback.
 func gatherCandidates(ctx context.Context, s *store.Store, userID int64, occasion taxonomy.Occasion, forecast *weather.Forecast, northernHemisphere bool, now time.Time) ([]store.Item, store.CandidateFilter, *int, error) {
-	season := CurrentSeason(now, northernHemisphere)
-	targetFormality := TargetFormality(occasion)
+	formality := OccasionFormality(occasion)
 
 	var targetWarmth *int
 	if forecast != nil {
@@ -184,28 +184,59 @@ func gatherCandidates(ctx context.Context, s *store.Store, userID int64, occasio
 		targetWarmth = &w
 	}
 
-	occasionStr := string(occasion)
-	seasonStr := string(season)
 	filter := store.CandidateFilter{
-		Occasion:             &occasionStr,
-		Season:               &seasonStr,
-		TargetFormality:      targetFormality,
-		FormalityWindow:      MatchWindow,
-		TargetWarmth:         targetWarmth,
-		WarmthWindow:         MatchWindow,
+		FormalityMin:         formality.Min,
+		FormalityMax:         formality.Max,
 		ExcludeWornSinceDays: ExcludeWornSinceDays,
 	}
 
-	candidates, err := s.CandidateItems(ctx, userID, filter)
+	candidates, err := candidateItems(ctx, s, userID, filter, targetWarmth)
 	if err != nil {
 		return nil, store.CandidateFilter{}, nil, fmt.Errorf("query candidates: %w", err)
 	}
+
+	preferTagged(candidates, occasion, CurrentSeason(now, northernHemisphere))
 
 	if len(candidates) > MaxCandidates {
 		candidates = sampleAcrossCategories(candidates, MaxCandidates)
 	}
 
 	return candidates, filter, targetWarmth, nil
+}
+
+// candidateItems is the store query plus the per-category weather check
+// (see FitsWeather), which needs Go rather than SQL. targetWarmth nil
+// means weather is unavailable: suggest anyway, unfiltered.
+func candidateItems(ctx context.Context, s *store.Store, userID int64, filter store.CandidateFilter, targetWarmth *int) ([]store.Item, error) {
+	items, err := s.CandidateItems(ctx, userID, filter)
+	if err != nil || targetWarmth == nil {
+		return items, err
+	}
+	kept := items[:0]
+	for _, it := range items {
+		if FitsWeather(it.Category, it.Warmth, *targetWarmth) {
+			kept = append(kept, it)
+		}
+	}
+	return kept, nil
+}
+
+// preferTagged reorders items so the ones the user tagged for today's
+// occasion come first, then the ones tagged for the current season. Tags
+// are preferences, not filters: untagged pieces still qualify, they just
+// get picked after the tagged ones. Stable, so ties keep newest-first.
+func preferTagged(items []store.Item, occasion taxonomy.Occasion, season taxonomy.Season) {
+	score := func(it store.Item) int {
+		n := 0
+		if slices.Contains(it.Occasions, string(occasion)) {
+			n += 2
+		}
+		if slices.Contains(it.Seasons, string(season)) {
+			n++
+		}
+		return n
+	}
+	sort.SliceStable(items, func(i, j int) bool { return score(items[i]) > score(items[j]) })
 }
 
 // toAICandidates strips items down to ids and the relevant attributes for
@@ -232,7 +263,11 @@ func toAICandidates(items []store.Item) []ai.SuggestionCandidate {
 // only thing standing between that and a broken card (docs/ai.md:
 // "validate every returned id ... drop invalid outfits rather than
 // rendering a broken card").
-func validateAISuggestions(suggestions []ai.AISuggestion, candidates []store.Item) []Outfit {
+//
+// It also drops outfits that break the rules pass's outfit-level rules
+// (outfitWorks): the model only sees individually-fitting pieces, so it
+// can still pair a shirt with no layer over it on a cold day.
+func validateAISuggestions(suggestions []ai.AISuggestion, candidates []store.Item, targetWarmth *int) []Outfit {
 	byID := make(map[int64]store.Item, len(candidates))
 	for _, it := range candidates {
 		byID[it.ID] = it
@@ -250,7 +285,7 @@ func validateAISuggestions(suggestions []ai.AISuggestion, candidates []store.Ite
 			}
 			items = append(items, it)
 		}
-		if !valid || len(items) == 0 {
+		if !valid || len(items) == 0 || !outfitWorks(items, targetWarmth) {
 			continue
 		}
 		outfits = append(outfits, Outfit{Items: items, Note: sug.Rationale})
@@ -303,9 +338,10 @@ func sampleAcrossCategories(items []store.Item, max int) []store.Item {
 }
 
 // assembleOutfits builds up to MaxOutfits combinations: a top+bottom pair
-// or a dress as the base, plus shoes and (if it's cold) outerwear when
-// available. No AI involved — just picking distinct items per slot so
-// the suggestions vary.
+// or a dress as the base, then layers for the weather, then shoes. Every
+// added piece has to keep the outfit's formality coherent (see
+// coherent). No AI involved — just picking distinct items per slot, in
+// candidate order, so the suggestions vary.
 func assembleOutfits(byCategory map[string][]store.Item, targetWarmth *int) []Outfit {
 	tops := byCategory[string(taxonomy.CategoryTop)]
 	bottoms := byCategory[string(taxonomy.CategoryBottom)]
@@ -313,11 +349,20 @@ func assembleOutfits(byCategory map[string][]store.Item, targetWarmth *int) []Ou
 	outerwear := byCategory[string(taxonomy.CategoryOuterwear)]
 	shoes := byCategory[string(taxonomy.CategoryShoes)]
 
-	needsOuterwear := targetWarmth != nil && *targetWarmth >= 4
-
 	var bases [][]store.Item
-	for i := 0; i < len(tops) && i < len(bottoms); i++ {
-		bases = append(bases, []store.Item{tops[i], bottoms[i]})
+	usedBottoms := make(map[int64]bool)
+	for _, top := range tops {
+		// Prefer a bottom no earlier base used, so suggestions vary; fall
+		// back to reusing one rather than dropping the top.
+		bottom := pick(bottoms, []store.Item{top}, 0, func(b store.Item) bool { return !usedBottoms[b.ID] })
+		if bottom == nil {
+			bottom = pick(bottoms, []store.Item{top}, 0, nil)
+		}
+		if bottom == nil {
+			continue
+		}
+		usedBottoms[bottom.ID] = true
+		bases = append(bases, []store.Item{top, *bottom})
 	}
 	for _, d := range dresses {
 		bases = append(bases, []store.Item{d})
@@ -329,22 +374,110 @@ func assembleOutfits(byCategory map[string][]store.Item, targetWarmth *int) []Ou
 			break
 		}
 
-		items := append([]store.Item{}, base...)
-		if len(shoes) > 0 {
-			items = append(items, shoes[i%len(shoes)])
+		items, layered, ok := layerForWeather(base, tops, outerwear, i, targetWarmth)
+		if !ok {
+			continue
 		}
-		if needsOuterwear && len(outerwear) > 0 {
-			items = append(items, outerwear[i%len(outerwear)])
+		if shoe := pick(shoes, items, i, nil); shoe != nil {
+			items = append(items, *shoe)
 		}
 
-		outfits = append(outfits, Outfit{Items: items, Note: outfitNote(needsOuterwear)})
+		outfits = append(outfits, Outfit{Items: items, Note: outfitNote(layered)})
 	}
 
 	return outfits
 }
 
-func outfitNote(includesOuterwear bool) string {
-	if includesOuterwear {
+// layerForWeather adds a mid layer and/or outerwear to base until its
+// warmest upper-body piece reaches the needed warmth: a shirt in winter
+// gets a knit and a coat over it. ok is false when the wardrobe can't make
+// this base warm enough, so the caller skips it. With no weather data the
+// base is returned as is.
+func layerForWeather(base, tops, outerwear []store.Item, offset int, targetWarmth *int) (items []store.Item, layered, ok bool) {
+	items = append([]store.Item{}, base...)
+	if targetWarmth == nil {
+		return items, false, true
+	}
+	need := neededWarmth(*targetWarmth)
+
+	hasTop := slices.ContainsFunc(items, func(it store.Item) bool { return it.Category == string(taxonomy.CategoryTop) })
+	if hasTop && upperWarmth(items) < need {
+		mid := pick(tops, items, offset, func(t store.Item) bool { return t.Warmth >= need })
+		if mid != nil {
+			items = append(items, *mid)
+			layered = true
+		}
+	}
+
+	if *targetWarmth >= OuterwearFromWarmth || upperWarmth(items) < need {
+		if coat := pick(outerwear, items, offset, nil); coat != nil {
+			items = append(items, *coat)
+			layered = true
+		}
+	}
+
+	return items, layered, upperWarmth(items) >= need
+}
+
+// upperWarmth is the warmth of the warmest top, dress or outerwear in
+// items — layers worn together feel at least as warm as the warmest one.
+func upperWarmth(items []store.Item) int {
+	w := 0
+	for _, it := range items {
+		switch taxonomy.Category(it.Category) {
+		case taxonomy.CategoryTop, taxonomy.CategoryDress, taxonomy.CategoryOuterwear:
+			w = max(w, it.Warmth)
+		}
+	}
+	return w
+}
+
+// pick returns the first item of list, starting at offset and wrapping
+// around, that isn't already in outfit, keeps outfit coherent, and passes
+// ok (nil accepts any). nil if none qualifies.
+func pick(list, outfit []store.Item, offset int, ok func(store.Item) bool) *store.Item {
+	for n := range list {
+		cand := list[(offset+n)%len(list)]
+		if slices.ContainsFunc(outfit, func(it store.Item) bool { return it.ID == cand.ID }) {
+			continue
+		}
+		if ok != nil && !ok(cand) {
+			continue
+		}
+		if !coherent(append(append([]store.Item{}, outfit...), cand)) {
+			continue
+		}
+		return &cand
+	}
+	return nil
+}
+
+// coherent reports whether items' formality stays within
+// MaxFormalitySpread: dressing one piece up works, mixing black tie with
+// loungewear doesn't.
+func coherent(items []store.Item) bool {
+	if len(items) == 0 {
+		return true
+	}
+	lo, hi := items[0].Formality, items[0].Formality
+	for _, it := range items[1:] {
+		lo, hi = min(lo, it.Formality), max(hi, it.Formality)
+	}
+	return hi-lo <= MaxFormalitySpread
+}
+
+// outfitWorks applies the same outfit-level rules the rules pass builds
+// by to an outfit someone else (the AI) assembled: formality coherent,
+// and warm enough up top once its layers are counted.
+func outfitWorks(items []store.Item, targetWarmth *int) bool {
+	if !coherent(items) {
+		return false
+	}
+	return targetWarmth == nil || upperWarmth(items) >= neededWarmth(*targetWarmth)
+}
+
+func outfitNote(layered bool) string {
+	if layered {
 		return "Matches today's weather and occasion — layered for the cold."
 	}
 	return "Matches today's weather and occasion."
@@ -352,50 +485,41 @@ func outfitNote(includesOuterwear bool) string {
 
 // diagnoseNoMatch relaxes one constraint at a time, in the order a user
 // would most plausibly want explained, and reports the first one that
-// would have produced a usable outfit base (top+bottom or dress).
-func diagnoseNoMatch(ctx context.Context, s *store.Store, userID int64, base store.CandidateFilter) (string, error) {
-	hasBase := func(f store.CandidateFilter) (bool, error) {
-		items, err := s.CandidateItems(ctx, userID, f)
+// would have produced an outfit.
+func diagnoseNoMatch(ctx context.Context, s *store.Store, userID int64, base store.CandidateFilter, targetWarmth *int) (string, error) {
+	works := func(f store.CandidateFilter, warmth *int) (bool, error) {
+		items, err := candidateItems(ctx, s, userID, f, warmth)
 		if err != nil {
 			return false, err
 		}
-		byCategory := groupByCategory(items)
-		ok := (len(byCategory[string(taxonomy.CategoryTop)]) > 0 && len(byCategory[string(taxonomy.CategoryBottom)]) > 0) ||
-			len(byCategory[string(taxonomy.CategoryDress)]) > 0
-		return ok, nil
+		return len(assembleOutfits(groupByCategory(items), warmth)) > 0, nil
 	}
 
 	relaxations := []struct {
-		apply  func(*store.CandidateFilter)
+		apply  func(*store.CandidateFilter, **int)
 		reason string
 	}{
 		{
-			func(f *store.CandidateFilter) { f.ExcludeWornSinceDays = 0 },
+			func(f *store.CandidateFilter, _ **int) { f.ExcludeWornSinceDays = 0 },
 			"You've worn everything else that matches recently — try again in a few days, or add more to your wardrobe.",
 		},
 		{
-			func(f *store.CandidateFilter) { f.TargetWarmth = nil },
-			"Nothing matches today's weather yet — consider tagging items across a wider warmth range.",
+			func(_ *store.CandidateFilter, w **int) { *w = nil },
+			"Nothing in your wardrobe layers up right for today's weather — add a few pieces for this temperature.",
 		},
 		{
-			func(f *store.CandidateFilter) { f.FormalityWindow = taxonomy.MaxScale },
-			"Nothing matches that occasion's formality yet — try tagging more items for it.",
-		},
-		{
-			func(f *store.CandidateFilter) { f.Season = nil },
-			"Nothing tagged for the current season yet.",
-		},
-		{
-			func(f *store.CandidateFilter) { f.Occasion = nil },
-			"Nothing tagged for this occasion yet.",
+			func(f *store.CandidateFilter, _ **int) {
+				f.FormalityMin, f.FormalityMax = taxonomy.MinScale, taxonomy.MaxScale
+			},
+			"Not enough pieces at the right formality for this occasion — add a few, or check their formality tags.",
 		},
 	}
 
 	for _, r := range relaxations {
-		candidate := base
-		r.apply(&candidate)
+		candidate, warmth := base, targetWarmth
+		r.apply(&candidate, &warmth)
 
-		ok, err := hasBase(candidate)
+		ok, err := works(candidate, warmth)
 		if err != nil {
 			return "", err
 		}
