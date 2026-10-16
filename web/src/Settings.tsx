@@ -122,24 +122,19 @@ export default function Settings() {
             </button>
           ))}
         </div>
-        <p className="text-sm text-(--color-neutral-700)">
-          {locationSource === 'home'
-            ? 'Outfit suggestions use the weather at your home location.'
-            : !ready
+        {locationSource === 'current' && !usingCurrent && (
+          <p className="text-sm text-(--color-neutral-700)">
+            {!ready
               ? 'Finding where you are…'
-              : usingCurrent
-                ? 'Outfit suggestions use the weather where this device is.'
-                : hasLocation
-                  ? "Couldn't get this device's location — using your home location instead. Check that location access is allowed for this app."
-                  : "Couldn't get this device's location. Allow location access for this app, or set a home location below."}
-        </p>
+              : hasLocation
+                ? "Couldn't get this device's location — using your home location instead. Check that location access is allowed for this app."
+                : "Couldn't get this device's location. Allow location access for this app, or set a home location below."}
+          </p>
+        )}
       </section>
 
       <section className="px-4 py-3 border-b-2 border-(--color-line-strong) flex flex-col gap-2">
         <div className="wy-lbl">HOME LOCATION</div>
-        <p className="text-sm text-(--color-neutral-700)">
-          Used for the weather when you choose it above, or when this device's location isn't available.
-        </p>
 
         <form
           className="flex flex-col gap-2 mt-1"
@@ -190,9 +185,7 @@ export default function Settings() {
           <div className="wy-lbl">{usingCurrent ? 'CURRENT WEATHER · HERE' : 'CURRENT WEATHER · HOME'}</div>
           {weather.isLoading && <p className="text-sm text-(--color-neutral-700)">Loading…</p>}
           {weather.data?.available === false && (
-            <p className="text-sm text-(--color-neutral-700)">
-              Weather unavailable right now — suggestions will work without it.
-            </p>
+            <p className="wy-lbl">WEATHER UNAVAILABLE</p>
           )}
           {weather.data?.available === true && (
             <p className="text-sm">

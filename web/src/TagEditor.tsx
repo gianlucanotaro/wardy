@@ -196,10 +196,6 @@ function CustomTagsField({ value, onChange }: { value: string[]; onChange: (valu
   return (
     <div className="flex flex-col gap-2 border border-(--color-line) bg-(--color-surface) p-3">
       <span className="wy-lbl">YOUR TAGS</span>
-      <p className="text-xs text-(--color-neutral-700)">
-        Free-form — "favorite", "needs mending", whatever helps you find it later. Not used for outfit matching
-        beyond flavor in AI rationale.
-      </p>
 
       <div className="flex flex-wrap gap-1.5">
         {value.map((tag) => (
@@ -369,9 +365,6 @@ function ScaleField({
           )
         })}
       </div>
-      <span className="wy-lbl text-(--color-neutral-500)">
-        {anchor === null ? 'TAP TWO STEPS FOR A RANGE' : 'NOW TAP THE OTHER END — OR LEAVE IT AS ONE STEP'}
-      </span>
     </div>
   )
 }

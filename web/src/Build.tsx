@@ -11,7 +11,7 @@ import {
   type SuggestSource,
 } from './api'
 import { useLocationSource, useWeatherCoords } from './location'
-import { FORMALITY_LABELS, OCCASIONS, WARMTH_LABELS, type Category } from './taxonomy'
+import { OCCASIONS, type Category } from './taxonomy'
 import { useToast } from './useToast'
 
 // One slot per clothing category plus an accessories slot, matching the
@@ -475,11 +475,6 @@ export default function Build({
               .join(' · ')}
           </div>
           <p className="text-sm leading-relaxed">{suggestion.outfits[suggestion.index].note}</p>
-          {suggestion.source === 'rules_fallback' && (
-            <p className="text-xs text-(--color-neutral-700) mt-1">
-              AI suggestions are unavailable right now — this is a simple match on weather and occasion.
-            </p>
-          )}
         </div>
       )}
       {noMatch && (
@@ -489,13 +484,11 @@ export default function Build({
         </div>
       )}
 
-      <p className="px-4 py-3 border-b-2 border-(--color-line-strong) text-sm leading-relaxed">
-        {clothes.length
-          ? `Average formality ${avgFormality?.toFixed(1)} (${FORMALITY_LABELS[Math.round(avgFormality ?? 3)]}) · warmth ${avgWarmth?.toFixed(1)} (${WARMTH_LABELS[Math.round(avgWarmth ?? 3)]})${filled.length < 3 ? ' — add a piece or two before saving.' : '.'}`
-          : accessories.length
-            ? 'Accessories picked — add some clothes to see how formal and warm the outfit is.'
-            : 'Empty rack. Tap a slot to pull something in — or let the AI suggest an outfit.'}
-      </p>
+      {clothes.length > 0 && (
+        <p className="px-4 py-3 border-b-2 border-(--color-line-strong) wy-lbl">
+          FORMALITY {avgFormality?.toFixed(1)} · WARMTH {avgWarmth?.toFixed(1)}
+        </p>
+      )}
 
       <div className="grid grid-cols-2 border-b-2 border-(--color-line-strong)">
         <button type="button" data-primary="1" onClick={save} disabled={saveAsLook.isPending} className="wy-act">
@@ -604,8 +597,8 @@ export default function Build({
               {!ready || weather.isLoading
                 ? 'CHECKING THE WEATHER…'
                 : weather.data?.available
-                  ? `${Math.round(weather.data.temp_high_c)}°/${Math.round(weather.data.temp_low_c)}° · ${coords ? 'HERE' : 'HOME'} — WEATHER IS TAKEN INTO ACCOUNT`
-                  : 'NO WEATHER — SUGGESTING WITHOUT IT'}
+                  ? `${Math.round(weather.data.temp_high_c)}°/${Math.round(weather.data.temp_low_c)}° · ${coords ? 'HERE' : 'HOME'}`
+                  : 'NO WEATHER'}
             </div>
             <div className="border-t-2 border-(--color-line-strong)">
               <button

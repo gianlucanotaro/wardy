@@ -63,7 +63,6 @@ export default function Plan() {
     <div className="flex flex-col">
       <div className="flex items-baseline justify-between px-4 py-3 border-b-2 border-(--color-line-strong)">
         <span className="font-extrabold text-3xl tracking-tight">THE WEEK</span>
-        <span className="wy-lbl">TAP A DAY TO ASSIGN</span>
       </div>
 
       {plan.isLoading && <p className="px-4 py-4 wy-lbl">LOADING…</p>}
@@ -102,12 +101,6 @@ export default function Plan() {
           </button>
         )
       })}
-
-      <p className="px-4 py-3 text-xs text-(--color-neutral-700) border-b-2 border-(--color-line-strong)">
-        {looks.data && looks.data.length === 0
-          ? 'Save a look from Today or Build, then plan the week around it.'
-          : 'Tap a day to cycle through saved looks; tap past the last one to clear it.'}
-      </p>
     </div>
   )
 }

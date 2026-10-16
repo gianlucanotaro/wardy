@@ -221,7 +221,7 @@ export default function Today() {
 
       <div className="flex justify-between px-4 py-2.5 border-b-2 border-(--color-line-strong) wy-lbl">
         <span>
-          OUTFIT {outfits.length > 0 ? String((deckIndex % outfits.length) + 1).padStart(2, '0') : '00'} — RECOMMENDED
+          OUTFIT {outfits.length > 0 ? String((deckIndex % outfits.length) + 1).padStart(2, '0') : '00'}
         </span>
         <span>{outfits.length > 0 ? `${(deckIndex % outfits.length) + 1}/${outfits.length}` : '0/0'}</span>
       </div>
@@ -230,24 +230,18 @@ export default function Today() {
       {suggestions.isError && <p className="px-4 py-4 text-sm text-(--color-accent-700)">Couldn't load suggestions.</p>}
 
       {suggestions.data && !suggestions.data.weather_available && (
-        <p className="px-4 py-2 text-xs text-(--color-neutral-700) border-b border-(--color-line)">
-          {weather.data?.available === false && weather.data.reason === 'no_location_set'
-            ? 'No location — allow location access, or set a home location in Settings, so suggestions account for the weather.'
-            : "Weather unavailable — suggestions don't account for today's temperature."}
+        <p className="px-4 py-2 wy-lbl border-b border-(--color-line)">
+          {weather.data?.available === false && weather.data.reason === 'no_location_set' ? 'NO LOCATION' : 'NO WEATHER'}
         </p>
       )}
       {suggestions.data?.source === 'rules_fallback' && (
-        <p className="px-4 py-2 text-xs text-(--color-neutral-700) border-b border-(--color-line)">
-          Showing simple matches — AI suggestions are unavailable right now.
-        </p>
+        <p className="px-4 py-2 wy-lbl border-b border-(--color-line)">SIMPLE MATCH</p>
       )}
 
       {suggestions.isSuccess && !outfit && (
         <div className="px-4 py-8 border-b-2 border-(--color-line-strong)">
           <div className="font-extrabold text-xl mb-1.5">NOTHING MATCHES</div>
-          <p className="text-sm max-w-[44ch]">
-            {suggestions.data.no_match_reason || 'Nothing matches yet — tag a few more items.'}
-          </p>
+          {suggestions.data.no_match_reason && <p className="text-sm max-w-[44ch]">{suggestions.data.no_match_reason}</p>}
         </div>
       )}
 
@@ -313,9 +307,6 @@ export default function Today() {
               NOT TODAY →
             </button>
           </div>
-          <p className="px-4 py-2 text-xs text-(--color-neutral-700) border-b border-(--color-line)">
-            Swipe the outfit left to skip, right to accept.
-          </p>
         </div>
       )}
     </div>

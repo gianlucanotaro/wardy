@@ -62,7 +62,6 @@ export default function Looks() {
       {looks.isSuccess && looks.data.length === 0 && (
         <div className="px-4 py-8 border-b-2 border-(--color-line-strong)">
           <div className="font-extrabold text-xl mb-1.5">NO LOOKS SAVED</div>
-          <p className="text-sm max-w-[44ch]">Save one from Today or build it yourself in Build.</p>
         </div>
       )}
 
@@ -163,7 +162,7 @@ export default function Looks() {
                 </div>
               )}
               {logAsWorn.isSuccess && (
-                <p className="text-sm text-(--color-neutral-700)">Logged as worn today.</p>
+                <p className="wy-lbl">WORN TODAY</p>
               )}
             </div>
           )}
