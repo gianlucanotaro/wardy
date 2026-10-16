@@ -52,7 +52,7 @@ export default function History() {
         <span className="wy-lbl">WEAR LOG</span>
       </div>
       {history.data && history.data.wears.length === 0 && (
-        <p className="px-4 py-4 text-sm">Nothing logged yet — log a look as worn from Today or Looks.</p>
+        <p className="px-4 py-4 text-sm">Nothing logged yet.</p>
       )}
       {history.data?.wears.map((wear) => (
         <div key={wear.id} className="flex items-center gap-3 px-4 py-3 border-b border-(--color-line)">

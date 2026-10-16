@@ -159,7 +159,7 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
       {items.isLoading && <p className="px-4 py-4 wy-lbl">LOADING WARDROBE…</p>}
       {items.isSuccess && items.data.length === 0 && (
         <p className="px-4 py-4 text-sm">
-          {showArchived ? 'No archived items.' : 'No items yet — add your first photo above.'}
+          {showArchived ? 'No archived items.' : 'No items yet.'}
         </p>
       )}
 
