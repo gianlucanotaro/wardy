@@ -200,7 +200,7 @@ func TestSuggestAI_DropsOutfitsThatBreakOutfitRules(t *testing.T) {
 		{ItemIDs: []int64{tee, jeans}, Rationale: "Simple and clean."},
 	}}
 	forecast := freezingForecast()
-	result, err := SuggestAI(ctx, s, provider, true, 5.00, DailySuggestionCap, userID, taxonomy.OccasionCasual, "", "", &forecast, true, januaryDate)
+	result, err := SuggestAI(ctx, s, provider, true, 5.00, DailySuggestionCap, userID, taxonomy.OccasionCasual, ai.SuggestContext{}, &forecast, true, januaryDate)
 	if err != nil {
 		t.Fatalf("SuggestAI: %v", err)
 	}

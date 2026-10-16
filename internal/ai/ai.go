@@ -45,7 +45,10 @@ type Usage struct {
 // an item sent to the suggestion model — no paths, no timestamps (see
 // docs/ai.md).
 type SuggestionCandidate struct {
-	ID           int64
+	ID int64
+	// Name is the user's own name for the item, when they gave one — so a
+	// request like "the green jacket" or "my lucky shirt" can find it.
+	Name         string
 	Category     string
 	Subcategory  string
 	ColorPrimary string
@@ -69,6 +72,16 @@ type AISuggestion struct {
 	Rationale string
 }
 
+// SuggestContext is what the user asked for beyond the occasion: prompt
+// context for the suggestion model, never a filter on the candidates.
+// Mood is one of suggest.Moods and Prompt is the user's own words (#41),
+// both already validated by the caller; empty fields are left out.
+type SuggestContext struct {
+	Mood      string
+	TimeOfDay string
+	Prompt    string
+}
+
 // SuggestionModelName identifies the model SuggestOutfits calls, for the
 // per-user daily suggestion cap (internal/suggest.SuggestAI queries usage
 // logged under this name).
@@ -90,10 +103,10 @@ type Provider interface {
 	TagItem(ctx context.Context, thumbnail []byte) (TagResult, Usage, error)
 
 	// SuggestOutfits asks for 2-3 outfits built only from candidates,
-	// with mood and timeOfDay as prompt context (not filters) shaping the
+	// with sc as prompt context (not filters) shaping the picks and the
 	// rationale — see docs/ai.md. Callers must validate every returned id
 	// against the candidate set before trusting it.
-	SuggestOutfits(ctx context.Context, candidates []SuggestionCandidate, occasion, mood, timeOfDay string) ([]AISuggestion, Usage, error)
+	SuggestOutfits(ctx context.Context, candidates []SuggestionCandidate, occasion string, sc SuggestContext) ([]AISuggestion, Usage, error)
 }
 
 // New builds the Provider selected by name. apiKey is only required for

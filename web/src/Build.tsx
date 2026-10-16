@@ -60,6 +60,34 @@ function placeOutfit(outfit: Item[]): { slots: Slots; accessories: Item[] } {
   return { slots, accessories }
 }
 
+// suggest.MaxPromptLength (Go): the server rejects longer requests.
+const PROMPT_MAX = 280
+
+// The last few requests typed into the suggest sheet, newest first, as
+// quick-pick chips. Per device, like the weather location: a convenience,
+// so a blocked or empty localStorage just means no chips.
+const RECENT_PROMPTS_KEY = 'wy-recent-prompts'
+const RECENT_PROMPTS_MAX = 3
+
+function readRecentPrompts(): string[] {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(RECENT_PROMPTS_KEY) ?? '[]')
+    return Array.isArray(parsed) ? parsed.filter((p): p is string => typeof p === 'string').slice(0, RECENT_PROMPTS_MAX) : []
+  } catch {
+    return []
+  }
+}
+
+function rememberPrompt(prompt: string): string[] {
+  const next = [prompt, ...readRecentPrompts().filter((p) => p !== prompt)].slice(0, RECENT_PROMPTS_MAX)
+  try {
+    localStorage.setItem(RECENT_PROMPTS_KEY, JSON.stringify(next))
+  } catch {
+    // Private mode or blocked storage: no chips next time, nothing lost.
+  }
+  return next
+}
+
 // The suggestion currently shown in the slots: the full response, so NEXT
 // can step through it without another API call, and whether the user has
 // since changed a slot by hand.
@@ -173,6 +201,9 @@ export default function Build({
   const [sheetOpen, setSheetOpen] = useState(false)
   const [occasion, setOccasion] = useState<string>('casual')
   const [mood, setMood] = useState<string>('')
+  const [prompt, setPrompt] = useState('')
+  const [recentPrompts, setRecentPrompts] = useState<string[]>(readRecentPrompts)
+  const trimmedPrompt = prompt.trim().replace(/\s+/g, ' ')
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null)
   const [noMatch, setNoMatch] = useState<string | null>(null)
 
@@ -198,9 +229,10 @@ export default function Build({
   }
 
   const suggest = useMutation({
-    mutationFn: () => getSuggestions(occasion, mood || undefined, coords),
+    mutationFn: () => getSuggestions(occasion, mood || undefined, coords, trimmedPrompt || undefined),
     onSuccess: (res) => {
       setSheetOpen(false)
+      if (trimmedPrompt) setRecentPrompts(rememberPrompt(trimmedPrompt))
       if (res.outfits.length === 0) {
         setNoMatch(res.no_match_reason ?? 'Nothing in your wardrobe matches right now.')
         return
@@ -479,8 +511,9 @@ export default function Build({
       </div>
 
 
-      {/* The suggest sheet: occasion and mood (context for the AI, never a
-          filter), and the weather it will dress for. Above the tab bar. */}
+      {/* The suggest sheet: occasion, mood and an optional request in the
+          user's own words (context for the AI, never a filter), and the
+          weather it will dress for. Above the tab bar. */}
       {sheetOpen && (
         <div className="fixed inset-0 z-20 flex flex-col justify-end" role="dialog" aria-label="Suggest outfit">
           <button
@@ -529,6 +562,43 @@ export default function Build({
                   </button>
                 ))}
               </div>
+            </div>
+            <div className="px-4 py-3 border-b border-(--color-line)">
+              <label htmlFor="suggest-prompt" className="wy-lbl block mb-1.5">
+                ANYTHING ELSE? <span className="font-normal normal-case tracking-normal">— optional</span>
+              </label>
+              <textarea
+                id="suggest-prompt"
+                rows={3}
+                maxLength={PROMPT_MAX}
+                placeholder="e.g. dinner with my parents, smart but not stiff"
+                className="w-full resize-none border border-(--color-line) bg-(--color-surface) px-3 py-2 text-base focus:outline-2 focus:outline-(--color-accent)"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+              />
+              <div className="flex items-center justify-between mt-1.5">
+                <span className="wy-lbl">{recentPrompts.length > 0 ? 'RECENT' : ''}</span>
+                <span className="wy-lbl" aria-live="polite">
+                  {prompt.length}/{PROMPT_MAX}
+                </span>
+              </div>
+              {recentPrompts.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {recentPrompts.map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      className="wy-chip max-w-full truncate"
+                      aria-pressed={p === trimmedPrompt}
+                      data-on={p === trimmedPrompt || undefined}
+                      onClick={() => setPrompt(p === trimmedPrompt ? '' : p)}
+                      title={p}
+                    >
+                      {p.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="px-4 py-2.5 wy-lbl">
               {!ready || weather.isLoading

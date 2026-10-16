@@ -41,6 +41,16 @@ sharp, easy, bold, quiet, cosy, playful); the server rejects anything else,
 since it goes straight into the prompt. Outfits may carry one or two
 accessories (never bags); Build puts them in its accessories slot.
 
+The user can add a request in their own words (`?prompt=`, #41), e.g.
+"dinner with my parents, smart but not stiff". Same context-not-filter rule:
+it steers which candidates the model picks and the rationale answers it, but
+the candidate set is still the rules pre-filter's. `suggest.CleanPrompt`
+turns control characters into spaces and rejects anything over 280
+characters; the prompt goes in JSON-quoted under "User's request", and the
+system prompt tells the model it's a preference, never instructions. Never
+log it. Item names are sent with the candidates so "the green jacket" can be
+found.
+
 **If the API is unreachable, fall back to rules-only.** The app must stay fully
 usable with `AI_PROVIDER=off`.
 

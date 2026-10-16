@@ -103,7 +103,7 @@ func Suggest(ctx context.Context, s *store.Store, userID int64, occasion taxonom
 // budget or daily cap is exceeded, the API call fails, or every returned
 // outfit turns out to reference an id outside the candidate set — models
 // hallucinate ids (docs/ai.md).
-func SuggestAI(ctx context.Context, s *store.Store, provider ai.Provider, aiEnabled bool, monthlyBudgetUSD float64, dailyCap int, userID int64, occasion taxonomy.Occasion, mood, timeOfDay string, forecast *weather.Forecast, northernHemisphere bool, now time.Time) (Result, error) {
+func SuggestAI(ctx context.Context, s *store.Store, provider ai.Provider, aiEnabled bool, monthlyBudgetUSD float64, dailyCap int, userID int64, occasion taxonomy.Occasion, sc ai.SuggestContext, forecast *weather.Forecast, northernHemisphere bool, now time.Time) (Result, error) {
 	candidates, filter, targetWarmth, err := gatherCandidates(ctx, s, userID, occasion, forecast, northernHemisphere, now)
 	if err != nil {
 		return Result{}, err
@@ -147,7 +147,7 @@ func SuggestAI(ctx context.Context, s *store.Store, provider ai.Provider, aiEnab
 		}
 	}
 
-	suggestions, usage, err := provider.SuggestOutfits(ctx, toAICandidates(candidates), string(occasion), mood, timeOfDay)
+	suggestions, usage, err := provider.SuggestOutfits(ctx, toAICandidates(candidates), string(occasion), sc)
 	if usage.Model != "" {
 		if logErr := s.LogUsage(ctx, userID, usage.Model, usage.InputTokens, usage.OutputTokens, usage.EstCostUSD); logErr != nil {
 			slog.Error("suggest: log usage", "error", logErr)
@@ -247,6 +247,7 @@ func toAICandidates(items []store.Item) []ai.SuggestionCandidate {
 	for i, it := range items {
 		out[i] = ai.SuggestionCandidate{
 			ID:           it.ID,
+			Name:         it.Name,
 			Category:     it.Category,
 			Subcategory:  it.Subcategory,
 			ColorPrimary: it.ColorPrimary,

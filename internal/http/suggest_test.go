@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -287,6 +289,31 @@ func TestSuggestEndpointValidatesMood(t *testing.T) {
 	for _, c := range cases {
 		if rec := getSuggestWithParams(h, cookie, c.query); rec.Code != c.want {
 			t.Errorf("%s: status %d, want %d", c.query, rec.Code, c.want)
+		}
+	}
+}
+
+// ?prompt= is optional free text: cleaned and capped, never a reason to
+// fail unless it's over the cap or not text.
+func TestSuggestEndpointValidatesPrompt(t *testing.T) {
+	s := newTestStore(t)
+	h := newTestHandler(t, s)
+	cookie := loginAndGetCookie(t, h, s, "me@example.com", "correct horse battery staple")
+
+	cases := []struct {
+		query string
+		want  int
+	}{
+		{"occasion=casual&prompt=", http.StatusOK},
+		{"occasion=casual&prompt=" + url.QueryEscape("dinner with my parents, smart but not stiff"), http.StatusOK},
+		{"occasion=casual&mood=easy&prompt=" + url.QueryEscape("comfy\nfor a train ride"), http.StatusOK},
+		{"occasion=casual&prompt=" + strings.Repeat("a", suggest.MaxPromptLength), http.StatusOK},
+		{"occasion=casual&prompt=" + strings.Repeat("a", suggest.MaxPromptLength+1), http.StatusBadRequest},
+		{"occasion=casual&prompt=%FF", http.StatusBadRequest},
+	}
+	for _, c := range cases {
+		if rec := getSuggestWithParams(h, cookie, c.query); rec.Code != c.want {
+			t.Errorf("%.60s: status %d, want %d", c.query, rec.Code, c.want)
 		}
 	}
 }
