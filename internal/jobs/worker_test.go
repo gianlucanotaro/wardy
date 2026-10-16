@@ -26,7 +26,7 @@ func (f *fakeProvider) TagItem(_ context.Context, _ []byte) (ai.TagResult, ai.Us
 	return f.result, f.usage, f.err
 }
 
-func (f *fakeProvider) SuggestOutfits(_ context.Context, _ []ai.SuggestionCandidate, _, _, _ string) ([]ai.AISuggestion, ai.Usage, error) {
+func (f *fakeProvider) SuggestOutfits(_ context.Context, _ []ai.SuggestionCandidate, _ string, _ ai.SuggestContext) ([]ai.AISuggestion, ai.Usage, error) {
 	return nil, ai.Usage{}, errors.New("SuggestOutfits not used by jobs package tests")
 }
 

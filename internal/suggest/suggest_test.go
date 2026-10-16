@@ -27,15 +27,17 @@ type fakeAIProvider struct {
 	// was called with, so tests can inspect what suggest.go actually
 	// sent the model without needing toAICandidates to be exported.
 	gotCandidates []ai.SuggestionCandidate
+	gotContext    ai.SuggestContext
 }
 
 func (f *fakeAIProvider) TagItem(_ context.Context, _ []byte) (ai.TagResult, ai.Usage, error) {
 	return ai.TagResult{}, ai.Usage{}, errors.New("TagItem not used by suggest package tests")
 }
 
-func (f *fakeAIProvider) SuggestOutfits(_ context.Context, candidates []ai.SuggestionCandidate, _, _, _ string) ([]ai.AISuggestion, ai.Usage, error) {
+func (f *fakeAIProvider) SuggestOutfits(_ context.Context, candidates []ai.SuggestionCandidate, _ string, sc ai.SuggestContext) ([]ai.AISuggestion, ai.Usage, error) {
 	f.called = true
 	f.gotCandidates = candidates
+	f.gotContext = sc
 	return f.suggestions, f.usage, f.err
 }
 
@@ -364,7 +366,7 @@ func TestSuggestAI_UsesAIRationaleWhenAvailable(t *testing.T) {
 	}
 
 	forecast := hotSummerForecast()
-	result, err := SuggestAI(ctx, s, provider, true, 5.00, DailySuggestionCap, userID, taxonomy.OccasionCasual, "relaxed", "morning", &forecast, true, julyDate)
+	result, err := SuggestAI(ctx, s, provider, true, 5.00, DailySuggestionCap, userID, taxonomy.OccasionCasual, ai.SuggestContext{Mood: "easy", TimeOfDay: "morning"}, &forecast, true, julyDate)
 	if err != nil {
 		t.Fatalf("SuggestAI: %v", err)
 	}
@@ -379,6 +381,42 @@ func TestSuggestAI_UsesAIRationaleWhenAvailable(t *testing.T) {
 	}
 	if result.Outfits[0].Note != "Light and breathable for a hot day." {
 		t.Errorf("Note = %q, want the AI rationale", result.Outfits[0].Note)
+	}
+}
+
+// TestSuggestAI_PassesRequestAndNames confirms the user's request reaches
+// the model untouched alongside the mood, and that item names ride along
+// in the candidates so "the green jacket" can be found.
+func TestSuggestAI_PassesRequestAndNames(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	userID, _ := s.CreateUser(ctx, "me@example.com", "hash", "Me")
+	topID := createTaggedItem(t, s, userID, "top", "t-shirt", 2, 1, []string{"summer"}, []string{"casual"})
+	bottomID := createTaggedItem(t, s, userID, "bottom", "shorts", 2, 1, []string{"summer"}, []string{"casual"})
+	if err := s.UpdateItemName(ctx, userID, topID, "Lucky tee"); err != nil {
+		t.Fatalf("UpdateItemName: %v", err)
+	}
+
+	provider := &fakeAIProvider{
+		suggestions: []ai.AISuggestion{{ItemIDs: []int64{topID, bottomID}, Rationale: "Your lucky tee, as asked."}},
+		usage:       ai.Usage{Model: ai.SuggestionModelName},
+	}
+	sc := ai.SuggestContext{Mood: "playful", Prompt: "wear my lucky tee"}
+	forecast := hotSummerForecast()
+	if _, err := SuggestAI(ctx, s, provider, true, 5.00, DailySuggestionCap, userID, taxonomy.OccasionCasual, sc, &forecast, true, julyDate); err != nil {
+		t.Fatalf("SuggestAI: %v", err)
+	}
+	if provider.gotContext != sc {
+		t.Errorf("provider got context %+v, want %+v", provider.gotContext, sc)
+	}
+	var named bool
+	for _, c := range provider.gotCandidates {
+		if c.ID == topID && c.Name == "Lucky tee" {
+			named = true
+		}
+	}
+	if !named {
+		t.Errorf("candidates %+v do not carry the top's name", provider.gotCandidates)
 	}
 }
 
@@ -409,7 +447,7 @@ func TestSuggestAI_PassesCustomTagsAsContext(t *testing.T) {
 	}
 
 	forecast := hotSummerForecast()
-	_, err := SuggestAI(ctx, s, provider, true, 5.00, DailySuggestionCap, userID, taxonomy.OccasionCasual, "", "", &forecast, true, julyDate)
+	_, err := SuggestAI(ctx, s, provider, true, 5.00, DailySuggestionCap, userID, taxonomy.OccasionCasual, ai.SuggestContext{}, &forecast, true, julyDate)
 	if err != nil {
 		t.Fatalf("SuggestAI: %v", err)
 	}
@@ -446,7 +484,7 @@ func TestSuggestAI_DropsHallucinatedIDsButKeepsValidOutfits(t *testing.T) {
 	}
 
 	forecast := hotSummerForecast()
-	result, err := SuggestAI(ctx, s, provider, true, 5.00, DailySuggestionCap, userID, taxonomy.OccasionCasual, "", "", &forecast, true, julyDate)
+	result, err := SuggestAI(ctx, s, provider, true, 5.00, DailySuggestionCap, userID, taxonomy.OccasionCasual, ai.SuggestContext{}, &forecast, true, julyDate)
 	if err != nil {
 		t.Fatalf("SuggestAI: %v", err)
 	}
@@ -473,7 +511,7 @@ func TestSuggestAI_FallsBackWhenEveryOutfitIsHallucinated(t *testing.T) {
 	}
 
 	forecast := hotSummerForecast()
-	result, err := SuggestAI(ctx, s, provider, true, 5.00, DailySuggestionCap, userID, taxonomy.OccasionCasual, "", "", &forecast, true, julyDate)
+	result, err := SuggestAI(ctx, s, provider, true, 5.00, DailySuggestionCap, userID, taxonomy.OccasionCasual, ai.SuggestContext{}, &forecast, true, julyDate)
 	if err != nil {
 		t.Fatalf("SuggestAI: %v", err)
 	}
@@ -496,7 +534,7 @@ func TestSuggestAI_FallsBackWhenAIDisabled(t *testing.T) {
 
 	// aiEnabled=false is the kill switch (AI_PROVIDER=off) — must fully
 	// degrade to Suggest()'s own rules-only behavior.
-	got, err := SuggestAI(ctx, s, provider, false, 5.00, DailySuggestionCap, userID, taxonomy.OccasionCasual, "", "", &forecast, true, julyDate)
+	got, err := SuggestAI(ctx, s, provider, false, 5.00, DailySuggestionCap, userID, taxonomy.OccasionCasual, ai.SuggestContext{}, &forecast, true, julyDate)
 	if err != nil {
 		t.Fatalf("SuggestAI: %v", err)
 	}
@@ -529,7 +567,7 @@ func TestSuggestAI_FallsBackOverMonthlyBudget(t *testing.T) {
 
 	provider := &fakeAIProvider{}
 	forecast := hotSummerForecast()
-	result, err := SuggestAI(ctx, s, provider, true, 0.01, DailySuggestionCap, userID, taxonomy.OccasionCasual, "", "", &forecast, true, julyDate)
+	result, err := SuggestAI(ctx, s, provider, true, 0.01, DailySuggestionCap, userID, taxonomy.OccasionCasual, ai.SuggestContext{}, &forecast, true, julyDate)
 	if err != nil {
 		t.Fatalf("SuggestAI: %v", err)
 	}
@@ -556,7 +594,7 @@ func TestSuggestAI_FallsBackOverDailyCap(t *testing.T) {
 
 	provider := &fakeAIProvider{}
 	forecast := hotSummerForecast()
-	result, err := SuggestAI(ctx, s, provider, true, 5.00, cap, userID, taxonomy.OccasionCasual, "", "", &forecast, true, julyDate)
+	result, err := SuggestAI(ctx, s, provider, true, 5.00, cap, userID, taxonomy.OccasionCasual, ai.SuggestContext{}, &forecast, true, julyDate)
 	if err != nil {
 		t.Fatalf("SuggestAI: %v", err)
 	}
@@ -576,7 +614,7 @@ func TestSuggestAI_FallsBackOnProviderError(t *testing.T) {
 
 	provider := &fakeAIProvider{err: errors.New("connection reset")}
 	forecast := hotSummerForecast()
-	result, err := SuggestAI(ctx, s, provider, true, 5.00, DailySuggestionCap, userID, taxonomy.OccasionCasual, "", "", &forecast, true, julyDate)
+	result, err := SuggestAI(ctx, s, provider, true, 5.00, DailySuggestionCap, userID, taxonomy.OccasionCasual, ai.SuggestContext{}, &forecast, true, julyDate)
 	if err != nil {
 		t.Fatalf("SuggestAI: %v", err)
 	}
@@ -596,7 +634,7 @@ func TestSuggestAI_NothingMatchesNeverCallsProvider(t *testing.T) {
 
 	provider := &fakeAIProvider{}
 	forecast := hotSummerForecast()
-	result, err := SuggestAI(ctx, s, provider, true, 5.00, DailySuggestionCap, userID, taxonomy.OccasionFormal, "", "", &forecast, true, julyDate)
+	result, err := SuggestAI(ctx, s, provider, true, 5.00, DailySuggestionCap, userID, taxonomy.OccasionFormal, ai.SuggestContext{}, &forecast, true, julyDate)
 	if err != nil {
 		t.Fatalf("SuggestAI: %v", err)
 	}

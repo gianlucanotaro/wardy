@@ -34,9 +34,10 @@ type suggestResponse struct {
 // Suggest runs without warmth-matching (docs/ai.md: "Weather down ->
 // suggest anyway"), never an error to the client. ?lat=&lon= is the
 // device's current position, used over the home location when sent
-// (weatherLocation). ?mood= (one of suggest.Moods) and
-// ?time_of_day= are optional prompt context for the AI rationale, not
-// filters on the candidate set.
+// (weatherLocation). ?mood= (one of suggest.Moods), ?time_of_day= and
+// ?prompt= (the user's own words, suggest.CleanPrompt) are optional prompt
+// context for the AI, not filters on the candidate set. The prompt is
+// never logged.
 func suggestHandler(s *store.Store, wc *weather.Client, provider ai.Provider, aiEnabled bool, monthlyBudgetUSD float64) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := userFromContext(r.Context())
@@ -55,7 +56,12 @@ func suggestHandler(s *store.Store, wc *weather.Client, provider ai.Provider, ai
 			http.Error(w, "invalid mood", http.StatusBadRequest)
 			return
 		}
-		timeOfDay := r.URL.Query().Get("time_of_day")
+		prompt, err := suggest.CleanPrompt(r.URL.Query().Get("prompt"))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		sc := ai.SuggestContext{Mood: mood, TimeOfDay: r.URL.Query().Get("time_of_day"), Prompt: prompt}
 
 		var forecast *weather.Forecast
 		lat, lon, hasLocation := weatherLocation(r, user)
@@ -69,7 +75,7 @@ func suggestHandler(s *store.Store, wc *weather.Client, provider ai.Provider, ai
 
 		northernHemisphere := !hasLocation || lat >= 0
 
-		result, err := suggest.SuggestAI(r.Context(), s, provider, aiEnabled, monthlyBudgetUSD, suggest.DailySuggestionCap, user.ID, occasion, mood, timeOfDay, forecast, northernHemisphere, time.Now())
+		result, err := suggest.SuggestAI(r.Context(), s, provider, aiEnabled, monthlyBudgetUSD, suggest.DailySuggestionCap, user.ID, occasion, sc, forecast, northernHemisphere, time.Now())
 		if err != nil {
 			slog.Error("suggest", "error", err)
 			http.Error(w, "internal error", http.StatusInternalServerError)

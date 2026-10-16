@@ -151,12 +151,18 @@ export type SuggestResponse = {
   weather_available: boolean
 }
 
-// mood is optional prompt context for the AI rationale only — it never
-// changes which items are eligible (the "context not filter" design;
-// see internal/http/suggest.go).
-export function getSuggestions(occasion: string, mood: string | undefined, coords: Coords | null): Promise<SuggestResponse> {
+// mood and prompt (the user's own words) are optional context for the AI
+// only — they never change which items are eligible (the "context not
+// filter" design; see internal/http/suggest.go).
+export function getSuggestions(
+  occasion: string,
+  mood: string | undefined,
+  coords: Coords | null,
+  prompt?: string,
+): Promise<SuggestResponse> {
   const params = new URLSearchParams({ occasion })
   if (mood) params.set('mood', mood)
+  if (prompt) params.set('prompt', prompt)
   withCoords(params, coords)
   return request(`/api/suggest?${params.toString()}`)
 }
