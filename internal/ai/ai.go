@@ -33,6 +33,20 @@ type TagResult struct {
 	CustomTags []string
 }
 
+// InspoTagResult is the raw output of tagging an inspiration photo (#49)
+// — someone else's whole outfit, not one garment. Untrusted until it has
+// been through taxonomy.InspoTags.Validate().
+type InspoTagResult struct {
+	Styles       []string
+	Colors       []string
+	Pieces       []string
+	Fit          string
+	FormalityMin int
+	FormalityMax int
+	Seasons      []string
+	Occasions    []string
+}
+
 // Usage records what a single model call cost, for the usage table.
 type Usage struct {
 	Model        string
@@ -76,10 +90,15 @@ type AISuggestion struct {
 // context for the suggestion model, never a filter on the candidates.
 // Mood is one of suggest.Moods and Prompt is the user's own words (#41),
 // both already validated by the caller; empty fields are left out.
+//
+// Style is the user's style profile from their inspiration board
+// (inspo.Profile.Describe plus the cached summary, #49): same rule, it
+// steers the picks but never overrides the weather or occasion.
 type SuggestContext struct {
 	Mood      string
 	TimeOfDay string
 	Prompt    string
+	Style     string
 }
 
 // SuggestionModelName identifies the model SuggestOutfits calls, for the
@@ -107,6 +126,15 @@ type Provider interface {
 	// rationale — see docs/ai.md. Callers must validate every returned id
 	// against the candidate set before trusting it.
 	SuggestOutfits(ctx context.Context, candidates []SuggestionCandidate, occasion string, sc SuggestContext) ([]AISuggestion, Usage, error)
+
+	// TagInspo tags a photo of a whole outfit for the inspiration board:
+	// the clothes only, never the person wearing them.
+	TagInspo(ctx context.Context, thumbnail []byte) (InspoTagResult, Usage, error)
+
+	// SummarizeStyle writes a one-sentence description of a style
+	// profile (inspo.Profile.Describe) — from the counted tags, never
+	// the photos.
+	SummarizeStyle(ctx context.Context, profile string) (string, Usage, error)
 }
 
 // New builds the Provider selected by name. apiKey is only required for

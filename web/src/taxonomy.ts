@@ -136,3 +136,51 @@ export const WARMTH_LABELS: Record<number, string> = {
   4: 'Cool',
   5: 'Deep winter',
 }
+
+// taxonomy.Styles (Go): the overall look of an inspiration fit (#49).
+export const STYLES = [
+  'minimal',
+  'classic',
+  'preppy',
+  'workwear',
+  'streetwear',
+  'sporty',
+  'smart-casual',
+  'bohemian',
+  'edgy',
+  'romantic',
+  'avant-garde',
+  'vintage',
+] as const
+
+// taxonomy.MaxInspo* (Go): caps on an inspo fit's lists.
+export const MAX_INSPO_STYLES = 3
+export const MAX_INSPO_COLORS = 5
+export const MAX_INSPO_PIECES = 8
+
+// Approximate swatches for the colour palette, for showing colours as
+// colours (the inspo profile) rather than words.
+export const COLOR_SWATCH: Record<Color, string> = {
+  black: '#1d1c1b',
+  white: '#f7f6f2',
+  gray: '#8a8d90',
+  navy: '#26314f',
+  blue: '#3b6fb6',
+  red: '#c23a2b',
+  burgundy: '#6e1f2b',
+  pink: '#e7a2b4',
+  orange: '#e57a2e',
+  yellow: '#e9c440',
+  green: '#4f7a47',
+  olive: '#6b6b3a',
+  brown: '#6b4428',
+  tan: '#c2a07a',
+  beige: '#d8c8a8',
+  cream: '#efe6d4',
+  purple: '#6d4a93',
+  teal: '#2f7f7a',
+  gold: '#c9a23a',
+  silver: '#bfc3c7',
+  rust: '#a4492a',
+  multicolor: 'conic-gradient(#c23a2b, #e9c440, #4f7a47, #3b6fb6, #6d4a93, #c23a2b)',
+}

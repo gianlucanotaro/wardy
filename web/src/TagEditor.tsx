@@ -182,7 +182,7 @@ export default function TagEditor({ item, markAiSuggested }: { item: Item; markA
 // user (or, initially, the AI's best guess) attaches for their own
 // organization. Visually distinct so it's never mistaken for one of the
 // validated fields above it.
-function CustomTagsField({ value, onChange }: { value: string[]; onChange: (value: string[]) => void }) {
+export function CustomTagsField({ value, onChange }: { value: string[]; onChange: (value: string[]) => void }) {
   const [draft, setDraft] = useState('')
 
   function addTag() {
@@ -234,7 +234,7 @@ function CustomTagsField({ value, onChange }: { value: string[]; onChange: (valu
   )
 }
 
-function Field({
+export function Field({
   label,
   aiSuggested,
   strongCallout,
@@ -271,7 +271,7 @@ function AiDot() {
   )
 }
 
-function ChipGroup({
+export function ChipGroup({
   value,
   options,
   labels,
@@ -303,7 +303,7 @@ function ChipGroup({
 // step (and saves it), the second makes the range between the two. A
 // third tap starts over. Ranges, not single values, because a shirt can
 // be formality 2-4 and warmth 1-5 (worn layered in winter).
-function ScaleField({
+export function ScaleField({
   label,
   aiSuggested,
   min,
@@ -332,7 +332,8 @@ function ScaleField({
     }
   }
 
-  const rangeLabel = min === max ? labels[min] : `${labels[min]} – ${labels[max]}`
+  // 0-0 is an unset range (an inspo fit nobody has rated yet).
+  const rangeLabel = !min ? '—' : min === max ? labels[min] : `${labels[min]} – ${labels[max]}`
   return (
     <div className="flex flex-col gap-1.5 text-sm">
       <div className="flex justify-between gap-2">
@@ -369,24 +370,27 @@ function ScaleField({
   )
 }
 
-function MultiField({
+// max caps how many can be on at once: picking one more drops the oldest.
+export function MultiField({
   label,
   aiSuggested,
   value,
   options,
+  max,
   onChange,
 }: {
   label: string
   aiSuggested?: boolean
   value: string[]
   options: string[]
+  max?: number
   onChange: (value: string[]) => void
 }) {
   function toggle(opt: string) {
     if (value.includes(opt)) {
       onChange(value.filter((v) => v !== opt))
     } else {
-      onChange([...value, opt])
+      onChange([...value, opt].slice(max ? -max : 0))
     }
   }
 

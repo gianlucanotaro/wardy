@@ -51,6 +51,32 @@ system prompt tells the model it's a preference, never instructions. Never
 log it. Item names are sent with the candidates so "the green jacket" can be
 found.
 
+## Inspiration board (#49)
+
+Photos of other people's outfits, tagged, adding up to a **style profile**.
+Nothing is trained or fine-tuned — the profile is counting:
+
+1. **Tag each fit** — `tag_inspo` job, Haiku, thumbnail, same retry and
+   validation rules as item tagging. Closed vocabularies only
+   (`taxonomy.InspoTags`: styles, palette colours, pieces = item
+   subcategories, fit, formality, seasons, occasions); too many values are
+   trimmed, out-of-vocabulary ones fail the attempt. The prompt is about the
+   clothes only: never describe, identify or rate the person.
+2. **Profile** — `inspo.Build`: top styles, colours, pieces and fit as shares
+   of tagged fits, average formality. Pure Go, works with `AI_PROVIDER=off`.
+3. **Summary** — `summarize_style` job, Haiku, one sentence written from the
+   counts (`Profile.Describe`), never the photos. Debounced 20s
+   (`EnqueueJobOnce`) and only rewritten when `Profile.Key` changed; a
+   summary for an older profile is never shown or sent.
+4. **Suggestions** — with `users.use_inspo` on and at least
+   `inspo.MinFitsForSuggestions` tagged fits, the summary + counts go in as
+   JSON-quoted "User's style". Context, not filter, like mood and the
+   request; the request wins over the style. `inspo.Matches` (same
+   subcategory and colour) drives the "LIKE N OF YOUR INSPO FITS" tag.
+
+Inspo tagging shares items' daily tagging cap; the summary is bounded by the
+debounce and the key check.
+
 **If the API is unreachable, fall back to rules-only.** The app must stay fully
 usable with `AI_PROVIDER=off`.
 

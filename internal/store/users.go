@@ -19,7 +19,10 @@ type User struct {
 	DisplayName  string
 	HomeLat      NullFloat64
 	HomeLon      NullFloat64
-	CreatedAt    string
+	// UseInspo: whether outfit suggestions use the style profile built
+	// from the user's inspiration board (#49).
+	UseInspo  bool
+	CreatedAt string
 }
 
 // CreateUser inserts a new user and returns its id. email must be unique;
@@ -41,7 +44,7 @@ func (s *Store) CreateUser(ctx context.Context, email, passwordHash, displayName
 	return id, nil
 }
 
-const userColumns = `SELECT id, email, password_hash, display_name, home_lat, home_lon, created_at`
+const userColumns = `SELECT id, email, password_hash, display_name, home_lat, home_lon, use_inspo, created_at`
 
 // UserByEmail looks up a user by email, returning ErrNotFound if none
 // exists.
@@ -67,9 +70,42 @@ func (s *Store) UpdateUserLocation(ctx context.Context, userID int64, lat, lon f
 	return nil
 }
 
+// SetUseInspo turns the style profile on or off for userID's outfit
+// suggestions.
+func (s *Store) SetUseInspo(ctx context.Context, userID int64, use bool) error {
+	if _, err := s.db.ExecContext(ctx, `UPDATE users SET use_inspo = ? WHERE id = ?`, use, userID); err != nil {
+		return fmt.Errorf("update use_inspo: %w", err)
+	}
+	return nil
+}
+
+// StyleSummary returns userID's cached style summary and the profile key
+// it was written for — both empty if none was written yet.
+func (s *Store) StyleSummary(ctx context.Context, userID int64) (summary, key string, err error) {
+	err = s.db.QueryRowContext(ctx,
+		`SELECT style_summary, style_summary_key FROM users WHERE id = ?`, userID).Scan(&summary, &key)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", "", ErrNotFound
+	}
+	if err != nil {
+		return "", "", fmt.Errorf("query style summary: %w", err)
+	}
+	return summary, key, nil
+}
+
+// SetStyleSummary caches the style summary written for the profile
+// identified by key.
+func (s *Store) SetStyleSummary(ctx context.Context, userID int64, summary, key string) error {
+	if _, err := s.db.ExecContext(ctx,
+		`UPDATE users SET style_summary = ?, style_summary_key = ? WHERE id = ?`, summary, key, userID); err != nil {
+		return fmt.Errorf("update style summary: %w", err)
+	}
+	return nil
+}
+
 func (s *Store) scanUser(row *sql.Row) (*User, error) {
 	var u User
-	err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.DisplayName, &u.HomeLat, &u.HomeLon, &u.CreatedAt)
+	err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.DisplayName, &u.HomeLat, &u.HomeLon, &u.UseInspo, &u.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}

@@ -55,20 +55,73 @@ func (s *Store) EnqueueJob(ctx context.Context, jobType string, payload any) (in
 	return id, nil
 }
 
-// ClaimNextJob returns the oldest pending job of jobType whose run_after
-// has passed, or ErrNotFound if there's nothing to do. There is exactly
-// one worker goroutine in this app, so no locking beyond SQLite's own is
-// needed to make this safe.
-func (s *Store) ClaimNextJob(ctx context.Context, jobType string) (*Job, error) {
+// EnqueueJobOnce queues a job to run after delay, unless an identical one
+// (same type and payload) is already pending — then that one's run_after
+// moves to now+delay instead. Repeated triggers within the delay
+// collapse into one run: a debounce, used for the style summary that
+// every inspo edit would otherwise regenerate.
+func (s *Store) EnqueueJobOnce(ctx context.Context, jobType string, payload any, delay time.Duration) error {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("marshal job payload: %w", err)
+	}
+	runAfter := time.Now().UTC().Add(delay).Format(timeLayout)
+
+	res, err := s.db.ExecContext(ctx,
+		`UPDATE jobs SET run_after = ? WHERE type = ? AND payload = ? AND status = 'pending'`,
+		runAfter, jobType, string(body))
+	if err != nil {
+		return fmt.Errorf("reschedule pending job: %w", err)
+	}
+	if n, err := res.RowsAffected(); err != nil {
+		return fmt.Errorf("rows affected: %w", err)
+	} else if n > 0 {
+		return nil
+	}
+
+	if _, err := s.db.ExecContext(ctx,
+		`INSERT INTO jobs (type, payload, run_after) VALUES (?, ?, ?)`,
+		jobType, string(body), runAfter); err != nil {
+		return fmt.Errorf("insert job: %w", err)
+	}
+	return nil
+}
+
+// HasPendingJob reports whether a job of jobType with exactly payload is
+// pending — e.g. whether a user's style summary is about to be rewritten.
+func (s *Store) HasPendingJob(ctx context.Context, jobType string, payload any) (bool, error) {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return false, fmt.Errorf("marshal job payload: %w", err)
+	}
+	var exists bool
+	err = s.db.QueryRowContext(ctx,
+		`SELECT EXISTS (SELECT 1 FROM jobs WHERE type = ? AND payload = ? AND status = 'pending')`,
+		jobType, string(body)).Scan(&exists)
+	if err != nil {
+		return false, fmt.Errorf("check pending job: %w", err)
+	}
+	return exists, nil
+}
+
+// ClaimNextJob returns the oldest pending job of any of jobTypes whose
+// run_after has passed, or ErrNotFound if there's nothing to do. There is
+// exactly one worker goroutine in this app, so no locking beyond SQLite's
+// own is needed to make this safe.
+func (s *Store) ClaimNextJob(ctx context.Context, jobTypes ...string) (*Job, error) {
+	types, err := json.Marshal(jobTypes)
+	if err != nil {
+		return nil, fmt.Errorf("marshal job types: %w", err)
+	}
 	row := s.db.QueryRowContext(ctx, `
 		SELECT id, type, payload, status, attempts, last_error, run_after, created_at
 		FROM jobs
-		WHERE type = ? AND status = 'pending' AND run_after <= ?
+		WHERE type IN (SELECT value FROM json_each(?)) AND status = 'pending' AND run_after <= ?
 		ORDER BY id
-		LIMIT 1`, jobType, nowStamp())
+		LIMIT 1`, string(types), nowStamp())
 
 	var j Job
-	err := row.Scan(&j.ID, &j.Type, &j.Payload, &j.Status, &j.Attempts, &j.LastError, &j.RunAfter, &j.CreatedAt)
+	err = row.Scan(&j.ID, &j.Type, &j.Payload, &j.Status, &j.Attempts, &j.LastError, &j.RunAfter, &j.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}

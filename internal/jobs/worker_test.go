@@ -19,6 +19,12 @@ type fakeProvider struct {
 	usage  ai.Usage
 	err    error
 	called bool
+
+	inspoResult ai.InspoTagResult
+	summary     string
+	// summaries counts SummarizeStyle calls, to assert an unchanged
+	// profile isn't summarized again.
+	summaries int
 }
 
 func (f *fakeProvider) TagItem(_ context.Context, _ []byte) (ai.TagResult, ai.Usage, error) {
@@ -28,6 +34,16 @@ func (f *fakeProvider) TagItem(_ context.Context, _ []byte) (ai.TagResult, ai.Us
 
 func (f *fakeProvider) SuggestOutfits(_ context.Context, _ []ai.SuggestionCandidate, _ string, _ ai.SuggestContext) ([]ai.AISuggestion, ai.Usage, error) {
 	return nil, ai.Usage{}, errors.New("SuggestOutfits not used by jobs package tests")
+}
+
+func (f *fakeProvider) TagInspo(_ context.Context, _ []byte) (ai.InspoTagResult, ai.Usage, error) {
+	f.called = true
+	return f.inspoResult, f.usage, f.err
+}
+
+func (f *fakeProvider) SummarizeStyle(_ context.Context, _ string) (string, ai.Usage, error) {
+	f.summaries++
+	return f.summary, f.usage, f.err
 }
 
 func validFakeResult() ai.TagResult {

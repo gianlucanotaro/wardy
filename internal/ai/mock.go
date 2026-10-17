@@ -68,6 +68,9 @@ func (mockProvider) SuggestOutfits(_ context.Context, candidates []SuggestionCan
 	case sc.Prompt != "":
 		rationale = "Mock pick for " + occasion + ": nothing matched the words in \"" + sc.Prompt + "\" — the real AI reads it properly."
 	}
+	if sc.Style != "" {
+		rationale += " (Your inspo style was sent along.)"
+	}
 
 	var suggestions []AISuggestion
 	for i := 0; i < len(byCategory["top"]) && i < len(byCategory["bottom"]) && len(suggestions) < MaxAISuggestions; i++ {
@@ -121,4 +124,24 @@ func (mockProvider) TagItem(_ context.Context, _ []byte) (TagResult, Usage, erro
 		Occasions:    []string{"casual"},
 		CustomTags:   []string{"wardrobe-basic"},
 	}, Usage{Model: "mock"}, nil
+}
+
+// TagInspo returns the same fixture outfit for every photo.
+func (mockProvider) TagInspo(_ context.Context, _ []byte) (InspoTagResult, Usage, error) {
+	return InspoTagResult{
+		Styles:       []string{"minimal", "workwear"},
+		Colors:       []string{"green", "cream", "brown"},
+		Pieces:       []string{"jacket", "knit", "trousers", "boots"},
+		Fit:          "relaxed",
+		FormalityMin: 2,
+		FormalityMax: 3,
+		Seasons:      []string{"autumn", "spring"},
+		Occasions:    []string{"casual"},
+	}, Usage{Model: "mock"}, nil
+}
+
+// SummarizeStyle says it's a mock, then repeats the profile it was given,
+// so dev shows the summary updating as the board changes.
+func (mockProvider) SummarizeStyle(_ context.Context, profile string) (string, Usage, error) {
+	return "Mock summary — " + profile, Usage{Model: "mock"}, nil
 }

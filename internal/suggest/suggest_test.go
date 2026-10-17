@@ -41,6 +41,14 @@ func (f *fakeAIProvider) SuggestOutfits(_ context.Context, candidates []ai.Sugge
 	return f.suggestions, f.usage, f.err
 }
 
+func (f *fakeAIProvider) TagInspo(_ context.Context, _ []byte) (ai.InspoTagResult, ai.Usage, error) {
+	return ai.InspoTagResult{}, ai.Usage{}, errors.New("TagInspo not used by suggest package tests")
+}
+
+func (f *fakeAIProvider) SummarizeStyle(_ context.Context, _ string) (string, ai.Usage, error) {
+	return "", ai.Usage{}, errors.New("SummarizeStyle not used by suggest package tests")
+}
+
 func newTestStore(t *testing.T) *store.Store {
 	t.Helper()
 	s, err := store.Open(context.Background(), filepath.Join(t.TempDir(), "test.db"))

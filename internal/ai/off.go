@@ -13,3 +13,11 @@ func (offProvider) TagItem(_ context.Context, _ []byte) (TagResult, Usage, error
 func (offProvider) SuggestOutfits(_ context.Context, _ []SuggestionCandidate, _ string, _ SuggestContext) ([]AISuggestion, Usage, error) {
 	return nil, Usage{}, ErrDisabled
 }
+
+func (offProvider) TagInspo(_ context.Context, _ []byte) (InspoTagResult, Usage, error) {
+	return InspoTagResult{}, Usage{}, ErrDisabled
+}
+
+func (offProvider) SummarizeStyle(_ context.Context, _ string) (string, Usage, error) {
+	return "", Usage{}, ErrDisabled
+}

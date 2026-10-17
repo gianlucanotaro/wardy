@@ -61,6 +61,14 @@ func New(s *store.Store, frontend fs.FS, secureCookies bool, photosDir string, a
 	mux.Handle("GET /api/items/{id}/photo", requireAuth(s, servePhotoHandler(s, photosDir, false)))
 	mux.Handle("GET /api/items/{id}/thumb", requireAuth(s, servePhotoHandler(s, photosDir, true)))
 
+	mux.Handle("GET /api/inspo", requireAuth(s, inspoBoardHandler(s)))
+	mux.Handle("POST /api/inspo", requireAuth(s, uploadInspoHandler(s, photosDir, aiEnabled, jobLimiter)))
+	mux.Handle("PATCH /api/inspo/settings", requireAuth(s, inspoSettingsHandler(s)))
+	mux.Handle("PATCH /api/inspo/{id}/tags", requireAuth(s, updateInspoTagsHandler(s, aiEnabled)))
+	mux.Handle("DELETE /api/inspo/{id}", requireAuth(s, deleteInspoHandler(s, photosDir, aiEnabled)))
+	mux.Handle("GET /api/inspo/{id}/photo", requireAuth(s, serveInspoPhotoHandler(s, photosDir, false)))
+	mux.Handle("GET /api/inspo/{id}/thumb", requireAuth(s, serveInspoPhotoHandler(s, photosDir, true)))
+
 	mux.Handle("POST /api/looks", requireAuth(s, createLookHandler(s)))
 	mux.Handle("GET /api/looks", requireAuth(s, listLooksHandler(s)))
 	mux.Handle("GET /api/looks/{id}", requireAuth(s, getLookHandler(s)))
