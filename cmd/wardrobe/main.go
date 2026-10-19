@@ -95,15 +95,24 @@ func run() error {
 
 	weatherClient := weather.NewClient()
 
+	// Single sign-on (#51); off unless all of issuer, client and redirect are set.
+	sso := httpapi.OIDCConfig{
+		Issuer:       os.Getenv("OIDC_ISSUER"),
+		ClientID:     os.Getenv("OIDC_CLIENT_ID"),
+		ClientSecret: os.Getenv("OIDC_CLIENT_SECRET"),
+		RedirectURL:  os.Getenv("OIDC_REDIRECT_URL"),
+		ProviderName: envOr("OIDC_PROVIDER_NAME", "SSO"),
+	}
+
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           httpapi.New(s, web.FS(), secureCookies, photosDir, aiEnabled, weatherClient, provider, monthlyBudget),
+		Handler:           httpapi.New(s, web.FS(), secureCookies, photosDir, aiEnabled, weatherClient, provider, monthlyBudget, sso),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
 	errCh := make(chan error, 1)
 	go func() {
-		slog.Info("listening", "addr", addr, "ai_provider", aiProviderName)
+		slog.Info("listening", "addr", addr, "ai_provider", aiProviderName, "sso", sso.Enabled())
 		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errCh <- fmt.Errorf("listen: %w", err)
 		}

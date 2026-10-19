@@ -12,9 +12,19 @@ Read before touching login, uploads, or the worker.
 - Password resets are CLI-only too: `./wardrobe set-password --email x@y.z`
   prompts for the new password and signs that account out everywhere.
 - Rate-limit login by IP and by email.
+- **Single sign-on (#51):** with SSO on, the login screen sends you to
+  Authelia automatically (one login there covers every app); after logging
+  out, or with `/?password`, it shows the password form and a "Sign in with
+  Authelia" button instead. OpenID Connect (authorization code + PKCE) — `internal/http/oidc.go`,
+  stdlib only. It signs in **existing** accounts only, matched by verified
+  email, then by username (Wardy logins can be either); no match is refused,
+  so SSO never creates accounts. Password login stays as the fallback when
+  the provider is down. Configured by the `OIDC_*` env vars
+  (`docs/deployment.md`).
 
 With no signup form, the only attack surface is credential guessing against two
-known accounts — which rate limiting handles.
+known accounts — which rate limiting handles. SSO adds no new way in: whoever
+controls the provider's accounts (the server admin) already controls Wardy's.
 
 ## Image pipeline
 

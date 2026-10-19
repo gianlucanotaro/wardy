@@ -47,6 +47,11 @@ ssh user@host 'sudo systemctl restart wardrobe'
 - **Bind to `127.0.0.1`**, never `0.0.0.0`. Caddy is the only thing that should
   reach the app.
 - Paths from `DB_PATH` and `PHOTOS_DIR`. Never hardcode.
+- **SSO** (#51): `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`,
+  `OIDC_REDIRECT_URL`, `OIDC_PROVIDER_NAME` in the same env file. The provider
+  (Authelia, `/opt/authelia/config/configuration.yml`) needs a matching client
+  `wardy` whose `redirect_uris` list each instance's
+  `https://<host>/api/auth/oidc/callback`. Unset → password login only.
 
 No Docker in production. A Dockerfile is optional and dev-only; keep the door
 open for a PaaS later, but don't let Docker into the dev loop.

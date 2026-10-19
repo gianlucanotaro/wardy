@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
@@ -64,22 +65,12 @@ func loginHandler(s *store.Store, secureCookies bool, limiter *rateLimiter) http
 			return
 		}
 
-		token, err := generateToken()
-		if err != nil {
-			slog.Error("login: generate token", "error", err)
+		if err := startSession(r.Context(), w, s, user.ID, secureCookies); err != nil {
+			slog.Error("login: start session", "error", err)
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
-
-		expiresAt := time.Now().Add(sessionDuration)
-		if err := s.CreateSession(r.Context(), token, user.ID, expiresAt); err != nil {
-			slog.Error("login: create session", "error", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-
 		limiter.Reset(ip, req.Email)
-		setSessionCookie(w, token, expiresAt, secureCookies)
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{
@@ -87,6 +78,21 @@ func loginHandler(s *store.Store, secureCookies bool, limiter *rateLimiter) http
 			"display_name": user.DisplayName,
 		})
 	}
+}
+
+// startSession creates a session for userID and sets its cookie — the
+// last step of both password and SSO login.
+func startSession(ctx context.Context, w http.ResponseWriter, s *store.Store, userID int64, secureCookies bool) error {
+	token, err := generateToken()
+	if err != nil {
+		return err
+	}
+	expiresAt := time.Now().Add(sessionDuration)
+	if err := s.CreateSession(ctx, token, userID, expiresAt); err != nil {
+		return fmt.Errorf("create session: %w", err)
+	}
+	setSessionCookie(w, token, expiresAt, secureCookies)
+	return nil
 }
 
 // logoutHandler deletes the current session, if any, and clears the cookie.
