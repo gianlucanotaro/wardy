@@ -28,11 +28,11 @@ func (s *Store) SessionUser(ctx context.Context, token string) (*User, error) {
 	var expiresAt string
 
 	err := s.db.QueryRowContext(ctx, `
-		SELECT u.id, u.email, u.password_hash, u.display_name, u.home_lat, u.home_lon, u.created_at, s.expires_at
+		SELECT u.id, u.email, u.password_hash, u.display_name, u.home_lat, u.home_lon, u.use_inspo, u.created_at, s.expires_at
 		FROM sessions s
 		JOIN users u ON u.id = s.user_id
 		WHERE s.token = ?`, token,
-	).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.DisplayName, &u.HomeLat, &u.HomeLon, &u.CreatedAt, &expiresAt)
+	).Scan(&u.ID, &u.Email, &u.PasswordHash, &u.DisplayName, &u.HomeLat, &u.HomeLon, &u.UseInspo, &u.CreatedAt, &expiresAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound
 	}

@@ -1,12 +1,14 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/gianlucanotaro/wardy/internal/ai"
+	"github.com/gianlucanotaro/wardy/internal/inspo"
 	"github.com/gianlucanotaro/wardy/internal/store"
 	"github.com/gianlucanotaro/wardy/internal/suggest"
 	"github.com/gianlucanotaro/wardy/internal/taxonomy"
@@ -16,6 +18,10 @@ import (
 type outfitResponse struct {
 	Items []store.Item `json:"items"`
 	Note  string       `json:"note"`
+	// InspoMatches counts, per item id, the inspo fits showing a piece
+	// like it (inspo.Matches) — only items with at least one, and only
+	// when the style profile was used.
+	InspoMatches map[int64]int `json:"inspo_matches,omitempty"`
 }
 
 type suggestResponse struct {
@@ -23,6 +29,8 @@ type suggestResponse struct {
 	Source           string           `json:"source,omitempty"`
 	NoMatchReason    string           `json:"no_match_reason,omitempty"`
 	WeatherAvailable bool             `json:"weather_available"`
+	// StyleUsed: the user's inspo style profile was sent to the AI.
+	StyleUsed bool `json:"style_used,omitempty"`
 }
 
 // suggestHandler runs the outfit pre-filter for ?occasion=, layering
@@ -37,7 +45,8 @@ type suggestResponse struct {
 // (weatherLocation). ?mood= (one of suggest.Moods), ?time_of_day= and
 // ?prompt= (the user's own words, suggest.CleanPrompt) are optional prompt
 // context for the AI, not filters on the candidate set. The prompt is
-// never logged.
+// never logged. So is the user's inspo style profile (#49), when they have
+// it switched on and enough tagged fits (styleContext).
 func suggestHandler(s *store.Store, wc *weather.Client, provider ai.Provider, aiEnabled bool, monthlyBudgetUSD float64) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		user, ok := userFromContext(r.Context())
@@ -62,6 +71,10 @@ func suggestHandler(s *store.Store, wc *weather.Client, provider ai.Provider, ai
 			return
 		}
 		sc := ai.SuggestContext{Mood: mood, TimeOfDay: r.URL.Query().Get("time_of_day"), Prompt: prompt}
+		var fits []store.InspoFit
+		if aiEnabled && user.UseInspo {
+			sc.Style, fits = styleContext(r.Context(), s, user.ID)
+		}
 
 		var forecast *weather.Forecast
 		lat, lon, hasLocation := weatherLocation(r, user)
@@ -87,12 +100,48 @@ func suggestHandler(s *store.Store, wc *weather.Client, provider ai.Provider, ai
 			Source:           result.Source,
 			NoMatchReason:    result.NoMatchReason,
 			WeatherAvailable: forecast != nil,
+			StyleUsed:        sc.Style != "" && result.Source == suggest.SourceAI,
 		}
 		for _, outfit := range result.Outfits {
-			resp.Outfits = append(resp.Outfits, outfitResponse{Items: outfit.Items, Note: outfit.Note})
+			o := outfitResponse{Items: outfit.Items, Note: outfit.Note}
+			if resp.StyleUsed {
+				for _, it := range outfit.Items {
+					if n := inspo.Matches(it, fits); n > 0 {
+						if o.InspoMatches == nil {
+							o.InspoMatches = map[int64]int{}
+						}
+						o.InspoMatches[it.ID] = n
+					}
+				}
+			}
+			resp.Outfits = append(resp.Outfits, o)
 		}
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(resp)
 	}
+}
+
+// styleContext is the user's style profile as suggestion context — the
+// counted profile plus the cached AI summary, when it was written for
+// this profile — and the fits it came from,
+// or "" when the board has too few tagged fits to say anything yet.
+func styleContext(ctx context.Context, s *store.Store, userID int64) (string, []store.InspoFit) {
+	fits, err := s.InspoFitsByUser(ctx, userID)
+	if err != nil {
+		slog.Error("suggest: inspo fits", "error", err)
+		return "", nil
+	}
+	profile := inspo.Build(fits)
+	if !profile.UsableForSuggestions() {
+		return "", nil
+	}
+	style := profile.Describe()
+	summary, key, err := s.StyleSummary(ctx, userID)
+	if err != nil {
+		slog.Error("suggest: style summary", "error", err)
+	} else if summary != "" && key == profile.Key() {
+		style = summary + " " + style
+	}
+	return style, fits
 }

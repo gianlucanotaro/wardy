@@ -97,6 +97,8 @@ type Suggestion = {
   outfits: SuggestOutfit[]
   index: number
   source?: SuggestSource
+  // The user's inspo style profile went into it (#49).
+  styleUsed: boolean
   edited: boolean
 }
 
@@ -110,6 +112,7 @@ function SlotRow({
   label,
   thumb,
   title,
+  badge,
   action,
   open,
   onToggle,
@@ -117,6 +120,7 @@ function SlotRow({
   label: string
   thumb: Item | undefined
   title: string
+  badge?: string
   action: string
   open: boolean
   onToggle: () => void
@@ -140,6 +144,11 @@ function SlotRow({
       <span className="flex flex-col gap-0.5 min-w-0">
         <span className="wy-lbl">{label}</span>
         <span className="font-extrabold text-[15px] tracking-tight truncate">{title}</span>
+        {badge && (
+          <span className="self-start mt-0.5 bg-(--color-accent-100) text-(--color-accent-700) font-extrabold text-[8.5px] tracking-[0.1em] px-1.5 py-0.5">
+            {badge}
+          </span>
+        )}
       </span>
       <span
         className={`font-extrabold text-[10px] tracking-[0.09em] ${open ? 'text-(--color-ink)' : 'text-(--color-accent-700)'}`}
@@ -239,7 +248,15 @@ export default function Build({
       }
       setNoMatch(null)
       showOutfit(res.outfits[0])
-      setSuggestion({ occasion, mood, outfits: res.outfits, index: 0, source: res.source, edited: false })
+      setSuggestion({
+        occasion,
+        mood,
+        outfits: res.outfits,
+        index: 0,
+        source: res.source,
+        styleUsed: Boolean(res.style_used),
+        edited: false,
+      })
     },
     onError: () => flash("COULDN'T SUGGEST — TRY AGAIN"),
   })
@@ -308,6 +325,14 @@ export default function Build({
     saveAsLook.mutate({ itemIds: filled.map((it) => it.id) })
   }
 
+  // "LIKE 6 OF YOUR INSPO FITS" on a suggested piece that several of the
+  // user's inspo fits show (same kind of piece, same colour). One match
+  // could be chance, so it takes two.
+  function inspoBadge(it: Item): string | undefined {
+    const n = suggestion?.outfits[suggestion.index].inspo_matches?.[it.id] ?? 0
+    return n >= 2 ? `LIKE ${n} OF YOUR INSPO FITS` : undefined
+  }
+
   // Each piece counts at the middle of its formality/warmth range.
   const avgFormality = clothes.length
     ? clothes.reduce((sum, it) => sum + (it.formality_min + it.formality_max) / 2, 0) / clothes.length
@@ -371,6 +396,7 @@ export default function Build({
                 label={slot.label}
                 thumb={item}
                 title={item ? itemTitle(item) : 'EMPTY'}
+                badge={item ? inspoBadge(item) : undefined}
                 action={item ? 'SWAP ▾' : 'PICK ▾'}
                 open={open}
                 onToggle={() => setPickSlot(open ? null : slot.key)}
@@ -469,6 +495,7 @@ export default function Build({
               suggestion.source === 'ai' ? 'AI' : 'SIMPLE MATCH',
               suggestion.occasion,
               suggestion.mood,
+              suggestion.styleUsed ? 'YOUR STYLE' : '',
               suggestion.edited ? 'EDITED' : '',
             ]
               .filter(Boolean)

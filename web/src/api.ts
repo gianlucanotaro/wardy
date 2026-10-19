@@ -140,7 +140,9 @@ export function getWeather(coords: Coords | null): Promise<Weather> {
 // filter on the candidate set. The server rejects anything else.
 export const MOODS = ['sharp', 'easy', 'bold', 'quiet', 'cosy', 'playful']
 
-export type SuggestOutfit = { items: Item[]; note: string }
+// inspo_matches: per item id, how many inspo fits show a piece like it —
+// only when the style profile was used (style_used).
+export type SuggestOutfit = { items: Item[]; note: string; inspo_matches?: Record<string, number> }
 
 export type SuggestSource = 'ai' | 'rules_fallback'
 
@@ -149,6 +151,7 @@ export type SuggestResponse = {
   source?: SuggestSource
   no_match_reason?: string
   weather_available: boolean
+  style_used?: boolean
 }
 
 // mood and prompt (the user's own words) are optional context for the AI
@@ -165,6 +168,79 @@ export function getSuggestions(
   if (prompt) params.set('prompt', prompt)
   withCoords(params, coords)
   return request(`/api/suggest?${params.toString()}`)
+}
+
+// An inspiration fit (#49): a photo of someone else's outfit. Every tag
+// may be empty until AI or manual tagging fills it in; formality 0-0 is
+// unset.
+export type InspoTags = {
+  styles: string[]
+  colors: string[]
+  pieces: string[]
+  fit: string
+  formality_min: number
+  formality_max: number
+  seasons: string[]
+  occasions: string[]
+  custom_tags: string[]
+}
+
+export type InspoFit = InspoTags & {
+  id: number
+  ai_tagged_at: string | null
+  user_edited_at: string | null
+  created_at: string
+  tagging_pending: boolean
+}
+
+export type InspoCount = { value: string; count: number }
+
+// What the board adds up to (inspo.Profile in Go); counts are out of
+// tagged.
+export type InspoProfile = {
+  fits: number
+  tagged: number
+  styles: InspoCount[]
+  colors: InspoCount[]
+  pieces: InspoCount[]
+  fit_shapes: InspoCount[]
+  formality: number
+}
+
+export type InspoBoard = {
+  fits: InspoFit[]
+  profile: InspoProfile
+  summary: string
+  // A summary rewrite is queued: worth polling until it lands.
+  summary_pending: boolean
+  use_in_suggestions: boolean
+  min_fits: number
+}
+
+export function getInspo(): Promise<InspoBoard> {
+  return request('/api/inspo')
+}
+
+export async function uploadInspo(file: File): Promise<InspoFit> {
+  const form = new FormData()
+  form.append('photo', file)
+  const res = await fetch('/api/inspo', { method: 'POST', body: form })
+  if (!res.ok) {
+    throw new Error(res.status === 409 ? 'BOARD FULL' : `upload failed: ${res.status}`)
+  }
+  return res.json()
+}
+
+export function updateInspoTags(id: number, tags: InspoTags): Promise<InspoFit> {
+  return request(`/api/inspo/${id}/tags`, { method: 'PATCH', body: JSON.stringify(tags) })
+}
+
+export function deleteInspo(id: number): Promise<void> {
+  return request(`/api/inspo/${id}`, { method: 'DELETE' })
+}
+
+export function setUseInspo(use: boolean): Promise<{ use_in_suggestions: boolean }> {
+  return request('/api/inspo/settings', { method: 'PATCH', body: JSON.stringify({ use_in_suggestions: use }) })
 }
 
 export type Look = {

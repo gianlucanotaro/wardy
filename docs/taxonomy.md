@@ -42,6 +42,19 @@ are judged per **outfit** (`internal/suggest`):
 - **Occasion and season tags are preferences.** Tagged items are suggested
   first; untagged ones still qualify.
 
+## Inspiration fits
+
+Photos of other people's outfits (#49) reuse these vocabularies and add one:
+
+```
+style        minimal | classic | preppy | workwear | streetwear | sporty |
+             smart-casual | bohemian | edgy | romantic | avant-garde | vintage
+```
+
+A fit has up to 3 styles, 5 colours and 8 pieces (pieces are item
+subcategories, so they can be matched against the wardrobe). Every field may
+be empty; formality 0–0 means unset.
+
 ## Colors
 
 Map to the nearest palette entry. Never let the model invent "sage mist" or

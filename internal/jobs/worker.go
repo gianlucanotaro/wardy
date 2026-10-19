@@ -1,6 +1,7 @@
-// Package jobs runs the background worker that processes the jobs table.
-// The only job type in v1 is tag_item (AI vision tagging). No Redis, no
-// external queue — one goroutine polling every few seconds is plenty.
+// Package jobs runs the background worker that processes the jobs table:
+// tag_item (AI vision tagging of a garment), and for the inspiration board
+// (#49) tag_inspo and summarize_style. No Redis, no external queue — one
+// goroutine polling every few seconds is plenty.
 package jobs
 
 import (
@@ -23,7 +24,36 @@ const (
 
 	// TagItemType is the job type created on every photo upload.
 	TagItemType = "tag_item"
+
+	// TagInspoType is created on every inspiration photo upload.
+	TagInspoType = "tag_inspo"
+
+	// SummarizeStyleType rewrites a user's style summary. Queued with
+	// EnqueueStyleSummary after anything that can change their profile.
+	SummarizeStyleType = "summarize_style"
+
+	// styleSummaryDelay debounces SummarizeStyleType: tagging ten fits
+	// in a row rewrites the summary once, after the last.
+	styleSummaryDelay = 20 * time.Second
 )
+
+// TagInspoPayload is the job payload the inspo upload handler enqueues.
+type TagInspoPayload struct {
+	FitID  int64 `json:"fit_id"`
+	UserID int64 `json:"user_id"`
+}
+
+// SummarizeStylePayload identifies whose style summary to rewrite.
+type SummarizeStylePayload struct {
+	UserID int64 `json:"user_id"`
+}
+
+// EnqueueStyleSummary queues (or pushes back) a rewrite of userID's style
+// summary. The job itself checks whether the profile actually changed, so
+// calling this too often only costs a cheap no-op run.
+func EnqueueStyleSummary(ctx context.Context, s *store.Store, userID int64) error {
+	return s.EnqueueJobOnce(ctx, SummarizeStyleType, SummarizeStylePayload{UserID: userID}, styleSummaryDelay)
+}
 
 // TagItemPayload is the job payload the upload handler enqueues.
 type TagItemPayload struct {
@@ -63,10 +93,10 @@ func (w *Worker) Run(ctx context.Context) {
 	}
 }
 
-// ProcessOne claims and processes a single tag_item job, if one is ready.
+// ProcessOne claims and processes a single job, if one is ready.
 // Exported so tests can drive it directly rather than through Run's ticker.
 func (w *Worker) ProcessOne(ctx context.Context) {
-	job, err := w.store.ClaimNextJob(ctx, TagItemType)
+	job, err := w.store.ClaimNextJob(ctx, TagItemType, TagInspoType, SummarizeStyleType)
 	if errors.Is(err, store.ErrNotFound) {
 		return
 	}
@@ -84,7 +114,7 @@ func (w *Worker) ProcessOne(ctx context.Context) {
 		}
 		if spend >= w.monthlyBudgetUSD {
 			msg := fmt.Sprintf("monthly AI budget exceeded ($%.2f >= $%.2f)", spend, w.monthlyBudgetUSD)
-			slog.Warn("jobs: skipping tag_item, over budget", "job_id", job.ID)
+			slog.Warn("jobs: skipping job, over budget", "type", job.Type, "job_id", job.ID)
 			if err := w.store.FailJobPermanently(ctx, job.ID, msg); err != nil {
 				slog.Error("jobs: record permanent failure", "error", err)
 			}
@@ -92,11 +122,11 @@ func (w *Worker) ProcessOne(ctx context.Context) {
 		}
 	}
 
-	if err := w.runTagItem(ctx, job); err != nil {
+	if err := w.run(ctx, job); err != nil {
 		if ai.IsRetryable(err) {
 			w.retry(ctx, job, err)
 		} else {
-			slog.Warn("jobs: tag_item permanently failed (non-retryable)", "job_id", job.ID, "error", err)
+			slog.Warn("jobs: permanently failed (non-retryable)", "type", job.Type, "job_id", job.ID, "error", err)
 			if failErr := w.store.FailJobPermanently(ctx, job.ID, err.Error()); failErr != nil {
 				slog.Error("jobs: record permanent failure", "error", failErr)
 			}
@@ -109,8 +139,19 @@ func (w *Worker) ProcessOne(ctx context.Context) {
 	}
 }
 
+func (w *Worker) run(ctx context.Context, job *store.Job) error {
+	switch job.Type {
+	case TagInspoType:
+		return w.runTagInspo(ctx, job)
+	case SummarizeStyleType:
+		return w.runSummarizeStyle(ctx, job)
+	default:
+		return w.runTagItem(ctx, job)
+	}
+}
+
 func (w *Worker) retry(ctx context.Context, job *store.Job, cause error) {
-	slog.Warn("jobs: tag_item failed, will retry", "job_id", job.ID, "attempts", job.Attempts, "error", cause)
+	slog.Warn("jobs: failed, will retry", "type", job.Type, "job_id", job.ID, "attempts", job.Attempts, "error", cause)
 	if err := w.store.FailJob(ctx, job.ID, job.Attempts, cause.Error()); err != nil {
 		slog.Error("jobs: record failure", "error", err)
 	}

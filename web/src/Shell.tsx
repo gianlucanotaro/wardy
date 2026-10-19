@@ -7,6 +7,7 @@ import Build from './Build'
 import Looks from './Looks'
 import Plan from './Plan'
 import History from './History'
+import Inspo from './Inspo'
 import Settings from './Settings'
 import { ToastProvider } from './Toast'
 
@@ -15,7 +16,7 @@ import { ToastProvider } from './Toast'
 // restyled to the Modernist design system. Owns the top-level View switch —
 // tab content below never renders its own "Close" affordance, the tab bar
 // and header links are the only navigation.
-type View = 'today' | 'wardrobe' | 'build' | 'looks' | 'plan' | 'history' | 'settings'
+type View = 'today' | 'wardrobe' | 'build' | 'looks' | 'plan' | 'inspo' | 'history' | 'settings'
 
 const TABS: { key: View; label: string }[] = [
   { key: 'today', label: 'TODAY' },
@@ -43,6 +44,14 @@ export default function Shell({ me, onLogout }: { me: Me; onLogout: () => void }
           <div className="flex items-center gap-4 px-4 py-3">
             <span className="font-extrabold text-lg tracking-tight mr-auto">WARDY</span>
             <span className="hidden sm:inline wy-lbl">{me.display_name}</span>
+            <button
+              type="button"
+              onClick={() => setView('inspo')}
+              className="wy-lbl"
+              style={view === 'inspo' ? { color: 'var(--color-accent-700)' } : undefined}
+            >
+              INSPO
+            </button>
             <button type="button" onClick={() => setView('history')} className="wy-lbl">
               HISTORY
             </button>
@@ -70,6 +79,7 @@ export default function Shell({ me, onLogout }: { me: Me; onLogout: () => void }
           )}
           {view === 'looks' && <Looks />}
           {view === 'plan' && <Plan />}
+          {view === 'inspo' && <Inspo />}
           {view === 'history' && <History />}
           {view === 'settings' && <Settings />}
         </div>

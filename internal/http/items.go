@@ -53,59 +53,8 @@ func uploadItemHandler(s *store.Store, photosDir string, aiEnabled bool, jobLimi
 			return
 		}
 
-		r.Body = http.MaxBytesReader(w, r.Body, maxUploadBytes)
-		if err := r.ParseMultipartForm(maxUploadBytes); err != nil {
-			http.Error(w, "photo too large or malformed form", http.StatusBadRequest)
-			return
-		}
-
-		file, _, err := r.FormFile("photo")
-		if err != nil {
-			http.Error(w, "missing \"photo\" field", http.StatusBadRequest)
-			return
-		}
-		defer file.Close()
-
-		data := make([]byte, 0, 1<<20)
-		buf := make([]byte, 32*1024)
-		for {
-			n, readErr := file.Read(buf)
-			data = append(data, buf[:n]...)
-			if readErr != nil {
-				break
-			}
-		}
-
-		display, thumb, err := images.Process(data)
-		if errors.Is(err, images.ErrHEIC) {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if err != nil {
-			slog.Error("upload: process image", "error", err)
-			http.Error(w, "unsupported or corrupt image", http.StatusBadRequest)
-			return
-		}
-
-		userDir := filepath.Join(photosDir, strconv.FormatInt(user.ID, 10))
-		if err := os.MkdirAll(userDir, 0o755); err != nil {
-			slog.Error("upload: create photo dir", "error", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-
-		id := uuid.NewString()
-		photoRel := filepath.Join(strconv.FormatInt(user.ID, 10), id+".jpg")
-		thumbRel := filepath.Join(strconv.FormatInt(user.ID, 10), id+"_thumb.jpg")
-
-		if err := os.WriteFile(filepath.Join(photosDir, photoRel), display, 0o644); err != nil {
-			slog.Error("upload: write photo", "error", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-		if err := os.WriteFile(filepath.Join(photosDir, thumbRel), thumb, 0o644); err != nil {
-			slog.Error("upload: write thumb", "error", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
+		photoRel, thumbRel, ok := savePhoto(w, r, photosDir, user.ID)
+		if !ok {
 			return
 		}
 
@@ -134,6 +83,79 @@ func uploadItemHandler(s *store.Store, photosDir string, aiEnabled bool, jobLimi
 		}
 
 		writeItem(r.Context(), w, s, item, http.StatusCreated)
+	}
+}
+
+// savePhoto reads the multipart "photo" field, runs it through the image
+// pipeline (orientation fix, resize, EXIF strip) and writes both
+// derivatives under the user's photo dir, returning their paths relative
+// to photosDir. On failure it has already written the error response and
+// returns ok false.
+func savePhoto(w http.ResponseWriter, r *http.Request, photosDir string, userID int64) (photoRel, thumbRel string, ok bool) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxUploadBytes)
+	if err := r.ParseMultipartForm(maxUploadBytes); err != nil {
+		http.Error(w, "photo too large or malformed form", http.StatusBadRequest)
+		return "", "", false
+	}
+
+	file, _, err := r.FormFile("photo")
+	if err != nil {
+		http.Error(w, "missing \"photo\" field", http.StatusBadRequest)
+		return "", "", false
+	}
+	defer file.Close()
+
+	data := make([]byte, 0, 1<<20)
+	buf := make([]byte, 32*1024)
+	for {
+		n, readErr := file.Read(buf)
+		data = append(data, buf[:n]...)
+		if readErr != nil {
+			break
+		}
+	}
+
+	display, thumb, err := images.Process(data)
+	if errors.Is(err, images.ErrHEIC) {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return "", "", false
+	}
+	if err != nil {
+		slog.Error("upload: process image", "error", err)
+		http.Error(w, "unsupported or corrupt image", http.StatusBadRequest)
+		return "", "", false
+	}
+
+	userDir := strconv.FormatInt(userID, 10)
+	if err := os.MkdirAll(filepath.Join(photosDir, userDir), 0o755); err != nil {
+		slog.Error("upload: create photo dir", "error", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return "", "", false
+	}
+
+	id := uuid.NewString()
+	photoRel = filepath.Join(userDir, id+".jpg")
+	thumbRel = filepath.Join(userDir, id+"_thumb.jpg")
+
+	if err := os.WriteFile(filepath.Join(photosDir, photoRel), display, 0o644); err != nil {
+		slog.Error("upload: write photo", "error", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return "", "", false
+	}
+	if err := os.WriteFile(filepath.Join(photosDir, thumbRel), thumb, 0o644); err != nil {
+		slog.Error("upload: write thumb", "error", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return "", "", false
+	}
+	return photoRel, thumbRel, true
+}
+
+// removePhotos deletes a deleted item's or fit's files, best effort.
+func removePhotos(photosDir string, rels ...string) {
+	for _, rel := range rels {
+		if err := os.Remove(filepath.Join(photosDir, rel)); err != nil && !os.IsNotExist(err) {
+			slog.Warn("remove photo file", "path", rel, "error", err)
+		}
 	}
 }
 
@@ -410,11 +432,7 @@ func deleteItemHandler(s *store.Store, photosDir string) http.HandlerFunc {
 			return
 		}
 
-		for _, rel := range []string{photoRel, thumbRel} {
-			if err := os.Remove(filepath.Join(photosDir, rel)); err != nil && !os.IsNotExist(err) {
-				slog.Warn("delete item: remove file", "path", rel, "error", err)
-			}
-		}
+		removePhotos(photosDir, photoRel, thumbRel)
 
 		w.WriteHeader(http.StatusNoContent)
 	}
