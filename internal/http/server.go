@@ -36,8 +36,9 @@ const (
 // from. aiEnabled controls whether uploads enqueue a tagging job at all
 // and whether /api/suggest attempts an AI-written rationale. provider and
 // monthlyBudgetUSD are the same values passed to jobs.NewWorker, reused
-// here for outfit suggestions (see docs/ai.md's budget guards).
-func New(s *store.Store, frontend fs.FS, secureCookies bool, photosDir string, aiEnabled bool, weatherClient *weather.Client, provider ai.Provider, monthlyBudgetUSD float64) http.Handler {
+// here for outfit suggestions (see docs/ai.md's budget guards). sso turns on
+// "Sign in with …" when configured (see oidc.go); its zero value leaves it off.
+func New(s *store.Store, frontend fs.FS, secureCookies bool, photosDir string, aiEnabled bool, weatherClient *weather.Client, provider ai.Provider, monthlyBudgetUSD float64, sso OIDCConfig) http.Handler {
 	mux := http.NewServeMux()
 	limiter := newRateLimiter(loginRateLimitAttempts, loginRateLimitWindow)
 	jobLimiter := newRateLimiter(aiDailyTagLimitAttempts, aiDailyTagLimitWindow)
@@ -45,6 +46,10 @@ func New(s *store.Store, frontend fs.FS, secureCookies bool, photosDir string, a
 	mux.HandleFunc("GET /healthz", healthzHandler(s))
 	mux.HandleFunc("POST /api/login", loginHandler(s, secureCookies, limiter))
 	mux.HandleFunc("POST /api/logout", logoutHandler(s, secureCookies))
+	mux.HandleFunc("GET /api/auth/providers", authProvidersHandler(sso))
+	oidc := newOIDCClient(sso)
+	mux.HandleFunc("GET /api/auth/oidc/start", oidcStartHandler(oidc, secureCookies))
+	mux.HandleFunc("GET /api/auth/oidc/callback", oidcCallbackHandler(oidc, s, secureCookies, limiter))
 	mux.Handle("GET /api/me", requireAuth(s, http.HandlerFunc(meHandler)))
 	mux.Handle("GET /api/settings", requireAuth(s, http.HandlerFunc(getSettingsHandler)))
 	mux.Handle("PATCH /api/settings", requireAuth(s, updateSettingsHandler(s)))

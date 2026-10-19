@@ -71,6 +71,13 @@ export function login(email: string, password: string): Promise<Me> {
   })
 }
 
+export type AuthProviders = { sso_enabled: boolean; sso_name: string }
+
+// Public: whether "Sign in with …" (#51) is configured on this server.
+export function getAuthProviders(): Promise<AuthProviders> {
+  return request('/api/auth/providers')
+}
+
 export function logout(): Promise<void> {
   return request('/api/logout', { method: 'POST' })
 }

@@ -24,6 +24,9 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Navigations to /api must reach the server, not the cached app
+        // shell — the SSO start and callback (#51) are full-page redirects.
+        navigateFallbackDenylist: [/^\/api\//],
         // Cache the app shell only — never API responses. This is
         // authenticated, per-user data; NetworkOnly (not NetworkFirst)
         // is deliberate so nothing from /api ever lands in a cache that

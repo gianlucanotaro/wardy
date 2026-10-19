@@ -43,7 +43,7 @@ func newTestHandlerFull(t *testing.T, s *store.Store, aiEnabled bool, weatherCli
 	if err != nil {
 		t.Fatalf("ai.New: %v", err)
 	}
-	return New(s, frontend, false, t.TempDir(), aiEnabled, weatherClient, provider, 5.00)
+	return New(s, frontend, false, t.TempDir(), aiEnabled, weatherClient, provider, 5.00, OIDCConfig{})
 }
 
 func createTestUser(t *testing.T, s *store.Store, email, password string) {

@@ -34,7 +34,11 @@ export default function Shell({ me, onLogout }: { me: Me; onLogout: () => void }
 
   const logoutMutation = useMutation({
     mutationFn: logout,
-    onSuccess: onLogout,
+    onSuccess: () => {
+      // Tells the login screen not to sign straight back in via SSO (#51).
+      window.history.replaceState(null, '', '/?signedout')
+      onLogout()
+    },
   })
 
   return (
