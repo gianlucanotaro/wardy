@@ -3,14 +3,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { archiveItem, deleteItem, listItems, logWear, todayISODate, uploadItem, type Item } from './api'
 import TagEditor from './TagEditor'
 import { useToast } from './useToast'
-import { CATEGORIES, FORMALITY_LABELS, WARMTH_LABELS, type Category } from './taxonomy'
+import { FORMALITY_LABELS, WARMTH_LABELS } from './taxonomy'
+import { activeFields, matchesSearch, triggerField, withoutField, type Filters } from './searchFilters'
+import WardrobeSearch from './WardrobeSearch'
 import { occasionsFor, weatherRange } from './outfitRules'
 
 // Mirrors Build.tsx's BUILDABLE_CATEGORIES — those are the only slots Build
 // can pre-fill into, so "Add to outfit" only shows for items in this list.
 const BUILDABLE_CATEGORIES = ['outerwear', 'top', 'bottom', 'dress', 'shoes', 'accessory']
 
-// The WARDROBE tab: grid + category chips + tag search + item detail, matching
+// The WARDROBE tab: grid + structured search (WardrobeSearch) + item detail, matching
 // Wardy Prototype.dc.html's isWardrobe/isDetail blocks. Deliberately does
 // NOT apply the design system's .grayscale photo treatment — color is
 // functional here (matching outfits by color is a core use case), not
@@ -39,7 +41,7 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
   })
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [tagQuery, setTagQuery] = useState('')
-  const [category, setCategory] = useState<Category | 'all'>('all')
+  const [filters, setFilters] = useState<Filters>({})
   const fileInput = useRef<HTMLInputElement>(null)
 
   // The add-item flow (Wardy Prototype.dc.html's isAdd block): idle (choose
@@ -51,13 +53,33 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
 
   // Client-side — the grid already has the full item list loaded, so a
   // search endpoint would just be a second round trip for the same data.
-  // The category chip and the tag search combine (AND).
-  const query = tagQuery.trim().toLowerCase()
-  const visibleItems = items.data?.filter(
-    (it) =>
-      (category === 'all' || it.category === category) &&
-      (!query || (it.custom_tags ?? []).some((tag) => tag.toLowerCase().includes(query))),
-  )
+  // A box holding just "color:" is opening the picker, not searching tags.
+  const query = triggerField(tagQuery) ? '' : tagQuery.trim().toLowerCase()
+  const visibleItems = items.data?.filter((it) => matchesSearch(it, filters, query))
+  const fields = activeFields(filters)
+  const filtering = fields.length > 0 || query !== ''
+
+  // For the nothing-matches state: each active filter, and how many items
+  // dropping just that one would bring back.
+  const loosen = [
+    ...fields.map((f) => {
+      const rest = withoutField(filters, f)
+      return {
+        label: `${f}: ${filters[f]!.join(', ')}`,
+        drop: () => setFilters(rest),
+        count: items.data?.filter((it) => matchesSearch(it, rest, query)).length ?? 0,
+      }
+    }),
+    ...(query
+      ? [
+          {
+            label: `tag "${tagQuery.trim()}"`,
+            drop: () => setTagQuery(''),
+            count: items.data?.filter((it) => matchesSearch(it, filters, '')).length ?? 0,
+          },
+        ]
+      : []),
+  ]
 
   // Look the selected item up from the live query cache (rather than
   // holding a snapshot) so optimistic tag edits show up immediately.
@@ -165,39 +187,20 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
 
       {items.isSuccess && items.data.length > 0 && (
         <div className="px-4 py-3 border-b-2 border-(--color-line-strong) flex flex-col gap-3">
-          <div>
-            <div className="wy-lbl mb-1.5">CATEGORY</div>
-            <div className="flex flex-wrap gap-1.5">
-              {(['all', ...CATEGORIES] as const).map((c) => (
-                <button
-                  type="button"
-                  key={c}
-                  onClick={() => setCategory(c)}
-                  data-on={category === c || undefined}
-                  className="wy-chip"
-                >
-                  {c.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          </div>
-          <input
-            type="text"
-            value={tagQuery}
-            onChange={(e) => setTagQuery(e.target.value)}
-            placeholder="SEARCH YOUR TAGS…"
-            className="w-full border border-(--color-line) bg-(--color-surface) px-3 py-2 text-sm placeholder:text-(--color-neutral-500) focus:outline-2 focus:outline-(--color-accent)"
-          />
+          <WardrobeSearch query={tagQuery} onQueryChange={setTagQuery} filters={filters} onFiltersChange={setFilters} />
         </div>
       )}
 
       {items.isSuccess && items.data.length > 0 && (
         <div className="flex justify-between px-4 py-2.5 border-b-2 border-(--color-line-strong) wy-lbl">
-          <span>
-            {category === 'all' ? 'EVERYTHING' : category.toUpperCase()}
-            {query && ` · "${tagQuery.trim()}"`}
+          <span className="truncate">
+            {filtering
+              ? [...fields.map((f) => f.toUpperCase()), ...(query ? [`"${tagQuery.trim().toUpperCase()}"`] : [])].join(' · ')
+              : 'EVERYTHING'}
           </span>
-          <span>{visibleItems?.length ?? 0} ITEMS</span>
+          <span className={`shrink-0 pl-2 ${filtering ? 'text-(--color-accent-700)' : ''}`}>
+            {filtering ? `${visibleItems?.length ?? 0} OF ${items.data.length}` : items.data.length} ITEMS
+          </span>
         </div>
       )}
 
@@ -233,9 +236,44 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
         ))}
       </div>
       {items.isSuccess && items.data.length > 0 && visibleItems?.length === 0 && (
-        <p className="px-4 py-4 text-sm">
-          {query ? `No ${category === 'all' ? '' : category + ' '}items tagged "${tagQuery.trim()}".` : `No ${category} items yet.`}
-        </p>
+        <div className="px-4 py-7 flex flex-col gap-3.5 items-start">
+          <p className="font-extrabold text-[22px] leading-tight tracking-tight uppercase">
+            {loosen.length > 1 ? `Nothing matches all ${loosen.length} filters.` : `Nothing matches ${loosen[0]?.label}.`}
+          </p>
+          {loosen.length > 1 && loosen.some((l) => l.count > 0) && (
+            <>
+              <p className="text-sm">Remove one to see more:</p>
+              <div className="self-stretch flex flex-col border-t border-(--color-line)">
+                {loosen
+                  .filter((l) => l.count > 0)
+                  .map((l) => (
+                    <button
+                      type="button"
+                      key={l.label}
+                      onClick={l.drop}
+                      className="flex justify-between items-center gap-3 min-h-12 px-0.5 border-b border-(--color-line) text-left font-extrabold text-xs tracking-[0.06em] uppercase hover:bg-(--color-ink)/7"
+                    >
+                      <span>Without {l.label}</span>
+                      <span className="shrink-0 text-(--color-accent-700)">
+                        {l.count} {l.count === 1 ? 'ITEM' : 'ITEMS'} →
+                      </span>
+                    </button>
+                  ))}
+              </div>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              setFilters({})
+              setTagQuery('')
+            }}
+            className="wy-chip"
+            style={{ background: 'var(--color-ink)', color: 'var(--color-bg)', borderColor: 'var(--color-ink)' }}
+          >
+            CLEAR ALL FILTERS
+          </button>
+        </div>
       )}
 
       {selected && (

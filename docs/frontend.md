@@ -14,7 +14,7 @@ Proposed set — confirm before building beyond phase 3.
 
 | Route | Purpose |
 |---|---|
-| `/` | Wardrobe grid. Filter by category, season, formality, color. |
+| `/` | Wardrobe grid. One search box: free text searches custom tags; `color:` (or + COLOR) opens a checklist for that field — category, subcategory, color, pattern, material, fit, season, occasion. Picks become chips; AND across fields, OR within one. Nothing matching offers which filter to drop. |
 | `/items/new` | Capture or pick a photo, upload, land on review. |
 | `/items/:id` | Detail and tag editing. |
 | `/suggest` | Pick occasion + mood → outfit cards. |
