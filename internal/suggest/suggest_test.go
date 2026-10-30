@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -676,5 +677,52 @@ func legacyRanges(category string, warmth int) (warmthMin, warmthMax int) {
 		return max(1, warmth-1), min(5, warmth+2)
 	default:
 		return 1, 5
+	}
+}
+
+// TestSuggestAI_RequestedPieceSurvivesTheCap: with more candidates than
+// MaxCandidates, the round-robin sample keeps each category's first items.
+// The one red top must still reach the model when the user asks for it.
+func TestSuggestAI_RequestedPieceSurvivesTheCap(t *testing.T) {
+	ctx := context.Background()
+	s := newTestStore(t)
+	userID, _ := s.CreateUser(ctx, "me@example.com", "hash", "Me")
+	for range MaxCandidates {
+		createTaggedItem(t, s, userID, "top", "t-shirt", 2, 1, []string{"summer"}, []string{"casual"})
+	}
+	bottomID := createTaggedItem(t, s, userID, "bottom", "shorts", 2, 1, []string{"summer"}, []string{"casual"})
+	// Oldest of the tops and untagged, so it sorts last without the request.
+	redID := createTaggedItem(t, s, userID, "top", "t-shirt", 2, 1, nil, nil)
+	if err := s.UpdateItemTags(ctx, userID, redID, store.ItemTags{
+		Category: "top", Subcategory: "t-shirt", ColorPrimary: "red", Pattern: "solid", Material: "cotton", Fit: "regular",
+		FormalityMin: 2, FormalityMax: 2, WarmthMin: 1, WarmthMax: 5,
+	}); err != nil {
+		t.Fatalf("UpdateItemTags: %v", err)
+	}
+
+	has := func(cs []ai.SuggestionCandidate, id int64) bool {
+		return slices.ContainsFunc(cs, func(c ai.SuggestionCandidate) bool { return c.ID == id })
+	}
+	forecast := hotSummerForecast()
+	run := func(prompt string) []ai.SuggestionCandidate {
+		provider := &fakeAIProvider{
+			suggestions: []ai.AISuggestion{{ItemIDs: []int64{redID, bottomID}, Rationale: "Red, as asked."}},
+			usage:       ai.Usage{Model: ai.SuggestionModelName},
+		}
+		if _, err := SuggestAI(ctx, s, provider, true, 0, 0, userID, taxonomy.OccasionCasual, ai.SuggestContext{Prompt: prompt}, &forecast, true, julyDate); err != nil {
+			t.Fatalf("SuggestAI: %v", err)
+		}
+		return provider.gotCandidates
+	}
+
+	if got := run(""); has(got, redID) {
+		t.Fatalf("fixture too weak: red top made the cut without a request")
+	}
+	got := run("I want something with a red top")
+	if !has(got, redID) {
+		t.Errorf("red top missing from %d candidates sent to the model", len(got))
+	}
+	if !has(got, bottomID) {
+		t.Errorf("ranking dropped the only bottom")
 	}
 }

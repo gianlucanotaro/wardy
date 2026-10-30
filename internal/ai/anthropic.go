@@ -26,7 +26,7 @@ const (
 
 const (
 	suggestionModel     = anthropic.ModelClaudeSonnet5
-	suggestionMaxTokens = 600
+	suggestionMaxTokens = 1500
 
 	// Sonnet 5 list pricing — used only to produce an estimated cost for
 	// the usage table, not for billing.
@@ -237,6 +237,12 @@ func (p *anthropicProvider) SuggestOutfits(ctx context.Context, candidates []Sug
 		InputTokens:  int(resp.Usage.InputTokens),
 		OutputTokens: int(resp.Usage.OutputTokens),
 		EstCostUSD:   estimateCostAt(resp.Usage.InputTokens, resp.Usage.OutputTokens, suggestionInputPricePerMTokens, suggestionOutputPricePerMTokens),
+	}
+
+	// A cut-off answer is half a JSON array: say so, rather than the
+	// opaque "unexpected end of JSON input" it would fail with below.
+	if resp.StopReason == anthropic.StopReasonMaxTokens {
+		return nil, usage, fmt.Errorf("anthropic: response cut off at max_tokens (%d)", suggestionMaxTokens)
 	}
 
 	var text strings.Builder
