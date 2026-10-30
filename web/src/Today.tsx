@@ -278,7 +278,6 @@ export default function Today() {
                 </div>
               ))}
             </div>
-            <p className="px-4 py-3 border-b-2 border-(--color-line-strong) text-sm leading-relaxed">{outfit.note}</p>
           </div>
 
           <div className="grid grid-cols-3 border-b-2 border-(--color-line-strong)">
