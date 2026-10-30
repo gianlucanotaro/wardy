@@ -26,6 +26,9 @@ wardrobe costs well under a dollar, once.
    the forecast falls inside its `warmth` range. Occasion and season tags only rank candidates — tagged ones
    first — they never exclude. See `docs/taxonomy.md`.
 2. Cap at ~60 candidates, sampled across categories so every slot has options.
+   Items the user's request names (colour, category, subcategory, their own
+   name — "a red top") are ranked first so the cap can't drop them; ranking
+   only, like the tags.
 3. Send compact JSON — ids and relevant attributes only. No paths, no
    timestamps.
 4. Ask for 2–3 outfits: arrays of item ids + one-sentence rationale each.

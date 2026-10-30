@@ -77,7 +77,7 @@ type Result struct {
 // the season calculation is deterministic in tests regardless of what
 // day it actually is when they run.
 func Suggest(ctx context.Context, s *store.Store, userID int64, occasion taxonomy.Occasion, forecast *weather.Forecast, northernHemisphere bool, now time.Time) (Result, error) {
-	candidates, filter, targetWarmth, err := gatherCandidates(ctx, s, userID, occasion, forecast, northernHemisphere, now)
+	candidates, filter, targetWarmth, err := gatherCandidates(ctx, s, userID, occasion, "", forecast, northernHemisphere, now)
 	if err != nil {
 		return Result{}, err
 	}
@@ -104,7 +104,7 @@ func Suggest(ctx context.Context, s *store.Store, userID int64, occasion taxonom
 // outfit turns out to reference an id outside the candidate set — models
 // hallucinate ids (docs/ai.md).
 func SuggestAI(ctx context.Context, s *store.Store, provider ai.Provider, aiEnabled bool, monthlyBudgetUSD float64, dailyCap int, userID int64, occasion taxonomy.Occasion, sc ai.SuggestContext, forecast *weather.Forecast, northernHemisphere bool, now time.Time) (Result, error) {
-	candidates, filter, targetWarmth, err := gatherCandidates(ctx, s, userID, occasion, forecast, northernHemisphere, now)
+	candidates, filter, targetWarmth, err := gatherCandidates(ctx, s, userID, occasion, sc.Prompt, forecast, northernHemisphere, now)
 	if err != nil {
 		return Result{}, err
 	}
@@ -175,7 +175,9 @@ func SuggestAI(ctx context.Context, s *store.Store, provider ai.Provider, aiEnab
 // gatherCandidates runs the shared pre-filter and sampling that both
 // Suggest and SuggestAI build their outfits from, so an AI suggestion is
 // always drawn from the exact same pool as its rules-based fallback.
-func gatherCandidates(ctx context.Context, s *store.Store, userID int64, occasion taxonomy.Occasion, forecast *weather.Forecast, northernHemisphere bool, now time.Time) ([]store.Item, store.CandidateFilter, *int, error) {
+// prompt is the user's request ("" for none): it only ranks, see
+// preferRequested.
+func gatherCandidates(ctx context.Context, s *store.Store, userID int64, occasion taxonomy.Occasion, prompt string, forecast *weather.Forecast, northernHemisphere bool, now time.Time) ([]store.Item, store.CandidateFilter, *int, error) {
 	formality := OccasionFormality(occasion)
 
 	var targetWarmth *int
@@ -196,6 +198,7 @@ func gatherCandidates(ctx context.Context, s *store.Store, userID int64, occasio
 	}
 
 	preferTagged(candidates, occasion, CurrentSeason(now, northernHemisphere))
+	preferRequested(candidates, prompt) // after preferTagged: the request outranks tags
 
 	if len(candidates) > MaxCandidates {
 		candidates = sampleAcrossCategories(candidates, MaxCandidates)
