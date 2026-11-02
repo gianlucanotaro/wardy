@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Style Radar Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* Wardy's "Modernist" look: Archivo, off-white ground, zero radius, 2px ink
+     rules, small uppercase labels, one red accent. The three series are
+     validated for colour-blind separation (blue worn, aqua owned, red inspo;
+     inspo also dashed). */
+  :root {
+    color-scheme: light;
+    --bg: #f3f2f2;
+    --surface: #eae9e9;
+    --ink: #201e1d;
+    --ink-2: #605d5d;
+    --ink-3: #9b9797;
+    --line: color-mix(in srgb, #201e1d 30%, transparent);
+    --grid: rgba(32, 30, 29, 0.14);
+    --accent-700: #ae1800;
+    --worn: #2a78d6;
+    --owned: #1baf7a;
+    --inspo: #ec3013;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Archivo", system-ui, sans-serif;
+    padding: 0 12px 48px;
+  }
+  main { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; }
+  .bar {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    padding: 12px 16px; border-bottom: 2px solid var(--ink);
+  }
+  .title { font-weight: 800; font-size: 30px; line-height: 36px; letter-spacing: -0.025em; white-space: nowrap; }
+  .bar .lbl { text-align: right; }
+  .lbl { font: 800 9px "Archivo", sans-serif; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-2); }
+  .sec { padding: 10px 16px; border-bottom: 2px solid var(--ink); }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 16px 0; }
+  .key {
+    display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 6px 11px;
+    border: 1px solid var(--line); background: transparent; border-radius: 0;
+    font: 800 10.5px "Archivo", sans-serif; letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--ink); cursor: pointer;
+  }
+  .key[aria-pressed="false"] { color: var(--ink-3); border-style: dashed; }
+  .key[aria-pressed="false"] svg { opacity: 0.3; }
+  .chart { position: relative; padding: 0 8px 4px; border-bottom: 2px solid var(--ink); }
+  svg.radar { display: block; width: 100%; max-width: 480px; margin: 0 auto; height: auto; overflow: visible; }
+  .axis-label { font: 800 10px "Archivo", sans-serif; letter-spacing: 0.08em; text-transform: uppercase; fill: var(--ink-2); }
+  .axis-label.hot { fill: var(--ink); }
+  .ring-label { font: 800 8.5px "Archivo", sans-serif; letter-spacing: 0.08em; fill: var(--ink-3); }
+  .tip {
+    position: absolute; pointer-events: none; min-width: 150px; padding: 10px 12px;
+    background: var(--ink); color: var(--bg); font-size: 13px; line-height: 18px;
+    box-shadow: 0 3px 10px rgba(45, 43, 43, 0.16);
+    opacity: 0; transform: translate(-50%, calc(-100% - 12px)); transition: opacity 0.12s ease;
+  }
+  .tip b { display: block; font: 800 10.5px "Archivo", sans-serif; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 6px; }
+  .tip .row { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+  .tip .row span:first-child { display: inline-flex; align-items: center; gap: 6px; }
+  .tip .row span:last-child { font-weight: 800; font-variant-numeric: tabular-nums; }
+  .dot { width: 8px; height: 8px; display: inline-block; }
+  .insight { display: grid; grid-template-columns: 32px 1fr; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  .insight:last-child { border-bottom: 2px solid var(--ink); }
+  .insight .ico { width: 32px; height: 32px; display: grid; place-items: center; border: 1px solid var(--ink); background: var(--surface); }
+  .insight p { margin: 0; font-size: 14px; line-height: 20px; }
+  .insight p b { font-weight: 800; text-transform: uppercase; letter-spacing: 0.02em; }
+  .insight p span { color: var(--ink-2); font-size: 12.5px; display: block; margin-top: 2px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
+</head>
+<body>
+<main>
+  <div class="bar">
+    <span class="title">YOUR STYLE</span>
+    <span class="lbl">Mockup · sample numbers</span>
+  </div>
+
+  <section aria-labelledby="radar-h">
+    <div class="sec" style="display:flex;justify-content:space-between">
+      <span class="lbl" id="radar-h">Own · wear · like</span>
+      <span class="lbl">Last 90 days</span>
+    </div>
+    <div class="legend" role="group" aria-label="Show or hide a layer" id="legend"></div>
+    <div class="chart" id="chart">
+      <svg class="radar" id="radar" viewBox="-40 0 480 380" role="img" aria-labelledby="radar-desc"></svg>
+      <p class="sr-only" id="radar-desc">Radar chart of eight styles comparing your wardrobe, what you wore and your inspo photos. Focus a style to hear its three values.</p>
+      <div class="tip" id="tip" role="status" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section aria-label="What the gaps say" id="insights">
+    <div class="sec"><span class="lbl">What the gaps say</span></div>
+  </section>
+</main>
+
+<script>
+// Sample data, each layer summing to 100%: share of the source's style tags.
+const AXES = ['Minimal', 'Classic', 'Smart-casual', 'Streetwear', 'Sporty', 'Workwear', 'Edgy', 'Vintage']
+const LAYERS = [
+  { key: 'owned', name: 'Owned', color: 'var(--owned)', values: [22, 16, 14, 20, 10, 8, 4, 6], dash: '' },
+  { key: 'worn', name: 'Worn', color: 'var(--worn)', values: [18, 6, 8, 34, 20, 8, 2, 4], dash: '' },
+  { key: 'inspo', name: 'Inspo', color: 'var(--inspo)', values: [34, 8, 6, 6, 0, 30, 6, 10], dash: '5 4' },
+]
+const shown = { owned: true, worn: true, inspo: true }
+
+const NS = 'http://www.w3.org/2000/svg'
+const svg = document.getElementById('radar')
+const tip = document.getElementById('tip')
+const CX = 200, CY = 190, R = 128, MAX = 40, RINGS = [10, 20, 30, 40]
+const angle = (i) => -Math.PI / 2 + (i * 2 * Math.PI) / AXES.length
+const pt = (i, v) => [CX + Math.cos(angle(i)) * (R * v) / MAX, CY + Math.sin(angle(i)) * (R * v) / MAX]
+const el = (tag, attrs, parent = svg) => {
+  const n = document.createElementNS(NS, tag)
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v)
+  parent.appendChild(n)
+  return n
+}
+
+function draw(hot = -1) {
+  svg.textContent = ''
+  // Recessive grid: rings and spokes
+  for (const r of RINGS) {
+    el('polygon', { points: AXES.map((_, i) => pt(i, r).join(',')).join(' '), fill: 'none', stroke: 'var(--grid)', 'stroke-width': 1 })
+  }
+  AXES.forEach((_, i) => {
+    const [x, y] = pt(i, MAX)
+    el('line', { x1: CX, y1: CY, x2: x, y2: y, stroke: hot === i ? 'var(--ink-3)' : 'var(--grid)', 'stroke-width': hot === i ? 1.5 : 1 })
+  })
+  // Ring values sit halfway between Edgy and Vintage, where the lines stay
+  // near the centre
+  const ra = (angle(6) + angle(7)) / 2
+  for (const r of [20, 40]) {
+    const t = el('text', { x: CX + Math.cos(ra) * (R * r) / MAX - 3, y: CY + Math.sin(ra) * (R * r) / MAX - 3, 'text-anchor': 'end', class: 'ring-label' })
+    t.textContent = `${r}%`
+  }
+  // Layers: owned under worn under inspo; thin 2px outlines, light fills
+  for (const L of LAYERS) {
+    if (!shown[L.key]) continue
+    const pts = L.values.map((v, i) => pt(i, v).join(',')).join(' ')
+    el('polygon', { points: pts, fill: L.color, 'fill-opacity': L.key === 'inspo' ? 0 : 0.08, stroke: L.color, 'stroke-width': 2, 'stroke-linejoin': 'miter', 'stroke-dasharray': L.dash })
+    L.values.forEach((v, i) => {
+      const [x, y] = pt(i, v)
+      const m = hot === i ? 9 : 7
+      el('rect', { x: x - m / 2, y: y - m / 2, width: m, height: m, fill: L.color, stroke: 'var(--bg)', 'stroke-width': 2 })
+    })
+  }
+  // Axis labels, pushed out past the outer ring
+  AXES.forEach((name, i) => {
+    const a = angle(i)
+    const x = CX + Math.cos(a) * (R + 22)
+    const y = CY + Math.sin(a) * (R + 22)
+    const anchor = Math.abs(Math.cos(a)) < 0.2 ? 'middle' : Math.cos(a) > 0 ? 'start' : 'end'
+    const t = el('text', { x, y: y + 4, 'text-anchor': anchor, class: 'axis-label' + (hot === i ? ' hot' : '') })
+    t.textContent = name
+  })
+  // Hit targets: one wedge per axis, much bigger than the marks
+  AXES.forEach((_, i) => {
+    const a0 = angle(i) - Math.PI / AXES.length, a1 = angle(i) + Math.PI / AXES.length
+    const big = R + 40
+    const d = `M${CX},${CY} L${CX + Math.cos(a0) * big},${CY + Math.sin(a0) * big} A${big},${big} 0 0 1 ${CX + Math.cos(a1) * big},${CY + Math.sin(a1) * big} Z`
+    const w = el('path', { d, fill: 'transparent', tabindex: 0, 'aria-label': describe(i) })
+    w.addEventListener('pointerenter', () => show(i))
+    w.addEventListener('pointerdown', () => show(i))
+    w.addEventListener('focus', () => show(i))
+    w.addEventListener('pointerleave', hide)
+    w.addEventListener('blur', hide)
+  })
+}
+
+function describe(i) {
+  return `${AXES[i]}: ` + LAYERS.map((L) => `${L.name} ${L.values[i]}%`).join(', ')
+}
+
+function show(i) {
+  draw(i)
+  const [x, y] = pt(i, Math.max(...LAYERS.filter((L) => shown[L.key]).map((L) => L.values[i]), 4))
+  // viewBox is -40 0 480 380; place the tip in .chart's own coordinates
+  const box = svg.getBoundingClientRect(), chart = svg.parentElement.getBoundingClientRect()
+  const scale = box.width / 480
+  const left = box.left - chart.left + (x + 40) * scale
+  tip.innerHTML = `<b>${AXES[i]}</b>` + LAYERS.filter((L) => shown[L.key])
+    .map((L) => `<div class="row"><span><i class="dot" style="background:${L.color}"></i>${L.name}</span><span>${L.values[i]}%</span></div>`).join('')
+  tip.style.left = `${Math.min(Math.max(left, 85), chart.width - 85)}px`
+  tip.style.top = `${Math.max(box.top - chart.top + y * scale, 70)}px`
+  tip.style.opacity = 1
+}
+function hide() { tip.style.opacity = 0; draw() }
+
+// Legend: also the layer toggles; the inspo key is dashed like its line
+const legend = document.getElementById('legend')
+for (const L of LAYERS) {
+  const b = document.createElement('button')
+  b.className = 'key'
+  b.setAttribute('aria-pressed', 'true')
+  b.innerHTML = `<svg width="22" height="10" aria-hidden="true"><line x1="1" y1="5" x2="21" y2="5" stroke="${L.color}" stroke-width="3" stroke-dasharray="${L.dash}"/></svg>${L.name}`
+  b.onclick = () => {
+    shown[L.key] = !shown[L.key]
+    b.setAttribute('aria-pressed', String(shown[L.key]))
+    draw()
+  }
+  legend.appendChild(b)
+}
+
+// Insights: the biggest gaps between layers, said in words
+const by = Object.fromEntries(LAYERS.map((L) => [L.key, L.values]))
+const gaps = (a, b) => AXES.map((name, i) => ({ name, i, d: by[a][i] - by[b][i] })).sort((x, y) => y.d - x.d)
+const likeNotWear = gaps('inspo', 'worn')[0]
+const ownNotWear = gaps('owned', 'worn')[0]
+const wearMost = AXES.map((name, i) => ({ name, v: by.worn[i] })).sort((x, y) => y.v - x.v)[0]
+const box = document.getElementById('insights')
+// Lucide (ISC) heart, shirt and check, so no glyph depends on the font
+const ICONS = {
+  heart: '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>',
+  shirt: '<path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+}
+const icon = (name, color) => `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2.4" stroke-linecap="square" stroke-linejoin="miter">${ICONS[name]}</svg>`
+for (const [ico, text, sub] of [
+  [icon('heart', 'var(--inspo)'), `You like <b>${likeNotWear.name.toLowerCase()}</b> more than you wear it`, `${by.inspo[likeNotWear.i]}% of your inspo, ${by.worn[likeNotWear.i]}% of what you wore. Suggestions could lean this way.`],
+  [icon('shirt', 'var(--owned)'), `Your <b>${ownNotWear.name.toLowerCase()}</b> pieces mostly stay in the wardrobe`, `${by.owned[ownNotWear.i]}% of what you own, ${by.worn[ownNotWear.i]}% of what you wore.`],
+  [icon('check', 'var(--worn)'), `What you actually reach for: <b>${wearMost.name.toLowerCase()}</b>`, `${wearMost.v}% of your wears, the biggest share.`],
+]) {
+  const row = document.createElement('div')
+  row.className = 'insight'
+  row.innerHTML = `<span class="ico" aria-hidden="true">${ico}</span><p>${text}<span>${sub}</span></p>`
+  box.appendChild(row)
+}
+
+draw()
+</script>
+</body>
+</html>
