@@ -490,7 +490,7 @@ export default function Build({
 
       {suggestion && (
         <div className="px-4 py-3 border-b-2 border-(--color-line-strong)">
-          <div className="wy-lbl mb-1" style={{ color: 'var(--color-accent-700)' }}>
+          <div className="wy-lbl" style={{ color: 'var(--color-accent-700)' }}>
             {[
               suggestion.source === 'ai' ? 'AI' : 'SIMPLE MATCH',
               suggestion.occasion,
@@ -501,7 +501,6 @@ export default function Build({
               .filter(Boolean)
               .join(' · ')}
           </div>
-          <p className="text-sm leading-relaxed">{suggestion.outfits[suggestion.index].note}</p>
         </div>
       )}
       {noMatch && (
