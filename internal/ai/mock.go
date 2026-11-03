@@ -2,9 +2,12 @@ package ai
 
 import (
 	"context"
+	"hash/fnv"
 	"slices"
 	"strings"
 	"unicode"
+
+	"github.com/gianlucanotaro/wardy/internal/taxonomy"
 )
 
 // mockProvider returns fixture tags instantly, with no network calls — the
@@ -123,7 +126,27 @@ func (mockProvider) TagItem(_ context.Context, _ []byte) (TagResult, Usage, erro
 		Seasons:      []string{"summer", "spring"},
 		Occasions:    []string{"casual"},
 		CustomTags:   []string{"wardrobe-basic"},
+		Styles:       mockStyles(nil),
 	}, Usage{Model: "mock"}, nil
+}
+
+// TagItemStyles picks one or two styles from the photo's bytes, so dev's
+// backfilled wardrobe has a spread of styles for the style radar rather
+// than one style everywhere. The same photo always gets the same styles.
+func (mockProvider) TagItemStyles(_ context.Context, thumbnail []byte) ([]string, Usage, error) {
+	return mockStyles(thumbnail), Usage{Model: "mock"}, nil
+}
+
+func mockStyles(thumbnail []byte) []string {
+	h := fnv.New32a()
+	h.Write(thumbnail)
+	n := h.Sum32()
+	first := taxonomy.Styles[n%uint32(len(taxonomy.Styles))]
+	second := taxonomy.Styles[(n/7)%uint32(len(taxonomy.Styles))]
+	if second == first || n%3 == 0 {
+		return []string{string(first)}
+	}
+	return []string{string(first), string(second)}
 }
 
 // TagInspo returns the same fixture outfit for every photo.

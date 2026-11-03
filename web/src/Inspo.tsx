@@ -28,6 +28,8 @@ import {
   type Color,
 } from './taxonomy'
 import { useToast } from './useToast'
+import StyleRadar from './StyleRadar'
+import { radarInsights } from './radarInsights'
 
 // The INSPO screen (#49): photos of other people's outfits, tagged, adding
 // up to the style profile on top — which outfit suggestions use as a
@@ -110,6 +112,41 @@ export default function Inspo() {
       </div>
 
       {board.isLoading && <p className="px-4 py-4 wy-lbl">LOADING…</p>}
+
+      {data && (
+        <section aria-label="Style radar" className="border-b-2 border-(--color-line-strong)">
+          <div className="flex justify-between px-4 py-2.5 border-b-2 border-(--color-line-strong)">
+            <span className="wy-lbl">OWN · WEAR · LIKE</span>
+            <span className="wy-lbl">LAST 90 DAYS</span>
+          </div>
+          <StyleRadar radar={data.radar} />
+          {radarInsights(data.radar).length > 0 && (
+            <>
+              <div className="px-4 py-2.5 border-y-2 border-(--color-line-strong) wy-lbl">WHAT THE GAPS SAY</div>
+              {radarInsights(data.radar).map((g) => (
+                <div key={g.kind} className="px-4 py-3 border-b border-(--color-line) last:border-b-0 text-sm">
+                  {g.kind === 'inspo' && (
+                    <>
+                      You like <b className="font-extrabold uppercase">{g.style}</b> {g.text}
+                    </>
+                  )}
+                  {g.kind === 'owned' && (
+                    <>
+                      Your <b className="font-extrabold uppercase">{g.style}</b> {g.text}
+                    </>
+                  )}
+                  {g.kind === 'worn' && (
+                    <>
+                      <b className="font-extrabold uppercase">{g.style}</b> {g.text}
+                    </>
+                  )}
+                  <span className="block mt-0.5 text-[12.5px] text-(--color-neutral-700)">{g.detail}</span>
+                </div>
+              ))}
+            </>
+          )}
+        </section>
+      )}
 
       {data && profile && profile.tagged > 0 && (
         <section className="px-4 py-3 border-b-2 border-(--color-line-strong) flex flex-col gap-2">

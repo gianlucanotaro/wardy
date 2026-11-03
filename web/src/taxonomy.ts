@@ -155,6 +155,8 @@ export const STYLES = [
 
 // taxonomy.MaxInspo* (Go): caps on an inspo fit's lists.
 export const MAX_INSPO_STYLES = 3
+// taxonomy.MaxItemStyles (Go): an item's styles use the same vocabulary.
+export const MAX_ITEM_STYLES = 3
 export const MAX_INSPO_COLORS = 5
 export const MAX_INSPO_PIECES = 8
 

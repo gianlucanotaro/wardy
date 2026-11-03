@@ -109,6 +109,7 @@ exactly one of its listed values below — never invent a new one, even if it se
     above — things you can actually see, like "vintage", "distressed", "logo-print". Never guess
     at sentiment, ownership, or origin (never something like "gift" or "college era") — you have
     no way to know that from a photo. An empty array is a completely normal answer.
+  "styles": array of 1 to %d, the styles this piece belongs to, most fitting first, from %s
 }
 
 Valid subcategory values per category:
@@ -121,6 +122,7 @@ If you can't tell the material from the photo, use "unknown" rather than guessin
 		joinEnum(taxonomy.Fits, "|"),
 		joinEnum(taxonomy.Seasons, "|"),
 		joinEnum(taxonomy.Occasions, "|"),
+		taxonomy.MaxItemStyles, joinEnum(taxonomy.Styles, "|"),
 		subcats.String(),
 	)
 }
@@ -352,6 +354,7 @@ func parseTagResponse(text string) (TagResult, error) {
 		// Optional — an older or malformed response omitting it is not a
 		// parse error, it just yields no custom tags.
 		CustomTags []string `json:"custom_tags"`
+		Styles     []string `json:"styles"`
 	}
 	if err := json.Unmarshal([]byte(text), &raw); err != nil {
 		return TagResult{}, fmt.Errorf("parse model response: %w", err)
@@ -375,6 +378,7 @@ func parseTagResponse(text string) (TagResult, error) {
 		Seasons:        raw.Seasons,
 		Occasions:      raw.Occasions,
 		CustomTags:     raw.CustomTags,
+		Styles:         raw.Styles,
 	}, nil
 }
 

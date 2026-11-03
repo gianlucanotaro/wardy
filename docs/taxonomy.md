@@ -16,6 +16,7 @@ fit          slim | regular | relaxed | oversized
 color        fixed ~20-value palette
 seasons      [spring | summer | autumn | winter]
 occasions    [work | casual | formal | date | sport | outdoor | home]
+styles       [up to 3 of the inspo style list below]
 formality    range min–max on 1 (loungewear) … 5 (black tie)
 warmth       range min–max on 1 (hot weather) … 5 (deep winter)
 ```
@@ -54,6 +55,11 @@ style        minimal | classic | preppy | workwear | streetwear | sporty |
 A fit has up to 3 styles, 5 colours and 8 pieces (pieces are item
 subcategories, so they can be matched against the wardrobe). Every field may
 be empty; formality 0–0 means unset.
+
+Items carry **up to 3 styles** from the same list, so the wardrobe, what's
+worn and the inspo board compare on one scale (the style radar,
+`docs/ai.md`). Unlike the other item fields, styles may be empty: items
+uploaded before they existed start without and get them from a backfill.
 
 ## Colors
 

@@ -31,6 +31,9 @@ type TagResult struct {
 	// "distressed") — never anything sentimental or about origin, which
 	// the model has no way to know. Empty is a normal answer.
 	CustomTags []string
+	// Styles uses the inspo style vocabulary (taxonomy.Styles), at most
+	// taxonomy.MaxItemStyles.
+	Styles []string
 }
 
 // InspoTagResult is the raw output of tagging an inspiration photo (#49)
@@ -120,6 +123,10 @@ var ErrDisabled = errors.New("ai tagging is disabled")
 // disabled). Selected by AI_PROVIDER.
 type Provider interface {
 	TagItem(ctx context.Context, thumbnail []byte) (TagResult, Usage, error)
+
+	// TagItemStyles tags only an item's styles, for items tagged before
+	// items had styles. Untrusted until taxonomy.ValidItemStyles.
+	TagItemStyles(ctx context.Context, thumbnail []byte) ([]string, Usage, error)
 
 	// SuggestOutfits asks for 2-3 outfits built only from candidates,
 	// with sc as prompt context (not filters) shaping the picks and the

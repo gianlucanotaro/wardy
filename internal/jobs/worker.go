@@ -1,6 +1,7 @@
 // Package jobs runs the background worker that processes the jobs table:
-// tag_item (AI vision tagging of a garment), and for the inspiration board
-// (#49) tag_inspo and summarize_style. No Redis, no external queue — one
+// tag_item (AI vision tagging of a garment), tag_item_styles (the one-time
+// styles backfill), and for the inspiration board (#49) tag_inspo and
+// summarize_style. No Redis, no external queue — one
 // goroutine polling every few seconds is plenty.
 package jobs
 
@@ -96,7 +97,7 @@ func (w *Worker) Run(ctx context.Context) {
 // ProcessOne claims and processes a single job, if one is ready.
 // Exported so tests can drive it directly rather than through Run's ticker.
 func (w *Worker) ProcessOne(ctx context.Context) {
-	job, err := w.store.ClaimNextJob(ctx, TagItemType, TagInspoType, SummarizeStyleType)
+	job, err := w.store.ClaimNextJob(ctx, TagItemType, TagItemStylesType, TagInspoType, SummarizeStyleType)
 	if errors.Is(err, store.ErrNotFound) {
 		return
 	}
@@ -145,6 +146,8 @@ func (w *Worker) run(ctx context.Context, job *store.Job) error {
 		return w.runTagInspo(ctx, job)
 	case SummarizeStyleType:
 		return w.runSummarizeStyle(ctx, job)
+	case TagItemStylesType:
+		return w.runTagItemStyles(ctx, job)
 	default:
 		return w.runTagItem(ctx, job)
 	}
@@ -205,6 +208,7 @@ func (w *Worker) runTagItem(ctx context.Context, job *store.Job) error {
 		WarmthMax:      result.WarmthMax,
 		Seasons:        result.Seasons,
 		Occasions:      result.Occasions,
+		Styles:         result.Styles,
 	}
 	if err := tags.Validate(); err != nil {
 		return fmt.Errorf("model returned invalid tags: %w", err)
@@ -225,6 +229,7 @@ func (w *Worker) runTagItem(ctx context.Context, job *store.Job) error {
 		Seasons:        tags.Seasons,
 		Occasions:      tags.Occasions,
 		CustomTags:     result.CustomTags,
+		Styles:         tags.Styles,
 	}); err != nil {
 		return fmt.Errorf("save ai tags: %w", err)
 	}

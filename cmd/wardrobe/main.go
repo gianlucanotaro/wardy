@@ -93,6 +93,16 @@ func run() error {
 	worker := jobs.NewWorker(s, provider, photosDir, monthlyBudget)
 	go worker.Run(ctx)
 
+	// Items uploaded before items had styles get them tagged once, in the
+	// background. With AI off there's nothing to run them, so don't queue.
+	if aiEnabled {
+		if n, err := jobs.EnqueueStyleBackfill(ctx, s); err != nil {
+			slog.Error("queue style backfill", "error", err)
+		} else if n > 0 {
+			slog.Info("queued style backfill", "items", n)
+		}
+	}
+
 	weatherClient := weather.NewClient()
 
 	// Single sign-on (#51); off unless all of issuer, client and redirect are set.

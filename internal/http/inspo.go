@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/gianlucanotaro/wardy/internal/inspo"
 	"github.com/gianlucanotaro/wardy/internal/jobs"
@@ -36,6 +37,9 @@ type inspoBoardResponse struct {
 	SummaryPending   bool `json:"summary_pending"`
 	UseInSuggestions bool `json:"use_in_suggestions"`
 	MinFits          int  `json:"min_fits"`
+	// Radar compares the styles the user owns, wore in the last
+	// inspo.RadarWornDays days, and likes on the board.
+	Radar inspo.Radar `json:"radar"`
 }
 
 // inspoBoardHandler returns the whole board: every fit, the profile they
@@ -82,6 +86,19 @@ func inspoBoardHandler(s *store.Store) http.HandlerFunc {
 		if err != nil {
 			slog.Error("inspo board: check pending summary", "error", err)
 		}
+
+		since := time.Now().AddDate(0, 0, -inspo.RadarWornDays).Format(time.DateOnly)
+		owned, worn, err := s.ItemStyleLists(r.Context(), user.ID, since)
+		if err != nil {
+			slog.Error("inspo board: style lists", "error", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		fitStyles := make([][]string, len(fits))
+		for i, f := range fits {
+			fitStyles[i] = f.Styles
+		}
+		resp.Radar = inspo.BuildRadar(owned, worn, fitStyles)
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(resp)

@@ -58,6 +58,9 @@ func TestTagsValidate_RejectsEveryInvalidField(t *testing.T) {
 		{"warmth min above max", func(tg *Tags) { tg.WarmthMin, tg.WarmthMax = 5, 1 }, "warmth_max"},
 		{"seasons", func(tg *Tags) { tg.Seasons = []string{"monsoon"} }, "seasons"},
 		{"occasions", func(tg *Tags) { tg.Occasions = []string{"vacation"} }, "occasions"},
+		{"styles out of vocabulary", func(tg *Tags) { tg.Styles = []string{"cottagecore"} }, "styles"},
+		{"styles repeated", func(tg *Tags) { tg.Styles = []string{"minimal", "minimal"} }, "styles"},
+		{"styles over the cap", func(tg *Tags) { tg.Styles = []string{"minimal", "classic", "edgy", "vintage"} }, "styles"},
 	}
 
 	for _, c := range cases {
@@ -78,6 +81,18 @@ func TestTagsValidate_RejectsEveryInvalidField(t *testing.T) {
 				t.Errorf("Validate() field = %q, want %q", invalid.Field, c.wantErr)
 			}
 		})
+	}
+}
+
+func TestTagsValidate_Styles(t *testing.T) {
+	tags := validTags()
+	tags.Styles = []string{"minimal", "smart-casual", "workwear"}
+	if err := tags.Validate(); err != nil {
+		t.Errorf("Validate() with 3 valid styles = %v, want nil", err)
+	}
+	tags.Styles = nil
+	if err := tags.Validate(); err != nil {
+		t.Errorf("Validate() with no styles = %v, want nil (items start without)", err)
 	}
 }
 

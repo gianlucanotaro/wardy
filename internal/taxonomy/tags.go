@@ -23,7 +23,14 @@ type Tags struct {
 	WarmthMax    int
 	Seasons      []string
 	Occasions    []string
+	// Styles uses the inspo vocabulary (Styles), at most MaxItemStyles, so
+	// the wardrobe and the inspo board compare on one scale. Empty is
+	// valid: items uploaded before styles existed start without any.
+	Styles []string
 }
+
+// MaxItemStyles caps an item's styles, as MaxInspoStyles does a fit's.
+const MaxItemStyles = 3
 
 func (t Tags) Validate() error {
 	if !t.Category.Valid() {
@@ -63,7 +70,13 @@ func (t Tags) Validate() error {
 			return &ErrInvalid{Field: "occasions", Value: o}
 		}
 	}
-	return nil
+	return ValidItemStyles(t.Styles)
+}
+
+// ValidItemStyles checks an item's styles on their own, for the backfill
+// that tags only the styles of an already-tagged item.
+func ValidItemStyles(styles []string) error {
+	return validList("styles", styles, MaxItemStyles, func(s string) bool { return Style(s).Valid() })
 }
 
 // validRange checks one min/max pair of a 1-5 scale.

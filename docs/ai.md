@@ -18,6 +18,24 @@ wardrobe costs well under a dollar, once.
   job and let the user tag manually.
 - Set `ai_tagged_at`. When a user edits, set `user_edited_at` and never
   overwrite their values on a re-run.
+- Tagging includes **styles** (up to 3, the inspo vocabulary) and sets
+  `styles_ai_at`. Items tagged before styles existed get them from a
+  one-time **backfill**: on start, every item with no styles and no
+  `styles_ai_at` gets a `tag_item_styles` job (a styles-only Haiku call,
+  ~60 output tokens). It writes only `styles`, only while the item still has
+  none — a user's own styles and every other tag stay — and marks
+  `styles_ai_at` either way, so later starts queue nothing. Not queued with
+  AI off; the monthly budget applies per job.
+
+## Style radar
+
+The INSPO screen's spider chart compares three style mixes on one scale
+(`inspo.BuildRadar`, plain counting, works with AI off): **owned**
+(unarchived items), **worn** (each item of each wear in the last 90 days, so
+a piece worn twice counts twice) and **inspo** (fits). Each layer is its
+source's style tags as percentages per axis; the 12 styles fold into 9 axes
+(classic+preppy, edgy+avant-garde, romantic+bohemian). Under the chart, the
+biggest gaps in words: liked but not worn, owned but not worn, worn most.
 
 ## Suggestions — `claude-sonnet-5`
 
