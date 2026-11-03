@@ -10,6 +10,8 @@ import {
   COLORS,
   SEASONS,
   OCCASIONS,
+  STYLES,
+  MAX_ITEM_STYLES,
   SCALE_MIN,
   SCALE_MAX,
   FORMALITY_LABELS,
@@ -34,6 +36,7 @@ function draftFromItem(item: Item): TagsPayload {
     seasons: item.seasons ?? [],
     occasions: item.occasions ?? [],
     custom_tags: item.custom_tags ?? [],
+    styles: item.styles ?? [],
   }
 }
 
@@ -168,6 +171,15 @@ export default function TagEditor({ item, markAiSuggested }: { item: Item; markA
         value={draft.occasions}
         options={[...OCCASIONS]}
         onChange={(occasions) => save({ ...draft, occasions })}
+      />
+
+      <MultiField
+        label="STYLE"
+        aiSuggested={markAiSuggested}
+        value={draft.styles}
+        options={[...STYLES]}
+        max={MAX_ITEM_STYLES}
+        onChange={(styles) => save({ ...draft, styles })}
       />
 
       {mutation.isError && <p className="text-sm text-(--color-accent-700)">Couldn't save that change.</p>}

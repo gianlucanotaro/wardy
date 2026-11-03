@@ -21,6 +21,7 @@ type fakeProvider struct {
 	called bool
 
 	inspoResult ai.InspoTagResult
+	styles      []string
 	summary     string
 	// summaries counts SummarizeStyle calls, to assert an unchanged
 	// profile isn't summarized again.
@@ -30,6 +31,11 @@ type fakeProvider struct {
 func (f *fakeProvider) TagItem(_ context.Context, _ []byte) (ai.TagResult, ai.Usage, error) {
 	f.called = true
 	return f.result, f.usage, f.err
+}
+
+func (f *fakeProvider) TagItemStyles(_ context.Context, _ []byte) ([]string, ai.Usage, error) {
+	f.called = true
+	return f.styles, f.usage, f.err
 }
 
 func (f *fakeProvider) SuggestOutfits(_ context.Context, _ []ai.SuggestionCandidate, _ string, _ ai.SuggestContext) ([]ai.AISuggestion, ai.Usage, error) {

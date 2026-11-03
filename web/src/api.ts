@@ -21,6 +21,9 @@ export type TagsPayload = {
   // Free-form, user- or AI-authored — not part of the closed taxonomy
   // above, so it's edited separately (see CustomTagsField in TagEditor).
   custom_tags: string[]
+  // Up to 3 of the inspo style vocabulary (STYLES), so the wardrobe and
+  // the inspo board compare on one scale (the style radar).
+  styles: string[]
 }
 
 export type Item = TagsPayload & {
@@ -222,6 +225,21 @@ export type InspoBoard = {
   summary_pending: boolean
   use_in_suggestions: boolean
   min_fits: number
+  radar: StyleRadar
+}
+
+// One source's style mix (inspo.RadarLayer in Go): a percentage per axis,
+// summing to 100 once count > 0, and how many items, wears or fits with a
+// style it was counted from.
+export type RadarLayer = { shares: number[]; count: number }
+
+// The styles the user owns, wore in the last 90 days, and likes on the
+// inspo board, on one scale (inspo.Radar in Go).
+export type StyleRadar = {
+  axes: string[]
+  owned: RadarLayer
+  worn: RadarLayer
+  inspo: RadarLayer
 }
 
 export function getInspo(): Promise<InspoBoard> {

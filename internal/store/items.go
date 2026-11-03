@@ -32,6 +32,7 @@ type Item struct {
 	Seasons        StringList `json:"seasons"`
 	Occasions      StringList `json:"occasions"`
 	CustomTags     StringList `json:"custom_tags"`
+	Styles         StringList `json:"styles"`
 	PhotoPath      string     `json:"photo_path"`
 	ThumbPath      string     `json:"thumb_path"`
 	AITaggedAt     NullString `json:"ai_tagged_at"`
@@ -97,7 +98,7 @@ func (s *Store) ItemsByUser(ctx context.Context, userID int64, archived bool) ([
 	// (see ItemsByLastWorn), so this needs its own items.-qualified list.
 	rows, err := s.db.QueryContext(ctx, `SELECT items.id, items.user_id, items.name, items.category, items.subcategory,
 		items.color_primary, items.color_secondary, items.pattern, items.material, items.formality_min, items.formality_max, items.warmth_min, items.warmth_max,
-		items.fit, items.brand, items.notes, items.seasons, items.occasions, items.custom_tags, items.photo_path, items.thumb_path,
+		items.fit, items.brand, items.notes, items.seasons, items.occasions, items.custom_tags, items.styles, items.photo_path, items.thumb_path,
 		items.ai_tagged_at, items.user_edited_at, items.archived, items.created_at, COUNT(wi.wear_id), MAX(w.worn_on)
 		FROM items
 		LEFT JOIN wear_items wi ON wi.item_id = items.id
@@ -131,7 +132,7 @@ func scanItemWithWearStats(row rowScanner) (ItemWithWearStats, error) {
 	err := row.Scan(
 		&it.ID, &it.UserID, &it.Name, &it.Category, &it.Subcategory, &it.ColorPrimary,
 		&it.ColorSecondary, &it.Pattern, &it.Material, &it.FormalityMin, &it.FormalityMax, &it.WarmthMin, &it.WarmthMax, &it.Fit,
-		&it.Brand, &it.Notes, &it.Seasons, &it.Occasions, &it.CustomTags, &it.PhotoPath, &it.ThumbPath,
+		&it.Brand, &it.Notes, &it.Seasons, &it.Occasions, &it.CustomTags, &it.Styles, &it.PhotoPath, &it.ThumbPath,
 		&it.AITaggedAt, &it.UserEditedAt, &it.Archived, &it.CreatedAt,
 		&it.WearCount, &it.LastWornOn,
 	)
@@ -207,6 +208,8 @@ type ItemTags struct {
 	// closed taxonomy, so there's no enum to validate against, only the
 	// sanity caps validateCustomTags applies.
 	CustomTags []string
+	// Styles are validated like the closed fields (taxonomy.Tags.Validate).
+	Styles []string
 }
 
 const (
@@ -254,12 +257,12 @@ func (s *Store) UpdateItemTags(ctx context.Context, userID, id int64, t ItemTags
 		SET category = ?, subcategory = ?, color_primary = ?, color_secondary = ?,
 		    pattern = ?, material = ?, fit = ?,
 		    formality_min = ?, formality_max = ?, warmth_min = ?, warmth_max = ?,
-		    seasons = ?, occasions = ?, custom_tags = ?,
+		    seasons = ?, occasions = ?, custom_tags = ?, styles = ?,
 		    user_edited_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
 		WHERE id = ? AND user_id = ?`,
 		t.Category, t.Subcategory, t.ColorPrimary, t.ColorSecondary,
 		t.Pattern, t.Material, t.Fit, t.FormalityMin, t.FormalityMax, t.WarmthMin, t.WarmthMax,
-		StringList(t.Seasons), StringList(t.Occasions), StringList(validateCustomTags(t.CustomTags)), id, userID)
+		StringList(t.Seasons), StringList(t.Occasions), StringList(validateCustomTags(t.CustomTags)), StringList(t.Styles), id, userID)
 	if err != nil {
 		return fmt.Errorf("update item tags: %w", err)
 	}
@@ -278,12 +281,13 @@ func (s *Store) UpdateItemAITags(ctx context.Context, id int64, t ItemTags) (app
 		SET category = ?, subcategory = ?, color_primary = ?, color_secondary = ?,
 		    pattern = ?, material = ?, fit = ?,
 		    formality_min = ?, formality_max = ?, warmth_min = ?, warmth_max = ?,
-		    seasons = ?, occasions = ?, custom_tags = ?,
-		    ai_tagged_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+		    seasons = ?, occasions = ?, custom_tags = ?, styles = ?,
+		    ai_tagged_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
+		    styles_ai_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
 		WHERE id = ? AND user_edited_at IS NULL`,
 		t.Category, t.Subcategory, t.ColorPrimary, t.ColorSecondary,
 		t.Pattern, t.Material, t.Fit, t.FormalityMin, t.FormalityMax, t.WarmthMin, t.WarmthMax,
-		StringList(t.Seasons), StringList(t.Occasions), StringList(validateCustomTags(t.CustomTags)), id)
+		StringList(t.Seasons), StringList(t.Occasions), StringList(validateCustomTags(t.CustomTags)), StringList(t.Styles), id)
 	if err != nil {
 		return false, fmt.Errorf("update item ai tags: %w", err)
 	}
@@ -293,6 +297,64 @@ func (s *Store) UpdateItemAITags(ctx context.Context, id int64, t ItemTags) (app
 		return false, fmt.Errorf("rows affected: %w", err)
 	}
 	return n > 0, nil
+}
+
+// UpdateItemAIStyles saves the styles the backfill tagged for an item
+// uploaded before items had styles, and marks it looked at. Only the
+// styles change, and only while the item still has none: a user who set
+// styles by hand in the meantime keeps them. applied is false when that
+// guard skipped the write; the item is marked looked at either way, so
+// the backfill never queues it again.
+func (s *Store) UpdateItemAIStyles(ctx context.Context, id int64, styles []string) (applied bool, err error) {
+	res, err := s.db.ExecContext(ctx, `
+		UPDATE items
+		SET styles = ?, styles_ai_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+		WHERE id = ? AND styles = '[]'`,
+		StringList(styles), id)
+	if err != nil {
+		return false, fmt.Errorf("update item ai styles: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return false, fmt.Errorf("rows affected: %w", err)
+	}
+	if n > 0 {
+		return true, nil
+	}
+	if _, err := s.db.ExecContext(ctx,
+		`UPDATE items SET styles_ai_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now') WHERE id = ?`, id); err != nil {
+		return false, fmt.Errorf("mark item styles looked at: %w", err)
+	}
+	return false, nil
+}
+
+// ItemRef names an item and its owner, for queuing a job about it.
+type ItemRef struct {
+	ID     int64
+	UserID int64
+}
+
+// ItemsNeedingStyles lists every item (all users, archived too) the AI has
+// never looked at for styles and that has none: the backfill's work list.
+func (s *Store) ItemsNeedingStyles(ctx context.Context) ([]ItemRef, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, user_id FROM items WHERE styles_ai_at IS NULL AND styles = '[]' ORDER BY id`)
+	if err != nil {
+		return nil, fmt.Errorf("query items needing styles: %w", err)
+	}
+	defer rows.Close()
+	var refs []ItemRef
+	for rows.Next() {
+		var r ItemRef
+		if err := rows.Scan(&r.ID, &r.UserID); err != nil {
+			return nil, fmt.Errorf("scan item ref: %w", err)
+		}
+		refs = append(refs, r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate items needing styles: %w", err)
+	}
+	return refs, nil
 }
 
 // DeleteItem removes an item's row, scoped to userID, and returns its photo
@@ -317,7 +379,7 @@ func (s *Store) DeleteItem(ctx context.Context, userID, id int64) (photoPath, th
 
 const itemColumns = `SELECT id, user_id, name, category, subcategory, color_primary,
 	color_secondary, pattern, material, formality_min, formality_max, warmth_min, warmth_max, fit, brand, notes,
-	seasons, occasions, custom_tags, photo_path, thumb_path, ai_tagged_at, user_edited_at,
+	seasons, occasions, custom_tags, styles, photo_path, thumb_path, ai_tagged_at, user_edited_at,
 	archived, created_at`
 
 // rowScanner is satisfied by both *sql.Row and *sql.Rows.
@@ -330,7 +392,7 @@ func scanItem(row rowScanner) (Item, error) {
 	err := row.Scan(
 		&it.ID, &it.UserID, &it.Name, &it.Category, &it.Subcategory, &it.ColorPrimary,
 		&it.ColorSecondary, &it.Pattern, &it.Material, &it.FormalityMin, &it.FormalityMax, &it.WarmthMin, &it.WarmthMax, &it.Fit,
-		&it.Brand, &it.Notes, &it.Seasons, &it.Occasions, &it.CustomTags, &it.PhotoPath, &it.ThumbPath,
+		&it.Brand, &it.Notes, &it.Seasons, &it.Occasions, &it.CustomTags, &it.Styles, &it.PhotoPath, &it.ThumbPath,
 		&it.AITaggedAt, &it.UserEditedAt, &it.Archived, &it.CreatedAt,
 	)
 	if err != nil {

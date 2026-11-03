@@ -42,6 +42,10 @@ func (f *fakeAIProvider) SuggestOutfits(_ context.Context, candidates []ai.Sugge
 	return f.suggestions, f.usage, f.err
 }
 
+func (f *fakeAIProvider) TagItemStyles(_ context.Context, _ []byte) ([]string, ai.Usage, error) {
+	return nil, ai.Usage{}, errors.New("TagItemStyles not used by suggest package tests")
+}
+
 func (f *fakeAIProvider) TagInspo(_ context.Context, _ []byte) (ai.InspoTagResult, ai.Usage, error) {
 	return ai.InspoTagResult{}, ai.Usage{}, errors.New("TagInspo not used by suggest package tests")
 }

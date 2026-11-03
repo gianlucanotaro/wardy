@@ -10,6 +10,10 @@ func (offProvider) TagItem(_ context.Context, _ []byte) (TagResult, Usage, error
 	return TagResult{}, Usage{}, ErrDisabled
 }
 
+func (offProvider) TagItemStyles(_ context.Context, _ []byte) ([]string, Usage, error) {
+	return nil, Usage{}, ErrDisabled
+}
+
 func (offProvider) SuggestOutfits(_ context.Context, _ []SuggestionCandidate, _ string, _ SuggestContext) ([]AISuggestion, Usage, error) {
 	return nil, Usage{}, ErrDisabled
 }

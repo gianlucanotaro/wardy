@@ -345,10 +345,31 @@ func updateItemTagsHandler(s *store.Store) http.HandlerFunc {
 			// Not part of the closed taxonomy — no Validate() below,
 			// only the store layer's count/length caps (store.ItemTags).
 			CustomTags []string `json:"custom_tags"`
+			// A pointer so a client from before items had styles, which
+			// leaves the field out, keeps the item's styles instead of
+			// clearing them on every tag edit.
+			Styles *[]string `json:"styles"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "invalid request", http.StatusBadRequest)
 			return
+		}
+
+		var styles []string
+		if req.Styles != nil {
+			styles = *req.Styles
+		} else {
+			current, err := s.ItemByID(r.Context(), user.ID, id)
+			if errors.Is(err, store.ErrNotFound) {
+				http.Error(w, "not found", http.StatusNotFound)
+				return
+			}
+			if err != nil {
+				slog.Error("look up item styles", "error", err)
+				http.Error(w, "internal error", http.StatusInternalServerError)
+				return
+			}
+			styles = current.Styles
 		}
 
 		tags := taxonomy.Tags{
@@ -365,6 +386,7 @@ func updateItemTagsHandler(s *store.Store) http.HandlerFunc {
 			WarmthMax:      req.WarmthMax,
 			Seasons:        req.Seasons,
 			Occasions:      req.Occasions,
+			Styles:         styles,
 		}
 		if err := tags.Validate(); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -386,6 +408,7 @@ func updateItemTagsHandler(s *store.Store) http.HandlerFunc {
 			Seasons:        tags.Seasons,
 			Occasions:      tags.Occasions,
 			CustomTags:     req.CustomTags,
+			Styles:         tags.Styles,
 		})
 		if errors.Is(err, store.ErrNotFound) {
 			http.Error(w, "not found", http.StatusNotFound)
