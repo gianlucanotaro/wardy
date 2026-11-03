@@ -145,6 +145,10 @@ export default function StyleRadar({ radar }: { radar: Radar }) {
                 key={axis}
                 d={`M${CX},${CY} L${CX + Math.cos(a0) * big},${CY + Math.sin(a0) * big} A${big},${big} 0 0 1 ${CX + Math.cos(a1) * big},${CY + Math.sin(a1) * big} Z`}
                 fill="transparent"
+                // The tooltip and the bold axis label show the focused
+                // style; the browser's box around the wedge would only
+                // frame empty space.
+                className="outline-none"
                 tabIndex={0}
                 aria-label={`${axis}: ${layers.map((l) => `${l.name} ${radar[l.key].shares[i]}%`).join(', ')}`}
                 onPointerEnter={() => setHot(i)}
