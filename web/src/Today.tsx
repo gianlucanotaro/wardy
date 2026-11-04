@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { createLook, getSuggestions, getWeather, listItems, logWear, MOODS, todayISODate } from './api'
 import { useLocationSource, useWeatherCoords } from './location'
+import OutfitStyle from './OutfitStyle'
 import { OCCASIONS } from './taxonomy'
 import { useToast } from './useToast'
 
@@ -279,6 +280,8 @@ export default function Today() {
               ))}
             </div>
           </div>
+
+          <OutfitStyle key={key} items={outfit.items} />
 
           <div className="grid grid-cols-3 border-b-2 border-(--color-line-strong)">
             <button

@@ -75,6 +75,11 @@ item, so friction here compounds.
 Each outfit renders as a card: item thumbnails in a row, the model's
 one-sentence rationale, and actions to save as a look or log as worn.
 
+On Today the card also shows the outfit's style mix (`OutfitStyle.tsx`): one
+line per style, biggest first, as a share of the outfit's style tags, grouped
+like the style radar's axes. Tap a line for the pieces behind it. It keeps a
+fixed height so NOT TODAY doesn't move between outfits.
+
 Handle three states explicitly:
 
 - **Normal** — 2–3 cards.
