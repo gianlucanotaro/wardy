@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { deleteLook, listLooks, logWear, todayISODate, updateLook } from './api'
+import OutfitStyle from './OutfitStyle'
 import { useToast } from './useToast'
 
 // "TODAY" or e.g. "12 OCT", in the viewer's local time (created_at is UTC).
@@ -74,31 +75,34 @@ export default function Looks() {
               setNameDraft(look.name)
               logAsWorn.reset()
             }}
-            className="w-full flex items-baseline justify-between px-4 py-3 text-left"
+            className="w-full flex items-baseline justify-between gap-3 px-4 py-3 text-left"
           >
-            <span className="font-extrabold text-xl tracking-tight">{look.name?.toUpperCase() || 'UNTITLED'}</span>
-            <span className="wy-lbl">
+            <span className="font-extrabold text-xl tracking-tight truncate min-w-0">
+              {look.name?.toUpperCase() || 'UNTITLED'}
+            </span>
+            <span className="wy-lbl whitespace-nowrap">
               {look.items.length} PIECES
               {savedLabel(look.created_at) && ` · SAVED ${savedLabel(look.created_at)}`}
             </span>
           </button>
 
-          <div className="flex border-t border-(--color-line)">
+          <div className="grid grid-cols-6 gap-1.5 px-4 py-2.5 border-t border-(--color-line) sm:max-w-[440px]">
             {look.items.map((item) => (
-              <div key={item.id} className="flex-1 p-2.5 border-r border-(--color-line) last:border-r-0">
-                <div className="aspect-3/4 border border-(--color-line-strong) bg-(--color-surface) overflow-hidden">
-                  <img
-                    src={`/api/items/${item.id}/thumb`}
-                    alt={item.name || item.category}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="font-extrabold text-[10px] mt-1.5 tracking-tight truncate">
-                  {(item.name || item.category).toUpperCase()}
-                </div>
+              <div
+                key={item.id}
+                className="aspect-3/4 border border-(--color-line-strong) bg-(--color-surface) overflow-hidden"
+              >
+                <img
+                  src={`/api/items/${item.id}/thumb`}
+                  alt={item.name || item.category}
+                  loading="lazy"
+                  className="w-full h-full object-cover"
+                />
               </div>
             ))}
           </div>
+
+          <OutfitStyle items={look.items} compact />
 
           <div className="grid grid-cols-2 border-t border-(--color-line)">
             <button
