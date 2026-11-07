@@ -43,7 +43,7 @@ export default function Shell({ me, onLogout }: { me: Me; onLogout: () => void }
 
   return (
     <ToastProvider>
-      <div className="min-h-svh flex flex-col bg-(--color-bg) text-(--color-ink)">
+      <div className="flex flex-col bg-(--color-bg) text-(--color-ink)">
         <header className="sticky top-0 z-10 border-b-2 border-(--color-line-strong) bg-(--color-bg) pt-[env(safe-area-inset-top)]">
           <div className="flex items-center gap-4 px-4 py-3">
             <span className="font-extrabold text-lg tracking-tight mr-auto">WARDY</span>
@@ -68,7 +68,8 @@ export default function Shell({ me, onLogout }: { me: Me; onLogout: () => void }
           </div>
         </header>
 
-        <div className="flex-1 w-full max-w-2xl mx-auto pb-20">
+        {/* Clears the tab bar (50px + 12px); body padding covers the home indicator. */}
+        <div className="flex-1 w-full max-w-2xl mx-auto pb-[62px]">
           {view === 'today' && <Today />}
           {view === 'wardrobe' && (
             <Wardrobe
@@ -88,7 +89,7 @@ export default function Shell({ me, onLogout }: { me: Me; onLogout: () => void }
           {view === 'settings' && <Settings />}
         </div>
 
-        <nav className="fixed bottom-0 left-0 right-0 bg-(--color-bg) border-t-2 border-(--color-line-strong) z-10 safe-area-overlay">
+        <nav className="fixed bottom-0 left-0 right-0 bg-(--color-bg) border-t-2 border-(--color-line-strong) z-10 safe-area-tabbar">
           <div className="max-w-2xl mx-auto grid grid-cols-5">
             {TABS.map((t) => (
               <button

@@ -176,3 +176,11 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
   padding-left: max(var(--gutter-x), env(safe-area-inset-left));
 }
+
+/* The fixed bottom tab bar: like .safe-area-overlay but without the top
+   inset, which would leave a notch-sized empty band above the tabs. */
+.safe-area-tabbar {
+  padding-right: max(var(--gutter-x), env(safe-area-inset-right));
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: max(var(--gutter-x), env(safe-area-inset-left));
+}
