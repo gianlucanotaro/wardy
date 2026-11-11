@@ -106,8 +106,8 @@ rules-only. The wardrobe must always be browsable.
 make dev       # Go backend + Vite dev server
 make build     # frontend, embed, compile for host
 make release   # GOOS=linux GOARCH=amd64 CGO_ENABLED=0
-make test      # go test ./... + vitest
-make lint      # golangci-lint + eslint
+make test      # go test ./... (no frontend tests yet)
+make lint      # golangci-lint + oxlint
 ```
 
 Default `AI_PROVIDER=mock` locally — never burn API credits during development.
@@ -120,6 +120,9 @@ the deprecated `@modelcontextprotocol/server-github` npm package.
 One issue per build-order phase, broken into checklist items. Reference them in
 commits (`closes #12`). Check open issues before starting; verify against the
 definition of done before closing.
+
+No AI attribution in commits or PRs: no `Co-Authored-By: Claude` trailer, no
+"Generated with Claude Code" footer.
 
 ## Build order
 
