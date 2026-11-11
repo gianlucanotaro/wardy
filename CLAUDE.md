@@ -121,6 +121,9 @@ One issue per build-order phase, broken into checklist items. Reference them in
 commits (`closes #12`). Check open issues before starting; verify against the
 definition of done before closing.
 
+No AI attribution in commits or PRs: no `Co-Authored-By: Claude` trailer, no
+"Generated with Claude Code" footer.
+
 ## Build order
 
 Each phase usable before the next starts.
