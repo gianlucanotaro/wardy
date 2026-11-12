@@ -127,8 +127,20 @@ export function updateSettings(homeLat: number, homeLon: number): Promise<Settin
   })
 }
 
+// One date's forecast, "YYYY-MM-DD" in the location's own time zone (#80).
+export type DayForecast = { date: string; temp_high_c: number; temp_low_c: number; precip_probability: number; condition: string }
+
+// days: the daily forecast from today on, up to 7 days.
 export type Weather =
-  | { available: true; temp_high_c: number; temp_low_c: number; precip_probability: number; wind_speed_kph: number; condition: string }
+  | {
+      available: true
+      temp_high_c: number
+      temp_low_c: number
+      precip_probability: number
+      wind_speed_kph: number
+      condition: string
+      days: DayForecast[]
+    }
   | { available: false; reason: string }
 
 // coords is this device's current position (location.ts); without it the

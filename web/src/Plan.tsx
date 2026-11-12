@@ -3,6 +3,9 @@ import { useState } from 'react'
 import { getPlan, listLooks, setPlanDay, todayISODate, type PlanDay } from './api'
 import PlanWorn from './PlanWorn'
 import { lastWear, useWornLabel } from './planWear'
+import { forecastLabel, useDayForecast } from './dayForecast'
+import PlanForecast from './PlanForecast'
+import PlanPicker from './PlanPicker'
 import { useToast } from './useToast'
 
 const WEEKDAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
@@ -39,11 +42,9 @@ function fromISODate(iso: string): Date {
 }
 
 // The PLAN tab: one calendar week (Mon-Sun), this week by default with
-// previous/next arrows to page through others (#21), tap a day to cycle
-// through saved looks then back to unplanned — matching
-// Wardy Prototype.dc.html's isPlan block, but backed by real plan_days
-// rows instead of local state (see the plan's "PLAN is calendar-date-based,
-// not day-of-week-template-based").
+// previous/next arrows to page through others (#21), tap a day to pick its
+// look from a sheet (#76) — backed by real plan_days rows (see the plan's
+// "PLAN is calendar-date-based, not day-of-week-template-based").
 export default function Plan() {
   const queryClient = useQueryClient()
   const flash = useToast()
@@ -74,20 +75,23 @@ export default function Plan() {
   const setDay = useMutation({
     mutationFn: (input: { date: string; lookId: number | null }) => setPlanDay(input.date, input.lookId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['plan', start, end] }),
+    onError: () => flash("COULDN'T SAVE THE PLAN"),
   })
 
-  function cycle(date: string, currentLookId: number | null) {
-    const list = looks.data ?? []
-    if (list.length === 0) {
+  // The day whose look picker sheet is open.
+  const [picking, setPicking] = useState<PlanDay | null>(null)
+
+  function openPicker(day: PlanDay) {
+    if ((looks.data ?? []).length === 0) {
       flash('SAVE A LOOK FIRST')
       return
     }
-    if (currentLookId == null) {
-      setDay.mutate({ date, lookId: list[0].id })
-      return
-    }
-    const next = list.findIndex((l) => l.id === currentLookId) + 1
-    setDay.mutate({ date, lookId: next >= list.length ? null : list[next].id })
+    setPicking(day)
+  }
+
+  function choose(date: string, lookId: number | null) {
+    setDay.mutate({ date, lookId })
+    setPicking(null)
   }
 
   return (
@@ -130,9 +134,20 @@ export default function Plan() {
           last={i === plan.data.length - 1}
           busy={setDay.isPending && setDay.variables?.date === day.date}
           disabled={setDay.isPending}
-          onClick={() => cycle(day.date, day.look?.id ?? null)}
+          onClick={() => openPicker(day)}
         />
       ))}
+
+      {picking && (
+        <PlanPicker
+          date={fromISODate(picking.date)}
+          looks={looks.data ?? []}
+          currentLookId={picking.look?.id ?? null}
+          onPick={(lookId) => choose(picking.date, lookId)}
+          onClear={() => choose(picking.date, null)}
+          onClose={() => setPicking(null)}
+        />
+      )}
     </div>
   )
 }
@@ -193,12 +208,13 @@ function DayCard({
   const wear = isPast ? lastWear(day) : undefined
   const items = wear?.items ?? day.look?.items ?? []
   const wornLabel = useWornLabel(day)
+  const forecast = useDayForecast(day.date, !isPast)
   // Five slots: up to five thumbs, or four plus a "+N" tile for the rest.
   const shown = items.length > 5 ? items.slice(0, 4) : items
   const more = items.length - shown.length
 
   const spoken = date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
-  let label = `${isToday ? 'Today, ' : ''}${spoken}, `
+  let label = `${isToday ? 'Today, ' : ''}${spoken}, ${forecast ? `${forecastLabel(forecast)}, ` : ''}`
   if (isPast) label += `past, ${wornLabel}`
   else if (day.look) label += `${day.look.name}. Tap to change`
   else label += 'unplanned. Tap to plan a look'
@@ -215,8 +231,8 @@ function DayCard({
     >
       <DateColumn date={date} isToday={isToday} isPast={isPast} />
       <span className="min-w-0 flex flex-col gap-1.5">
-        {/* The right end of this row stays free for the forecast (#80). */}
-        <span className="h-5 flex items-center justify-between">
+        {/* The forecast sits at the right end of this row (#80). */}
+        <span className="h-5 flex items-center justify-between gap-2">
           {isPast ? (
             <PlanWorn day={day} />
           ) : day.look ? (
@@ -226,6 +242,7 @@ function DayCard({
           ) : (
             <span className="wy-lbl text-[11px]!">UNPLANNED</span>
           )}
+          {forecast && <PlanForecast forecast={forecast} />}
         </span>
         {/* Five thumbs need ~241px; on screens under ~360px the row clips
             rather than widening the card. */}
