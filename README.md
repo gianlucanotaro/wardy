@@ -145,7 +145,7 @@ work followed, and [`docs/`](docs) holds the design notes for each area:
 ## Non-goals
 
 Social features, sharing, e-commerce, native mobile apps, background
-removal/virtual try-on, multi-tenancy, billing, Kubernetes, local LLM hosting.
+removal, multi-tenancy, billing, Kubernetes, local LLM hosting.
 
 ## License
 
