@@ -5,6 +5,7 @@ import PlanWorn from './PlanWorn'
 import { lastWear, useWornLabel } from './planWear'
 import { forecastLabel, useDayForecast } from './dayForecast'
 import PlanForecast from './PlanForecast'
+import PlanPicker from './PlanPicker'
 import { useToast } from './useToast'
 
 const WEEKDAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
@@ -41,11 +42,9 @@ function fromISODate(iso: string): Date {
 }
 
 // The PLAN tab: one calendar week (Mon-Sun), this week by default with
-// previous/next arrows to page through others (#21), tap a day to cycle
-// through saved looks then back to unplanned — matching
-// Wardy Prototype.dc.html's isPlan block, but backed by real plan_days
-// rows instead of local state (see the plan's "PLAN is calendar-date-based,
-// not day-of-week-template-based").
+// previous/next arrows to page through others (#21), tap a day to pick its
+// look from a sheet (#76) — backed by real plan_days rows (see the plan's
+// "PLAN is calendar-date-based, not day-of-week-template-based").
 export default function Plan() {
   const queryClient = useQueryClient()
   const flash = useToast()
@@ -76,20 +75,23 @@ export default function Plan() {
   const setDay = useMutation({
     mutationFn: (input: { date: string; lookId: number | null }) => setPlanDay(input.date, input.lookId),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['plan', start, end] }),
+    onError: () => flash("COULDN'T SAVE THE PLAN"),
   })
 
-  function cycle(date: string, currentLookId: number | null) {
-    const list = looks.data ?? []
-    if (list.length === 0) {
+  // The day whose look picker sheet is open.
+  const [picking, setPicking] = useState<PlanDay | null>(null)
+
+  function openPicker(day: PlanDay) {
+    if ((looks.data ?? []).length === 0) {
       flash('SAVE A LOOK FIRST')
       return
     }
-    if (currentLookId == null) {
-      setDay.mutate({ date, lookId: list[0].id })
-      return
-    }
-    const next = list.findIndex((l) => l.id === currentLookId) + 1
-    setDay.mutate({ date, lookId: next >= list.length ? null : list[next].id })
+    setPicking(day)
+  }
+
+  function choose(date: string, lookId: number | null) {
+    setDay.mutate({ date, lookId })
+    setPicking(null)
   }
 
   return (
@@ -132,9 +134,20 @@ export default function Plan() {
           last={i === plan.data.length - 1}
           busy={setDay.isPending && setDay.variables?.date === day.date}
           disabled={setDay.isPending}
-          onClick={() => cycle(day.date, day.look?.id ?? null)}
+          onClick={() => openPicker(day)}
         />
       ))}
+
+      {picking && (
+        <PlanPicker
+          date={fromISODate(picking.date)}
+          looks={looks.data ?? []}
+          currentLookId={picking.look?.id ?? null}
+          onPick={(lookId) => choose(picking.date, lookId)}
+          onClear={() => choose(picking.date, null)}
+          onClose={() => setPicking(null)}
+        />
+      )}
     </div>
   )
 }
