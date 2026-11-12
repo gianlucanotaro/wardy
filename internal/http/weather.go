@@ -23,6 +23,17 @@ type weatherResponse struct {
 	PrecipProbability int     `json:"precip_probability"`
 	WindSpeedKPH      float64 `json:"wind_speed_kph"`
 	Condition         string  `json:"condition"`
+	// Days: the daily forecast from today on, for the plan (#80). Always
+	// a list (maybe empty) when available is true.
+	Days []dayForecastResponse `json:"days"`
+}
+
+type dayForecastResponse struct {
+	Date              string  `json:"date"`
+	TempHighC         float64 `json:"temp_high_c"`
+	TempLowC          float64 `json:"temp_low_c"`
+	PrecipProbability int     `json:"precip_probability"`
+	Condition         string  `json:"condition"`
 }
 
 // weatherLocation picks where to fetch weather for: the device's current
@@ -72,6 +83,17 @@ func weatherHandler(wc *weather.Client) http.HandlerFunc {
 			return
 		}
 
+		days := make([]dayForecastResponse, 0, len(forecast.Days))
+		for _, d := range forecast.Days {
+			days = append(days, dayForecastResponse{
+				Date:              d.Date,
+				TempHighC:         d.TempHighC,
+				TempLowC:          d.TempLowC,
+				PrecipProbability: d.PrecipProbability,
+				Condition:         d.Condition,
+			})
+		}
+
 		json.NewEncoder(w).Encode(weatherResponse{
 			Available:         true,
 			TempHighC:         forecast.TempHighC,
@@ -79,6 +101,7 @@ func weatherHandler(wc *weather.Client) http.HandlerFunc {
 			PrecipProbability: forecast.PrecipProbability,
 			WindSpeedKPH:      forecast.WindSpeedKPH,
 			Condition:         forecast.Condition,
+			Days:              days,
 		})
 	}
 }

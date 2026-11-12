@@ -3,6 +3,8 @@ import { useState } from 'react'
 import { getPlan, listLooks, setPlanDay, todayISODate, type PlanDay } from './api'
 import PlanWorn from './PlanWorn'
 import { lastWear, useWornLabel } from './planWear'
+import { forecastLabel, useDayForecast } from './dayForecast'
+import PlanForecast from './PlanForecast'
 import { useToast } from './useToast'
 
 const WEEKDAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
@@ -193,12 +195,13 @@ function DayCard({
   const wear = isPast ? lastWear(day) : undefined
   const items = wear?.items ?? day.look?.items ?? []
   const wornLabel = useWornLabel(day)
+  const forecast = useDayForecast(day.date, !isPast)
   // Five slots: up to five thumbs, or four plus a "+N" tile for the rest.
   const shown = items.length > 5 ? items.slice(0, 4) : items
   const more = items.length - shown.length
 
   const spoken = date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
-  let label = `${isToday ? 'Today, ' : ''}${spoken}, `
+  let label = `${isToday ? 'Today, ' : ''}${spoken}, ${forecast ? `${forecastLabel(forecast)}, ` : ''}`
   if (isPast) label += `past, ${wornLabel}`
   else if (day.look) label += `${day.look.name}. Tap to change`
   else label += 'unplanned. Tap to plan a look'
@@ -215,8 +218,8 @@ function DayCard({
     >
       <DateColumn date={date} isToday={isToday} isPast={isPast} />
       <span className="min-w-0 flex flex-col gap-1.5">
-        {/* The right end of this row stays free for the forecast (#80). */}
-        <span className="h-5 flex items-center justify-between">
+        {/* The forecast sits at the right end of this row (#80). */}
+        <span className="h-5 flex items-center justify-between gap-2">
           {isPast ? (
             <PlanWorn day={day} />
           ) : day.look ? (
@@ -226,6 +229,7 @@ function DayCard({
           ) : (
             <span className="wy-lbl text-[11px]!">UNPLANNED</span>
           )}
+          {forecast && <PlanForecast forecast={forecast} />}
         </span>
         {/* Five thumbs need ~241px; on screens under ~360px the row clips
             rather than widening the card. */}

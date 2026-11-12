@@ -112,6 +112,10 @@ Location access is asked for, never required: a denial falls back to home, and
 no location at all still suggests. On failure, suggest anyway with a note —
 never block.
 
+The same request asks for 7 days of daily forecast; `/api/weather` returns
+them as `days`, and the Plan shows high/low and rain chance on today and the
+days ahead (#80). No forecast, the cards just leave that space empty.
+
 ## Billing
 
 **A Claude Pro/Max subscription does not include API access.** Separate
