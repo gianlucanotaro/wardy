@@ -411,11 +411,13 @@
       <tr><th>Card</th><td>A <code>&lt;button&gt;</code> covering the whole card. Fixed height 112px including the 1px <code>--color-line</code> bottom border (the last card has a 2px <code>--color-line-strong</code> one). Grid <code>64px 1fr</code>, gap 12, padding 12px 16px. The height is the same in every state, so paging weeks doesn't shift the layout.</td></tr>
       <tr><th>Date column</th><td>Weekday 800 13px, .08em. Day number 800 30px/30px, -0.02em, tabular-nums.</td></tr>
       <tr><th>Title row</th><td>20px high. Look name 800 15px uppercase, truncated. The right end stays free for the forecast (#80). Past days put "Planned X · wore Y" here (#78).</td></tr>
-      <tr><th>Thumbnails</th><td>45×60 (3:4), gap 4px, 1px <code>--color-line-strong</code> border, <code>--color-surface</code> background, object-cover, alt="". Up to 5; with more than 5, show 4 and a "+N" tile.</td></tr>
+      <tr><th>Thumbnails</th><td>45×60 (3:4), gap 4px, 1px <code>--color-line-strong</code> border, <code>--color-surface</code> background, object-cover, alt="". Up to 5; with more than 5, show 4 and a "+N" tile. The row has overflow hidden, so below about 360px the fifth tile is clipped and the card doesn't get wider. On past days the "+N" tile is not greyed.</td></tr>
       <tr><th>Unplanned</th><td>Title "UNPLANNED" in 800 11px .12em <code>--color-neutral-700</code>. A 60px dashed box with "+ PLAN A LOOK" (800 10.5px, neutral-700). A past day with no plan says "NOTHING PLANNED" and has no box.</td></tr>
       <tr><th>Today</th><td><code>--color-accent-100</code> background, a 4px <code>--color-accent</code> inset bar on the left, weekday, number and the TODAY label in <code>--color-accent-700</code>. No solid red fills: white on accent is 3.9:1.</td></tr>
       <tr><th>Past</th><td>Text in <code>--color-neutral-700</code>, thumbnails grayscale at .55 opacity (images only). Once the wear is shown (#78), the thumbnails show what was worn, in full colour.</td></tr>
       <tr><th>Loading</th><td>Real weekday and number. The title is a 120×12 surface bar, plus 4 surface blocks of 45×60. A pulse is allowed, but off under reduced motion.</td></tr>
+      <tr><th>Error</th><td>A failed load shows "Couldn't load the plan." in <code>--color-accent-700</code>, text-sm, the same as Today. It never shows an endless skeleton.</td></tr>
+      <tr><th>Header</th><td>Same as today's page. The THIS WEEK chip is always rendered and hidden with <code>visibility: hidden</code> on the current week, so the header keeps its height and the cards don't move when you page.</td></tr>
       <tr><th>A11y</th><td>aria-label like "Today, Thursday 12 November, Navy smart casual. Tap to change". Visible focus: a 2px ink outline, offset -2px. Targets: 112px cards, 44px week arrows, 76px picker rows, 52px sheet actions.</td></tr>
     </table>
   </section>
