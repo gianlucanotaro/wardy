@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { useMutation, useQuery } from '@tanstack/react-query'
-import { createLook, getSuggestions, getWeather, listItems, logWear, MOODS, todayISODate } from './api'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { Item } from './api'
+import { createLook, getPlan, getSuggestions, getWeather, listItems, listWears, logWear, MOODS, todayISODate } from './api'
 import { useLocationSource, useWeatherCoords } from './location'
 import OutfitStyle from './OutfitStyle'
 import { OCCASIONS } from './taxonomy'
@@ -31,6 +32,7 @@ const MONTH = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'O
 // the plan's "implementation-level calls").
 export default function Today() {
   const flash = useToast()
+  const queryClient = useQueryClient()
   const [occasion, setOccasion] = useState<string>('casual')
   const [mood, setMood] = useState<string>('')
   const [deckIndex, setDeckIndex] = useState(0)
@@ -44,6 +46,33 @@ export default function Today() {
   const dateLabel = `${WEEKDAY[now.getDay()]} ${now.getDate()} ${MONTH[now.getMonth()]}`
 
   const items = useQuery({ queryKey: ['items'], queryFn: () => listItems() })
+
+  // A look planned for today (#79) comes first; the suggestion deck is the
+  // alternative, fetched only once asked for so a planned day doesn't spend
+  // an AI suggestion nobody looks at. A failed plan load degrades to the
+  // usual suggestions.
+  const today = todayISODate()
+  const plan = useQuery({ queryKey: ['plan', today, today], queryFn: () => getPlan(today, today) })
+  const plannedLook = plan.data?.[0]?.look ?? null
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const planSettled = plan.isSuccess || plan.isError
+  const showPlanned = plannedLook !== null && !showSuggestions
+  const wears = useQuery({ queryKey: ['wears'], queryFn: listWears, enabled: plannedLook !== null })
+  const wearPlanned = useMutation({
+    mutationFn: (lookId: number) => logWear({ look_id: lookId, worn_on: today }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wears'] })
+      queryClient.invalidateQueries({ queryKey: ['history'] })
+      queryClient.invalidateQueries({ queryKey: ['plan'] })
+      flash('LOGGED AS WORN TODAY')
+    },
+  })
+  // The server also logs a look at most once a day, so a double tap that
+  // slips past the disabled button still can't log it twice.
+  const plannedWorn =
+    plannedLook !== null &&
+    (wearPlanned.isSuccess || (wears.data ?? []).some((w) => w.look_id === plannedLook.id && w.worn_on === today))
+
   // Both wait for the browser's answer on location, so they fetch once for
   // here rather than once for home and again for here.
   const [locationSource] = useLocationSource()
@@ -52,7 +81,7 @@ export default function Today() {
   const suggestions = useQuery({
     queryKey: ['suggest', occasion, mood, coords],
     queryFn: () => getSuggestions(occasion, mood || undefined, coords),
-    enabled: ready,
+    enabled: ready && planSettled && !showPlanned,
   })
 
   const outfits = suggestions.data?.outfits ?? []
@@ -181,136 +210,191 @@ export default function Today() {
         </div>
       </div>
 
-      <div className="wy-sec flex justify-between px-4 py-2.5 border-b-2 border-(--color-line-strong)">
-        <span className="wy-lbl">INPUTS</span>
-        <span className="wy-lbl">TAP TO CHANGE</span>
-      </div>
-      <div className="px-4 py-3 border-b-2 border-(--color-line-strong) flex flex-col gap-3">
-        <div>
-          <div className="wy-lbl mb-1.5">OCCASION</div>
-          <div className="flex flex-wrap gap-1.5">
-            {OCCASIONS.map((o) => (
-              <button
-                key={o}
-                type="button"
-                className="wy-chip"
-                data-on={o === occasion || undefined}
-                onClick={() => selectInput(() => setOccasion(o))}
-              >
-                {o.toUpperCase()}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div>
-          <div className="wy-lbl mb-1.5">MOOD</div>
-          <div className="flex flex-wrap gap-1.5">
-            {MOODS.map((m) => (
-              <button
-                key={m}
-                type="button"
-                className="wy-chip"
-                data-on={m === mood || undefined}
-                onClick={() => selectInput(() => setMood(m === mood ? '' : m))}
-              >
-                {m.toUpperCase()}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+      {!planSettled && <p className="px-4 py-4 wy-lbl">LOADING…</p>}
 
-      <div className="flex justify-between px-4 py-2.5 border-b-2 border-(--color-line-strong) wy-lbl">
-        <span>
-          OUTFIT {outfits.length > 0 ? String((deckIndex % outfits.length) + 1).padStart(2, '0') : '00'}
-        </span>
-        <span>{outfits.length > 0 ? `${(deckIndex % outfits.length) + 1}/${outfits.length}` : '0/0'}</span>
-      </div>
-
-      {(!ready || suggestions.isLoading) && <p className="px-4 py-4 wy-lbl">FINDING OUTFITS…</p>}
-      {suggestions.isError && <p className="px-4 py-4 text-sm text-(--color-accent-700)">Couldn't load suggestions.</p>}
-
-      {suggestions.data && !suggestions.data.weather_available && (
-        <p className="px-4 py-2 wy-lbl border-b border-(--color-line)">
-          {weather.data?.available === false && weather.data.reason === 'no_location_set' ? 'NO LOCATION' : 'NO WEATHER'}
-        </p>
-      )}
-      {suggestions.data?.source === 'rules_fallback' && (
-        <p className="px-4 py-2 wy-lbl border-b border-(--color-line)">SIMPLE MATCH</p>
-      )}
-
-      {suggestions.isSuccess && !outfit && (
-        <div className="px-4 py-8 border-b-2 border-(--color-line-strong)">
-          <div className="font-extrabold text-xl mb-1.5">NOTHING MATCHES</div>
-          {suggestions.data.no_match_reason && <p className="text-sm max-w-[44ch]">{suggestions.data.no_match_reason}</p>}
-        </div>
-      )}
-
-      {outfit && (
+      {showPlanned && plannedLook && (
         <div>
           <div
-            onPointerDown={onCardPointerDown}
-            onPointerMove={onCardPointerMove}
-            onPointerUp={onCardPointerUp}
-            onPointerCancel={onCardPointerUp}
-            className="cursor-grab active:cursor-grabbing select-none"
-            style={{
-              transform: `translateX(${cardOffset}px) rotate(${cardOffset / 14}deg)`,
-              transition: prefersReducedMotion || dragStartX !== null ? 'none' : 'transform 220ms ease-out',
-              touchAction: 'pan-y',
-            }}
+            className="flex justify-between gap-3 px-4 py-2.5 border-b-2 border-(--color-line-strong) wy-lbl"
+            style={{ background: 'var(--color-accent-100)', color: 'var(--color-accent-700)' }}
           >
-            <div className="grid grid-cols-2 sm:grid-cols-4 border-b-2 border-(--color-line-strong)">
-              {outfit.items.map((item) => (
-                <div key={item.id} className="wy-tile">
-                  <div className="h-[130px] border border-(--color-line-strong) bg-(--color-surface) overflow-hidden">
-                    <img
-                      src={`/api/items/${item.id}/thumb`}
-                      alt={item.name || item.category}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="font-extrabold text-xs mt-1.5 tracking-tight truncate">
-                    {(item.name || item.subcategory || item.category).toUpperCase()}
-                  </div>
-                  <div className="text-[9.5px] text-(--color-neutral-700) tracking-wide truncate">
-                    {item.color_primary?.toUpperCase()}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <span>PLANNED FOR TODAY</span>
+            <span className="truncate">{plannedLook.name.toUpperCase()}</span>
           </div>
-
-          <OutfitStyle key={key} items={outfit.items} />
-
-          <div className="grid grid-cols-3 border-b-2 border-(--color-line-strong)">
+          <OutfitTiles items={plannedLook.items} />
+          <OutfitStyle key={`plan-${plannedLook.id}`} items={plannedLook.items} />
+          <div className="grid grid-cols-2 border-b-2 border-(--color-line-strong)">
             <button
               type="button"
               data-primary="1"
-              disabled={logged || logAsWorn.isPending}
-              onClick={() => logAsWorn.mutate({ key, itemIds: outfit.items.map((it) => it.id) })}
+              disabled={plannedWorn || wearPlanned.isPending}
+              onClick={() => wearPlanned.mutate(plannedLook.id)}
               className="wy-act"
             >
-              {logged ? 'LOGGED ✓' : 'LOG AS WORN'}
+              {plannedWorn ? 'WORN ✓' : 'WEAR THIS'}
             </button>
             <button
               type="button"
-              disabled={saved || saveAsLook.isPending}
-              onClick={() => saveAsLook.mutate({ key, itemIds: outfit.items.map((it) => it.id) })}
+              onClick={() => setShowSuggestions(true)}
               className="wy-act border-l-2 border-(--color-line-strong)"
             >
-              {saved ? 'SAVED ✓' : 'SAVE AS LOOK'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setDeckIndex((i) => i + 1)}
-              className="wy-act border-l-2 border-(--color-line-strong)"
-            >
-              NOT TODAY →
+              SUGGEST INSTEAD
             </button>
           </div>
+          {wearPlanned.isError && (
+            <p className="px-4 py-2 text-sm text-(--color-accent-700)">Couldn't log the wear. Try again.</p>
+          )}
         </div>
       )}
+
+      {planSettled && !showPlanned && (
+        <>
+          {plannedLook && (
+            <button
+              type="button"
+              onClick={() => setShowSuggestions(false)}
+              className="wy-act text-left border-b-2 border-(--color-line-strong)"
+              style={{ background: 'var(--color-accent-100)', color: 'var(--color-accent-700)' }}
+            >
+              ← BACK TO TODAY'S PLAN · {plannedLook.name.toUpperCase()}
+            </button>
+          )}
+          <div className="wy-sec flex justify-between px-4 py-2.5 border-b-2 border-(--color-line-strong)">
+            <span className="wy-lbl">INPUTS</span>
+            <span className="wy-lbl">TAP TO CHANGE</span>
+          </div>
+          <div className="px-4 py-3 border-b-2 border-(--color-line-strong) flex flex-col gap-3">
+            <div>
+              <div className="wy-lbl mb-1.5">OCCASION</div>
+              <div className="flex flex-wrap gap-1.5">
+                {OCCASIONS.map((o) => (
+                  <button
+                    key={o}
+                    type="button"
+                    className="wy-chip"
+                    data-on={o === occasion || undefined}
+                    onClick={() => selectInput(() => setOccasion(o))}
+                  >
+                    {o.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="wy-lbl mb-1.5">MOOD</div>
+              <div className="flex flex-wrap gap-1.5">
+                {MOODS.map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    className="wy-chip"
+                    data-on={m === mood || undefined}
+                    onClick={() => selectInput(() => setMood(m === mood ? '' : m))}
+                  >
+                    {m.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-between px-4 py-2.5 border-b-2 border-(--color-line-strong) wy-lbl">
+            <span>
+              OUTFIT {outfits.length > 0 ? String((deckIndex % outfits.length) + 1).padStart(2, '0') : '00'}
+            </span>
+            <span>{outfits.length > 0 ? `${(deckIndex % outfits.length) + 1}/${outfits.length}` : '0/0'}</span>
+          </div>
+
+          {(!ready || suggestions.isLoading) && <p className="px-4 py-4 wy-lbl">FINDING OUTFITS…</p>}
+          {suggestions.isError && <p className="px-4 py-4 text-sm text-(--color-accent-700)">Couldn't load suggestions.</p>}
+
+          {suggestions.data && !suggestions.data.weather_available && (
+            <p className="px-4 py-2 wy-lbl border-b border-(--color-line)">
+              {weather.data?.available === false && weather.data.reason === 'no_location_set' ? 'NO LOCATION' : 'NO WEATHER'}
+            </p>
+          )}
+          {suggestions.data?.source === 'rules_fallback' && (
+            <p className="px-4 py-2 wy-lbl border-b border-(--color-line)">SIMPLE MATCH</p>
+          )}
+
+          {suggestions.isSuccess && !outfit && (
+            <div className="px-4 py-8 border-b-2 border-(--color-line-strong)">
+              <div className="font-extrabold text-xl mb-1.5">NOTHING MATCHES</div>
+              {suggestions.data.no_match_reason && <p className="text-sm max-w-[44ch]">{suggestions.data.no_match_reason}</p>}
+            </div>
+          )}
+
+          {outfit && (
+            <div>
+              <div
+                onPointerDown={onCardPointerDown}
+                onPointerMove={onCardPointerMove}
+                onPointerUp={onCardPointerUp}
+                onPointerCancel={onCardPointerUp}
+                className="cursor-grab active:cursor-grabbing select-none"
+                style={{
+                  transform: `translateX(${cardOffset}px) rotate(${cardOffset / 14}deg)`,
+                  transition: prefersReducedMotion || dragStartX !== null ? 'none' : 'transform 220ms ease-out',
+                  touchAction: 'pan-y',
+                }}
+              >
+                <OutfitTiles items={outfit.items} />
+              </div>
+
+              <OutfitStyle key={key} items={outfit.items} />
+
+              <div className="grid grid-cols-3 border-b-2 border-(--color-line-strong)">
+                <button
+                  type="button"
+                  data-primary="1"
+                  disabled={logged || logAsWorn.isPending}
+                  onClick={() => logAsWorn.mutate({ key, itemIds: outfit.items.map((it) => it.id) })}
+                  className="wy-act"
+                >
+                  {logged ? 'LOGGED ✓' : 'LOG AS WORN'}
+                </button>
+                <button
+                  type="button"
+                  disabled={saved || saveAsLook.isPending}
+                  onClick={() => saveAsLook.mutate({ key, itemIds: outfit.items.map((it) => it.id) })}
+                  className="wy-act border-l-2 border-(--color-line-strong)"
+                >
+                  {saved ? 'SAVED ✓' : 'SAVE AS LOOK'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeckIndex((i) => i + 1)}
+                  className="wy-act border-l-2 border-(--color-line-strong)"
+                >
+                  NOT TODAY →
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+// The outfit's pieces as a grid of photo tiles, shared by the planned look
+// and the suggestion deck.
+function OutfitTiles({ items }: { items: Item[] }) {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 border-b-2 border-(--color-line-strong)">
+      {items.map((item) => (
+        <div key={item.id} className="wy-tile">
+          <div className="h-[130px] border border-(--color-line-strong) bg-(--color-surface) overflow-hidden">
+            <img src={`/api/items/${item.id}/thumb`} alt={item.name || item.category} className="w-full h-full object-cover" />
+          </div>
+          <div className="font-extrabold text-xs mt-1.5 tracking-tight truncate">
+            {(item.name || item.subcategory || item.category).toUpperCase()}
+          </div>
+          <div className="text-[9.5px] text-(--color-neutral-700) tracking-wide truncate">
+            {item.color_primary?.toUpperCase()}
+          </div>
+        </div>
+      ))}
     </div>
   )
 }

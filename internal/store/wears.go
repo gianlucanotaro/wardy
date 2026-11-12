@@ -46,6 +46,22 @@ func (s *Store) LogWear(ctx context.Context, userID int64, lookID *int64, itemID
 		if !exists {
 			return 0, ErrNotFound
 		}
+
+		// A look is worn at most once a day: a second log of the same look on
+		// the same date (a double tap, a retry) returns the first wear rather
+		// than recording it twice. SetMaxOpenConns(1) serializes transactions,
+		// so this check and the INSERT below can't interleave with another
+		// request's.
+		var existingID int64
+		err = tx.QueryRowContext(ctx,
+			`SELECT id FROM wears WHERE user_id = ? AND look_id = ? AND worn_on = ? ORDER BY id LIMIT 1`,
+			userID, *lookID, wornOn.UTC().Format("2006-01-02")).Scan(&existingID)
+		if err == nil {
+			return existingID, nil
+		}
+		if !errors.Is(err, sql.ErrNoRows) {
+			return 0, fmt.Errorf("check existing wear: %w", err)
+		}
 	}
 
 	// lookID stays nil (SQL NULL) until here, deliberately — writing it
