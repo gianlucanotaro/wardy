@@ -1,6 +1,8 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { getPlan, listLooks, setPlanDay, todayISODate, type PlanDay } from './api'
+import PlanWorn from './PlanWorn'
+import { lastWear, useWornLabel } from './planWear'
 import { useToast } from './useToast'
 
 const WEEKDAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
@@ -187,14 +189,17 @@ function DayCard({
   const date = fromISODate(day.date)
   const isToday = day.date === today
   const isPast = day.date < today
-  const items = day.look?.items ?? []
+  // Past days show what was worn, in colour, when a wear was logged (#78).
+  const wear = isPast ? lastWear(day) : undefined
+  const items = wear?.items ?? day.look?.items ?? []
+  const wornLabel = useWornLabel(day)
   // Five slots: up to five thumbs, or four plus a "+N" tile for the rest.
   const shown = items.length > 5 ? items.slice(0, 4) : items
   const more = items.length - shown.length
 
   const spoken = date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
   let label = `${isToday ? 'Today, ' : ''}${spoken}, `
-  if (isPast) label += `past, ${day.look?.name ?? 'nothing planned'}`
+  if (isPast) label += `past, ${wornLabel}`
   else if (day.look) label += `${day.look.name}. Tap to change`
   else label += 'unplanned. Tap to plan a look'
 
@@ -212,14 +217,14 @@ function DayCard({
       <span className="min-w-0 flex flex-col gap-1.5">
         {/* The right end of this row stays free for the forecast (#80). */}
         <span className="h-5 flex items-center justify-between">
-          {day.look ? (
-            <span
-              className={`font-extrabold text-[15px] leading-5 tracking-[-0.01em] truncate ${isPast ? 'text-(--color-neutral-700)' : ''}`}
-            >
+          {isPast ? (
+            <PlanWorn day={day} />
+          ) : day.look ? (
+            <span className="font-extrabold text-[15px] leading-5 tracking-[-0.01em] truncate">
               {day.look.name.toUpperCase()}
             </span>
           ) : (
-            <span className="wy-lbl text-[11px]!">{isPast ? 'NOTHING PLANNED' : 'UNPLANNED'}</span>
+            <span className="wy-lbl text-[11px]!">UNPLANNED</span>
           )}
         </span>
         {/* Five thumbs need ~241px; on screens under ~360px the row clips
@@ -231,7 +236,7 @@ function DayCard({
               src={`/api/items/${it.id}/thumb`}
               alt=""
               loading="lazy"
-              className={`${THUMB} object-cover bg-(--color-surface) ${isPast ? 'grayscale opacity-55' : ''}`}
+              className={`${THUMB} object-cover bg-(--color-surface) ${isPast && !wear ? 'grayscale opacity-55' : ''}`}
             />
           ))}
           {more > 0 && (
