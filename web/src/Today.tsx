@@ -4,6 +4,7 @@ import type { Item } from './api'
 import { createLook, getPlan, getSuggestions, getWeather, listItems, listWears, logWear, MOODS, todayISODate } from './api'
 import { useLocationSource, useWeatherCoords } from './location'
 import OutfitStyle from './OutfitStyle'
+import PlanForSheet from './PlanForSheet'
 import { OCCASIONS } from './taxonomy'
 import { useToast } from './useToast'
 
@@ -55,6 +56,7 @@ export default function Today() {
   const plan = useQuery({ queryKey: ['plan', today, today], queryFn: () => getPlan(today, today) })
   const plannedLook = plan.data?.[0]?.look ?? null
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [planForOpen, setPlanForOpen] = useState(false)
   const planSettled = plan.isSuccess || plan.isError
   const showPlanned = plannedLook !== null && !showSuggestions
   const wears = useQuery({ queryKey: ['wears'], queryFn: listWears, enabled: plannedLook !== null })
@@ -343,7 +345,7 @@ export default function Today() {
 
               <OutfitStyle key={key} items={outfit.items} />
 
-              <div className="grid grid-cols-3 border-b-2 border-(--color-line-strong)">
+              <div className="grid grid-cols-2 border-b-2 border-(--color-line-strong)">
                 <button
                   type="button"
                   data-primary="1"
@@ -363,12 +365,27 @@ export default function Today() {
                 </button>
                 <button
                   type="button"
+                  onClick={() => setPlanForOpen(true)}
+                  className="wy-act border-t-2 border-(--color-line-strong)"
+                >
+                  PLAN FOR…
+                </button>
+                <button
+                  type="button"
                   onClick={() => setDeckIndex((i) => i + 1)}
-                  className="wy-act border-l-2 border-(--color-line-strong)"
+                  className="wy-act border-l-2 border-t-2 border-(--color-line-strong)"
                 >
                   NOT TODAY →
                 </button>
               </div>
+              {planForOpen && (
+                <PlanForSheet
+                  itemIds={outfit.items.map((it) => it.id)}
+                  namePrefix={occasion.toUpperCase()}
+                  onClose={() => setPlanForOpen(false)}
+                  onPlanned={() => setPlanForOpen(false)}
+                />
+              )}
             </div>
           )}
         </>
