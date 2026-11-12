@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { getPlan, listLooks, setPlanDay } from './api'
+import { getPlan, listLooks, setPlanDay, todayISODate, type PlanDay } from './api'
 import { useToast } from './useToast'
 
 const WEEKDAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
@@ -29,6 +29,13 @@ function weekLabel(monday: Date, sunday: Date): string {
   return `${fmt(monday)} – ${fmt(sunday)}`
 }
 
+// fromISODate turns "2026-11-09" into a local-midnight Date (new Date() on
+// the string would parse it as UTC and can land on the previous day).
+function fromISODate(iso: string): Date {
+  const [y, m, d] = iso.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
 // The PLAN tab: one calendar week (Mon-Sun), this week by default with
 // previous/next arrows to page through others (#21), tap a day to cycle
 // through saved looks then back to unplanned — matching
@@ -49,6 +56,7 @@ export default function Plan() {
     d.setDate(d.getDate() + i)
     return d
   })
+  const today = todayISODate()
   const start = isoDate(days[0])
   const end = isoDate(days[6])
 
@@ -84,11 +92,15 @@ export default function Plan() {
     <div className="flex flex-col">
       <div className="flex items-baseline justify-between px-4 py-3 border-b-2 border-(--color-line-strong)">
         <span className="font-extrabold text-3xl tracking-tight">THE WEEK</span>
-        {offset !== 0 && (
-          <button type="button" onClick={() => setOffset(0)} className="wy-chip">
-            THIS WEEK
-          </button>
-        )}
+        {/* Always rendered, hidden on this week, so the header keeps its
+            height and the cards don't jump while paging (#77). */}
+        <button
+          type="button"
+          onClick={() => setOffset(0)}
+          className={`wy-chip ${offset === 0 ? 'invisible' : ''}`}
+        >
+          THIS WEEK
+        </button>
       </div>
 
       <div className="flex items-center justify-between gap-2 px-2 py-1.5 border-b-2 border-(--color-line-strong)">
@@ -104,45 +116,161 @@ export default function Plan() {
         <WeekArrow direction="next" onClick={() => setOffset(offset + 1)} />
       </div>
 
-      {plan.isLoading && <p className="px-4 py-4 wy-lbl">LOADING…</p>}
+      {plan.isError && <p className="px-4 py-4 text-sm text-(--color-accent-700)">Couldn't load the plan.</p>}
 
-      {plan.data?.map((day, i) => {
-        const on = !!day.look
-        return (
-          <button
-            key={day.date}
-            type="button"
-            onClick={() => cycle(day.date, day.look?.id ?? null)}
-            disabled={setDay.isPending}
-            className="w-full grid items-center gap-3 min-h-16 px-4 py-3 text-left border-b"
-            style={{
-              gridTemplateColumns: '64px 1fr auto',
-              borderColor: 'var(--color-line)',
-              background: on ? 'var(--color-accent)' : 'var(--color-bg)',
-              color: on ? 'var(--color-bg)' : 'var(--color-ink)',
-            }}
-          >
-            <span className="flex flex-col">
-              <span className="font-extrabold text-[15px] tracking-wide">{WEEKDAY_LABELS[i]}</span>
-              <span className="text-[11px] font-semibold opacity-70">{days[i].getDate()}</span>
+      {plan.isLoading && days.map((d, i) => <DaySkeleton key={i} date={d} today={today} last={i === 6} />)}
+
+      {plan.data?.map((day, i) => (
+        <DayCard
+          key={day.date}
+          day={day}
+          today={today}
+          last={i === plan.data.length - 1}
+          busy={setDay.isPending && setDay.variables?.date === day.date}
+          disabled={setDay.isPending}
+          onClick={() => cycle(day.date, day.look?.id ?? null)}
+        />
+      ))}
+    </div>
+  )
+}
+
+// Every card is the same 112px tall whatever its state, so paging weeks
+// and the first load don't shift anything below it (#77).
+const CARD = 'w-full h-28 grid items-start gap-3 px-4 py-3 text-left'
+const CARD_COLUMNS = { gridTemplateColumns: '64px 1fr' }
+
+// The 3:4 thumbnail slot, shared by thumbnails, the "+N" tile and the
+// skeleton blocks.
+const THUMB_SIZE = 'w-[45px] h-[60px] shrink-0'
+const THUMB = `${THUMB_SIZE} border border-(--color-line-strong)`
+
+// Hairline between cards, strong rule under the last one.
+function cardBorder(last: boolean): string {
+  return last ? 'border-b-2 border-(--color-line-strong)' : 'border-b border-(--color-line)'
+}
+
+// Today: tinted ground plus a 4px accent bar, drawn as an inset shadow so
+// it doesn't change the box.
+function todayStyle(isToday: boolean) {
+  return isToday
+    ? { background: 'var(--color-accent-100)', boxShadow: 'inset 4px 0 0 var(--color-accent)' }
+    : { background: 'var(--color-bg)' }
+}
+
+function DateColumn({ date, isToday, isPast }: { date: Date; isToday: boolean; isPast: boolean }) {
+  const color = isToday ? 'text-(--color-accent-700)' : isPast ? 'text-(--color-neutral-700)' : ''
+  return (
+    <span className={`flex flex-col ${color}`}>
+      <span className="font-extrabold text-[13px] tracking-[0.08em]">{WEEKDAY_LABELS[(date.getDay() + 6) % 7]}</span>
+      <span className="font-extrabold text-[30px] leading-[30px] tracking-[-0.02em] tabular-nums">{date.getDate()}</span>
+      {isToday && <span className="wy-lbl mt-1 text-(--color-accent-700)!">TODAY</span>}
+    </span>
+  )
+}
+
+function DayCard({
+  day,
+  today,
+  last,
+  busy,
+  disabled,
+  onClick,
+}: {
+  day: PlanDay
+  today: string
+  last: boolean
+  busy: boolean
+  disabled: boolean
+  onClick: () => void
+}) {
+  const date = fromISODate(day.date)
+  const isToday = day.date === today
+  const isPast = day.date < today
+  const items = day.look?.items ?? []
+  // Five slots: up to five thumbs, or four plus a "+N" tile for the rest.
+  const shown = items.length > 5 ? items.slice(0, 4) : items
+  const more = items.length - shown.length
+
+  const spoken = date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
+  let label = `${isToday ? 'Today, ' : ''}${spoken}, `
+  if (isPast) label += `past, ${day.look?.name ?? 'nothing planned'}`
+  else if (day.look) label += `${day.look.name}. Tap to change`
+  else label += 'unplanned. Tap to plan a look'
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      aria-busy={busy}
+      className={`${CARD} ${cardBorder(last)} focus-visible:outline-2 focus-visible:outline-(--color-line-strong) focus-visible:-outline-offset-2`}
+      style={{ ...CARD_COLUMNS, ...todayStyle(isToday) }}
+    >
+      <DateColumn date={date} isToday={isToday} isPast={isPast} />
+      <span className="min-w-0 flex flex-col gap-1.5">
+        {/* The right end of this row stays free for the forecast (#80). */}
+        <span className="h-5 flex items-center justify-between">
+          {day.look ? (
+            <span
+              className={`font-extrabold text-[15px] leading-5 tracking-[-0.01em] truncate ${isPast ? 'text-(--color-neutral-700)' : ''}`}
+            >
+              {day.look.name.toUpperCase()}
             </span>
-            <span className="font-extrabold text-[19px] tracking-tight truncate">
-              {day.look?.name?.toUpperCase() || 'UNPLANNED'}
+          ) : (
+            <span className="wy-lbl text-[11px]!">{isPast ? 'NOTHING PLANNED' : 'UNPLANNED'}</span>
+          )}
+        </span>
+        {/* Five thumbs need ~241px; on screens under ~360px the row clips
+            rather than widening the card. */}
+        <span className="h-[60px] flex gap-1 overflow-hidden">
+          {shown.map((it) => (
+            <img
+              key={it.id}
+              src={`/api/items/${it.id}/thumb`}
+              alt=""
+              loading="lazy"
+              className={`${THUMB} object-cover bg-(--color-surface) ${isPast ? 'grayscale opacity-55' : ''}`}
+            />
+          ))}
+          {more > 0 && (
+            <span className={`${THUMB} flex items-center justify-center bg-(--color-bg) font-extrabold text-[12px]`}>
+              +{more}
             </span>
-            <span className="flex gap-1">
-              {(day.look?.items ?? []).slice(0, 4).map((it) => (
-                <img
-                  key={it.id}
-                  src={`/api/items/${it.id}/thumb`}
-                  alt=""
-                  className="w-[18px] h-6 object-cover border"
-                  style={{ borderColor: 'var(--color-ink)' }}
-                />
-              ))}
+          )}
+          {!day.look && !isPast && (
+            <span className="flex-1 flex items-center justify-center border border-dashed border-(--color-line-strong) font-extrabold text-[10.5px] tracking-[0.08em] text-(--color-neutral-700)">
+              + PLAN A LOOK
             </span>
-          </button>
-        )
-      })}
+          )}
+        </span>
+      </span>
+    </button>
+  )
+}
+
+// First load only (paging keeps the previous week on screen): the real
+// dates, with grey blocks where the look will go, at the card's height.
+function DaySkeleton({ date, today, last }: { date: Date; today: string; last: boolean }) {
+  const iso = isoDate(date)
+  return (
+    <div
+      aria-hidden="true"
+      className={`${CARD} ${cardBorder(last)}`}
+      style={{ ...CARD_COLUMNS, ...todayStyle(iso === today) }}
+    >
+      <DateColumn date={date} isToday={iso === today} isPast={iso < today} />
+      <span className="min-w-0 flex flex-col gap-1.5 animate-pulse motion-reduce:animate-none">
+        <span className="h-5 flex items-center">
+          <span className="w-[120px] h-3 bg-(--color-surface)" />
+        </span>
+        <span className="h-[60px] flex gap-1">
+          {[0, 1, 2, 3].map((n) => (
+            <span key={n} className={`${THUMB_SIZE} bg-(--color-surface)`} />
+          ))}
+        </span>
+      </span>
     </div>
   )
 }
