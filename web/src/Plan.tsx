@@ -1,5 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { getPlan, listLooks, setPlanDay, todayISODate, type PlanDay } from './api'
 import PlanWorn from './PlanWorn'
 import { lastWear, useWornLabel } from './planWear'
@@ -9,6 +9,9 @@ import PlanPicker from './PlanPicker'
 import { useToast } from './useToast'
 
 const WEEKDAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
+// A sideways swipe this long, and mostly sideways, pages the week (#83).
+const SWIPE_PX = 60
+
 const MONTH_LABELS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
 
 function mondayOf(date: Date): Date {
@@ -52,6 +55,26 @@ export default function Plan() {
   // Weeks away from this one, unbounded both ways: the API caps a single
   // request at 31 days, not how far you can page.
   const [offset, setOffset] = useState(0)
+
+  // Swipe left for the next week, right for the previous one (#83). Touch
+  // and pen only; the arrows cover mouse and keyboard. touch-action: pan-y
+  // leaves vertical scrolling to the browser, which cancels the pointer
+  // when it starts scrolling, so a scroll never pages.
+  const swipeStart = useRef<{ x: number; y: number } | null>(null)
+  function onSwipeStart(e: React.PointerEvent) {
+    // Ignore drags inside a sheet opened over the week.
+    if (e.pointerType === 'mouse' || (e.target as Element).closest('dialog')) return
+    swipeStart.current = { x: e.clientX, y: e.clientY }
+  }
+  function onSwipeEnd(e: React.PointerEvent) {
+    const start = swipeStart.current
+    swipeStart.current = null
+    if (!start) return
+    const dx = e.clientX - start.x
+    const dy = e.clientY - start.y
+    if (Math.abs(dx) < SWIPE_PX || Math.abs(dx) < 2 * Math.abs(dy)) return
+    setOffset((o) => o + (dx < 0 ? 1 : -1))
+  }
   const monday = mondayOf(new Date())
   monday.setDate(monday.getDate() + offset * 7)
   const days = Array.from({ length: 7 }, (_, i) => {
@@ -95,7 +118,12 @@ export default function Plan() {
   }
 
   return (
-    <div className="flex flex-col">
+    <div
+      className="flex flex-col touch-pan-y"
+      onPointerDown={onSwipeStart}
+      onPointerUp={onSwipeEnd}
+      onPointerCancel={() => (swipeStart.current = null)}
+    >
       <div className="flex items-baseline justify-between px-4 py-3 border-b-2 border-(--color-line-strong)">
         <span className="font-extrabold text-3xl tracking-tight">THE WEEK</span>
         {/* Always rendered, hidden on this week, so the header keeps its
