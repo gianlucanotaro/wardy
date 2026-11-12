@@ -100,6 +100,40 @@ no error, and a hallucinated id renders as a broken card rather than a crash.
 Weather down → suggest anyway. AI down → rules-only. Budget exceeded →
 rules-only. The wardrobe must always be browsable.
 
+## Skills
+
+Use a skill when the situation in the left column comes up. If a skill isn't
+installed in this session, carry on without it; never install one yourself.
+
+| Situation | Skill |
+|---|---|
+| Planning a feature or an issue before writing code | `grill-me`: ask the user until every open decision is settled, then write the result into the issue |
+| Fixing a bug | `red-green-proof`: show the cause, write a test that fails, fix it, and check the test fails again with the fix reverted |
+| A whole screen or module is broken | `focused-fix`: map every file it touches before changing anything |
+| Before you commit | `karpathy-coder`: catch overbuilding (needless abstraction, edits outside the task). This repo wants boring code |
+| Before you open the PR | `/code-review` on the branch, then `/simplify` if it flags clean-ups |
+| Touching auth, sessions, uploads or anything user-supplied | `/security-review` |
+| Adding or bumping a Go or npm dependency | `dependency-auditor`. Ask the user before adding a dependency |
+| Checking that a change works in the real app | `run` |
+| Stopping mid-task | `handoff`: write the state into the issue or PR, not a new file |
+
+Don't use skills that duplicate the built-ins (`pr-review-expert`,
+`code-reviewer`, `senior-secops`, `commit-craft`): `/code-review`,
+`/security-review` and this file's rules already cover them.
+
+Specific to this repo:
+
+| Situation | Skill |
+|---|---|
+| AI tagging, suggestion prompts, model choice, budget | `llm-cost-optimizer`. `AI_PROVIDER=mock` locally still applies |
+| Any migration once real data exists | `migration-architect` for the rollback plan, **after** the user approves the schema change |
+| Capture, wardrobe grid, outfit cards | `a11y-audit` |
+| End-to-end checks of upload → tag → suggest | `pw` (Playwright; it routes to `pw-init`, `pw-generate`, `pw-review`, `pw-fix`), with the mock AI provider |
+| Demo or marketing visuals of the app | `stageshow` |
+
+- No AI attribution in commits or PRs (see Issue tracking): this overrides the agent's default trailers.
+- Ownership checks and AI-response parsing are the priority tests. `red-green-proof` bugs in those areas first.
+
 ## Commands
 
 ```bash
