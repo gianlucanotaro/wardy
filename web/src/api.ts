@@ -335,7 +335,8 @@ export function getHistory(): Promise<History> {
   return request('/api/history')
 }
 
-export type PlanDay = { date: string; look: Look | null }
+// wears: what was logged as worn that day, oldest first; [] when nothing was.
+export type PlanDay = { date: string; look: Look | null; wears: Wear[] }
 
 export function getPlan(start: string, end: string): Promise<PlanDay[]> {
   return request(`/api/plan?start=${start}&end=${end}`)
