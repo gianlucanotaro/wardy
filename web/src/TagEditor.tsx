@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { updateItemTags, type Item, type TagsPayload } from './api'
+import ColorSwatches from './ColorSwatches'
+import { Cross } from './Icons'
 import {
   CATEGORIES,
   SUBCATEGORIES,
@@ -115,15 +117,18 @@ export default function TagEditor({ item, markAiSuggested }: { item: Item; markA
       </Field>
 
       <Field label="COLOR" aiSuggested={markAiSuggested}>
-        <ChipGroup value={draft.color_primary} options={[...COLORS]} onChange={(color_primary) => save({ ...draft, color_primary })} />
+        <ColorSwatches
+          value={[draft.color_primary]}
+          options={[...COLORS]}
+          onPick={(color_primary) => save({ ...draft, color_primary })}
+        />
       </Field>
 
       <Field label="SECONDARY COLOR">
-        <ChipGroup
-          value={draft.color_secondary}
+        <ColorSwatches
+          value={[draft.color_secondary]}
           options={['', ...COLORS]}
-          labels={{ '': 'NONE' }}
-          onChange={(color_secondary) => save({ ...draft, color_secondary })}
+          onPick={(color_secondary) => save({ ...draft, color_secondary })}
         />
       </Field>
 
@@ -222,7 +227,7 @@ export function CustomTagsField({ value, onChange }: { value: string[]; onChange
               aria-label={`Remove tag ${tag}`}
               className="text-(--color-neutral-500)"
             >
-              ×
+              <Cross />
             </button>
           </span>
         ))}
@@ -370,7 +375,7 @@ export function ScaleField({
               }`}
               style={{
                 background: on ? 'var(--color-accent)' : 'transparent',
-                color: on ? 'var(--color-bg)' : 'var(--color-ink)',
+                color: on ? 'var(--color-on-accent)' : 'var(--color-ink)',
               }}
             >
               {v}
@@ -389,6 +394,7 @@ export function MultiField({
   value,
   options,
   max,
+  swatches,
   onChange,
 }: {
   label: string
@@ -396,6 +402,7 @@ export function MultiField({
   value: string[]
   options: string[]
   max?: number
+  swatches?: boolean
   onChange: (value: string[]) => void
 }) {
   function toggle(opt: string) {
@@ -412,13 +419,17 @@ export function MultiField({
         {label}
         {aiSuggested && <AiDot />}
       </span>
-      <div className="flex flex-wrap gap-1.5">
-        {options.map((opt) => (
-          <button type="button" key={opt} className="wy-chip" data-on={value.includes(opt) || undefined} onClick={() => toggle(opt)}>
-            {opt.toUpperCase()}
-          </button>
-        ))}
-      </div>
+      {swatches ? (
+        <ColorSwatches value={value} options={options} onPick={toggle} />
+      ) : (
+        <div className="flex flex-wrap gap-1.5">
+          {options.map((opt) => (
+            <button type="button" key={opt} className="wy-chip" data-on={value.includes(opt) || undefined} onClick={() => toggle(opt)}>
+              {opt.toUpperCase()}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

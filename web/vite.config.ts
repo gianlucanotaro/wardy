@@ -15,8 +15,11 @@ export default defineConfig({
         short_name: 'Wardy',
         description: 'A self-hosted digital wardrobe and lookbook.',
         display: 'standalone',
-        background_color: '#f3f2f2',
-        theme_color: '#ec3013',
+        // The paper colour of the light theme. A manifest can't follow dark
+        // mode, so a phone set to dark sees this on the splash screen only;
+        // index.html and theme.ts set the live status bar colour.
+        background_color: '#f1ece2',
+        theme_color: '#f1ece2',
         icons: [
           { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
           { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },

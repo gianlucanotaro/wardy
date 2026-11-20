@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Cross } from './Icons'
 import Shape from './Shape'
 import { blockOf, shapeOf } from './shapes'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -512,7 +513,7 @@ export default function Build({
                       }}
                       className={STRIP_ACTION_CLASS}
                     >
-                      ✕ EMPTY SLOT
+                      <Cross /> EMPTY SLOT
                     </button>
                   )}
                 </div>
@@ -558,7 +559,7 @@ export default function Build({
                       }}
                       className={STRIP_ACTION_CLASS}
                     >
-                      ✕ REMOVE ALL
+                      <Cross /> REMOVE ALL
                     </button>
                   )}
                 </div>
@@ -625,7 +626,7 @@ export default function Build({
             <div className="flex items-center justify-between px-4 py-3 border-b-2 border-(--color-line-strong)">
               <span className="wy-display text-3xl">suggest outfit</span>
               <button type="button" onClick={() => setSheetOpen(false)} className="wy-chip">
-                ✕ CLOSE
+                <Cross /> CLOSE
               </button>
             </div>
             <div className="px-4 py-3 border-b border-(--color-line)">

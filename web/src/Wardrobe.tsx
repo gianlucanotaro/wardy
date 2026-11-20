@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { Cross, Tick } from './Icons'
 import Shape from './Shape'
 import { blockOf, shapeOf } from './shapes'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -292,19 +293,23 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
           >
             <div className={`${OVERLAY_BAR} flex items-center gap-3 px-4 py-3 border-b-2 border-(--color-line-strong)`}>
               <button type="button" onClick={() => setSelectedId(null)} className="wy-chip">
-                ✕ CLOSE
+                <Cross /> CLOSE
               </button>
               <span className="wy-lbl">ITEM #{selected.id}</span>
             </div>
 
-            <div className="border-b-2 border-(--color-line-strong) p-4">
-              <div className="aspect-3/4 border-2 border-(--color-line-strong) bg-(--color-surface) overflow-hidden">
-                <img
-                  src={`/api/items/${selected.id}/photo`}
-                  alt={selected.name || 'wardrobe item'}
-                  className="w-full h-full object-cover"
-                />
-              </div>
+            <div
+              className="wy-block aspect-3/4 border-b-2 border-(--color-line-strong)"
+              style={{ background: blockOf(selected.category) }}
+            >
+              <img
+                src={`/api/items/${selected.id}/photo`}
+                alt={selected.name || 'wardrobe item'}
+                className="w-full h-full object-cover"
+              />
+              <span className="absolute left-3 top-3 text-(--color-block-ink)">
+                <Shape name={shapeOf(selected.category)} size={22} />
+              </span>
             </div>
 
             <div className="px-4 pt-4">
@@ -406,7 +411,7 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
         <div className="fixed inset-0 z-20 bg-(--color-bg) overflow-y-auto safe-area-overlay flex flex-col">
           <div className={`${OVERLAY_BAR} flex items-center gap-3 px-4 py-3 border-b-2 border-(--color-line-strong)`}>
             <button type="button" onClick={() => setAddFlow(null)} disabled={upload.isPending} className="wy-chip">
-              ✕ CANCEL
+              <Cross /> CANCEL
             </button>
           </div>
 
@@ -453,18 +458,22 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
           <div className={`${OVERLAY_BAR} flex items-center justify-between gap-3 px-4 py-3 border-b-2 border-(--color-line-strong)`}>
             <span className="wy-lbl">REVIEW NEW ITEM</span>
             <button type="button" onClick={() => finishAdd(null)} className="wy-chip">
-              ✓ DONE
+              <Tick /> DONE
             </button>
           </div>
 
-          <div className="border-b-2 border-(--color-line-strong) p-4">
-            <div className="aspect-3/4 border-2 border-(--color-line-strong) bg-(--color-surface) overflow-hidden">
-              <img
-                src={`/api/items/${addingItem.id}/photo`}
-                alt="newly added wardrobe item"
-                className="w-full h-full object-cover"
-              />
-            </div>
+          <div
+            className="wy-block aspect-3/4 border-b-2 border-(--color-line-strong)"
+            style={{ background: blockOf(addingItem.category) }}
+          >
+            <img
+              src={`/api/items/${addingItem.id}/photo`}
+              alt="newly added wardrobe item"
+              className="w-full h-full object-cover"
+            />
+            <span className="absolute left-3 top-3 text-(--color-block-ink)">
+              <Shape name={shapeOf(addingItem.category)} size={22} />
+            </span>
           </div>
 
           {addingItem.tagging_pending ? (
