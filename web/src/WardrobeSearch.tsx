@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import ColorSwatches from './ColorSwatches'
 import {
   activeFields,
   COLOR_SWATCHES,
@@ -60,7 +61,7 @@ export default function WardrobeSearch({
           stroke="currentColor"
           strokeWidth="2.2"
           strokeLinecap="square"
-          className="absolute left-[11px] top-3 text-(--color-neutral-700)"
+          className="absolute left-[11px] top-3.5 text-(--color-neutral-700)"
         >
           <circle cx="10.5" cy="10.5" r="6.5" />
           <path d="M15.5 15.5 21 21" />
@@ -71,7 +72,7 @@ export default function WardrobeSearch({
           onChange={(e) => onQueryChange(e.target.value)}
           placeholder="SEARCH TAGS, OR TYPE COLOR: …"
           aria-label="Search your wardrobe"
-          className="w-full h-10 border border-(--color-line) bg-(--color-surface) pl-[34px] pr-3 text-sm placeholder:text-(--color-neutral-700) focus:outline-2 focus:outline-(--color-accent)"
+          className="w-full h-11 border border-(--color-line) bg-(--color-surface) pl-[34px] pr-3 text-sm placeholder:text-(--color-neutral-700) focus:outline-2 focus:outline-(--color-accent)"
         />
         {open && (
           <Picker
@@ -86,19 +87,33 @@ export default function WardrobeSearch({
       {active.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5">
           {active.map((f) => (
-            <div key={f} className="inline-flex items-stretch max-w-full min-h-9 bg-(--color-ink) text-(--color-bg)">
+            <div
+              key={f}
+              className="inline-flex items-stretch max-w-full min-h-11 rounded-full overflow-hidden bg-(--color-ink) text-(--color-bg)"
+            >
               <button
                 type="button"
                 onClick={() => setPickerField(f)}
-                className="px-2.5 py-1.5 text-left font-extrabold text-[10.5px] tracking-[0.08em] uppercase"
+                className="pl-4 pr-2 py-1.5 text-left font-bold text-xs flex items-center gap-1.5"
               >
-                <span className="opacity-70">{f}:</span> {filters[f]!.join(', ')}
+                {f === 'color' &&
+                  filters[f]!.map((c) => (
+                    <span
+                      key={c}
+                      aria-hidden="true"
+                      className="size-3.5 shrink-0 rounded-full border border-(--color-bg)/40"
+                      style={{ background: COLOR_SWATCHES[c as keyof typeof COLOR_SWATCHES] }}
+                    />
+                  ))}
+                <span>
+                  <span className="opacity-70">{f}:</span> {filters[f]!.join(', ')}
+                </span>
               </button>
               <button
                 type="button"
                 onClick={() => setValues(f, [])}
                 aria-label={`Remove ${f} filter`}
-                className="w-[34px] shrink-0 flex items-center justify-center border-l border-(--color-bg)/25"
+                className="w-11 shrink-0 flex items-center justify-center border-l border-(--color-bg)/25"
               >
                 <svg
                   aria-hidden="true"
@@ -121,7 +136,7 @@ export default function WardrobeSearch({
               onFiltersChange({})
               onQueryChange('')
             }}
-            className="ml-auto min-h-9 px-0.5 font-extrabold text-[10.5px] tracking-[0.08em] text-(--color-accent-700) underline underline-offset-3"
+            className="ml-auto min-h-11 px-1 font-bold text-xs text-(--color-accent-700) underline underline-offset-3 lowercase"
           >
             CLEAR ALL
           </button>
@@ -163,6 +178,7 @@ function Picker({
   const picked = filters[field] ?? []
   const narrowed = field === 'subcategory' ? narrowedCategories(filters) : []
   const label = field.toUpperCase()
+  const toggle = (v: string) => onChange(picked.includes(v) ? picked.filter((p) => p !== v) : [...picked, v])
 
   return (
     <div
@@ -185,31 +201,28 @@ function Picker({
         )}
       </div>
 
-      <div className="grid grid-cols-2 max-h-[50vh] overflow-y-auto px-0.5 py-1">
-        {fieldValues(field, filters).map((v) => {
-          const on = picked.includes(v)
-          return (
-            <label
-              key={v}
-              className={`flex items-center gap-2 min-h-10 px-2 font-extrabold text-[10.5px] tracking-[0.06em] uppercase cursor-pointer ${on ? 'bg-(--color-surface)' : ''}`}
-            >
-              <input
-                type="checkbox"
-                checked={on}
-                onChange={() => onChange(on ? picked.filter((p) => p !== v) : [...picked, v])}
-                className="size-4 m-0 shrink-0 accent-(--color-ink)"
-              />
-              {field === 'color' && (
-                <span
-                  aria-hidden="true"
-                  className="size-3 shrink-0 border border-(--color-line)"
-                  style={{ background: COLOR_SWATCHES[v as keyof typeof COLOR_SWATCHES] }}
-                />
-              )}
-              <span className="truncate">{v}</span>
-            </label>
-          )
-        })}
+      <div className="max-h-[50vh] overflow-y-auto px-2.5 py-3">
+        {field === 'color' ? (
+          <ColorSwatches value={picked} options={[...fieldValues(field, filters)]} onPick={toggle} showNames={false} />
+        ) : (
+          <div className="flex flex-wrap gap-1.5">
+            {fieldValues(field, filters).map((v) => {
+              const on = picked.includes(v)
+              return (
+                <button
+                  key={v}
+                  type="button"
+                  className="wy-chip"
+                  data-on={on || undefined}
+                  aria-pressed={on}
+                  onClick={() => toggle(v)}
+                >
+                  {v}
+                </button>
+              )
+            })}
+          </div>
+        )}
       </div>
 
       <div className="flex items-center justify-between gap-2 px-2.5 py-2 border-t-2 border-(--color-line-strong)">

@@ -1,11 +1,8 @@
-import { COLOR_HEX } from './colors'
+import { COLOR_SWATCHES } from './searchFilters'
 import type { Color } from './taxonomy'
 
 function fill(color: string): string {
-  if (color === 'multicolor') {
-    return 'conic-gradient(#d62a1f, #f4c20d, #2e8b57, #2f6fd0, #6f42a8, #d62a1f)'
-  }
-  return COLOR_HEX[color as Exclude<Color, 'multicolor'>] ?? 'transparent'
+  return COLOR_SWATCHES[color as Color] ?? 'transparent'
 }
 
 // Colour tags as round swatches: easier to scan than 22 word-pills, and a
@@ -15,10 +12,12 @@ export default function ColorSwatches({
   value,
   options,
   onPick,
+  showNames = true,
 }: {
   value: string[]
   options: string[]
   onPick: (color: string) => void
+  showNames?: boolean
 }) {
   const picked = value.filter(Boolean)
   return (
@@ -44,7 +43,9 @@ export default function ColorSwatches({
           )
         })}
       </div>
-      <span className="wy-lbl">{picked.length ? picked.join(' · ') : value.includes('') ? 'none' : '—'}</span>
+      {showNames && (
+        <span className="wy-lbl">{picked.length ? picked.join(' · ') : value.includes('') ? 'none' : '—'}</span>
+      )}
     </div>
   )
 }

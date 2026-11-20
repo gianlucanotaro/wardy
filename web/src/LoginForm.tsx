@@ -99,7 +99,7 @@ export default function LoginForm({ onSuccess }: { onSuccess: () => void }) {
               <span className="flex-1 border-t border-(--color-line)" />
             </div>
             {/* A full navigation, not fetch: the server redirects to the provider. */}
-            <a href="/api/auth/oidc/start" data-outline="1" className="wy-act flex items-center">
+            <a href="/api/auth/oidc/start" data-outline="1" className="wy-act flex items-center justify-center">
               SIGN IN WITH {providers.data.sso_name.toUpperCase()}
             </a>
           </>
