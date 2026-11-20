@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { logout, type Item, type Me } from './api'
 import Today from './Today'
@@ -9,6 +9,7 @@ import Plan from './Plan'
 import History from './History'
 import Inspo from './Inspo'
 import Settings from './Settings'
+import { Cross } from './Icons'
 import Shape from './Shape'
 import type { ShapeName } from './shapes'
 import { ToastProvider } from './Toast'
@@ -20,6 +21,13 @@ import { ToastProvider } from './Toast'
 // and header links are the only navigation.
 type View = 'today' | 'wardrobe' | 'build' | 'looks' | 'plan' | 'inspo' | 'history' | 'settings'
 
+// The screens that don't have a tab: behind the menu button.
+const MENU: { view: View; label: string; shape: ShapeName; color: string }[] = [
+  { view: 'inspo', label: 'inspo', shape: 'triangle', color: 'var(--color-yellow)' },
+  { view: 'history', label: 'history', shape: 'square', color: 'var(--color-blue)' },
+  { view: 'settings', label: 'settings', shape: 'half', color: 'var(--color-block-neutral)' },
+]
+
 const TABS: { key: View; label: string; shape: ShapeName }[] = [
   { key: 'today', label: 'TODAY', shape: 'circle' },
   { key: 'wardrobe', label: 'WARDROBE', shape: 'square' },
@@ -30,6 +38,14 @@ const TABS: { key: View; label: string; shape: ShapeName }[] = [
 
 export default function Shell({ me, onLogout }: { me: Me; onLogout: () => void }) {
   const [view, setView] = useState<View>('today')
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setMenuOpen(false)
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [menuOpen])
   // Set by Wardrobe's "Add to outfit" so Build can pre-fill the matching
   // slot on mount, then cleared by Build once consumed.
   const [pendingBuildItem, setPendingBuildItem] = useState<Item | null>(null)
@@ -46,28 +62,64 @@ export default function Shell({ me, onLogout }: { me: Me; onLogout: () => void }
   return (
     <ToastProvider>
       <div className="flex flex-col bg-(--color-bg) text-(--color-ink)">
-        <header className="sticky top-0 z-10 border-b-2 border-(--color-line-strong) bg-(--color-bg) pt-[env(safe-area-inset-top)]">
-          <div className="flex items-center gap-4 px-4 py-3">
-            <span className="wy-display text-2xl mr-auto">wardy</span>
-            <span className="hidden sm:inline wy-lbl">{me.display_name}</span>
+        <header className="sticky top-0 z-10 bg-(--color-bg) border-b border-(--color-line) pt-[env(safe-area-inset-top)]">
+          <div className="flex items-center gap-4 px-4 py-2">
+            <span className="wy-display text-3xl mr-auto">wardy</span>
             <button
               type="button"
-              onClick={() => setView('inspo')}
-              className="wy-lbl"
-              style={view === 'inspo' ? { color: 'var(--color-accent-700)' } : undefined}
+              aria-label="Menu"
+              aria-expanded={menuOpen}
+              aria-controls="app-menu"
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="size-11 rounded-full border-2 border-(--color-ink) grid place-items-center"
             >
-              INSPO
-            </button>
-            <button type="button" onClick={() => setView('history')} className="wy-lbl">
-              HISTORY
-            </button>
-            <button type="button" onClick={() => setView('settings')} className="wy-lbl">
-              SETTINGS
-            </button>
-            <button type="button" onClick={() => logoutMutation.mutate()} className="wy-lbl">
-              LOG OUT
+              {menuOpen ? (
+                <Cross />
+              ) : (
+                <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M3 6h14M3 14h14" />
+                </svg>
+              )}
             </button>
           </div>
+
+          {menuOpen && (
+            <>
+              <div className="fixed inset-0 -z-10 bg-(--color-ink)/50" onClick={() => setMenuOpen(false)} aria-hidden="true" />
+              <nav id="app-menu" aria-label="Menu" className="absolute left-0 right-0 top-full bg-(--color-bg) pb-3">
+                <div className="max-w-2xl mx-auto flex flex-col gap-1.5 px-4 pt-1">
+                  <span className="wy-lbl pb-1">{me.display_name}</span>
+                  {MENU.map((m) => (
+                    <button
+                      key={m.view}
+                      type="button"
+                      onClick={() => {
+                        setMenuOpen(false)
+                        setView(m.view)
+                      }}
+                      aria-current={view === m.view ? 'page' : undefined}
+                      className="flex items-center gap-3 px-4 min-h-16 text-left"
+                      style={{
+                        background: `color-mix(in srgb, ${m.color} 24%, var(--color-bg))`,
+                        boxShadow: view === m.view ? 'inset 6px 0 0 var(--color-accent)' : undefined,
+                      }}
+                    >
+                      <Shape name={m.shape} size={16} />
+                      <span className="wy-display text-3xl">{m.label}</span>
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => logoutMutation.mutate()}
+                    className="flex items-center gap-3 px-4 min-h-16 text-left border-2 border-dashed border-(--color-line)"
+                  >
+                    <Cross />
+                    <span className="wy-display text-3xl">log out</span>
+                  </button>
+                </div>
+              </nav>
+            </>
+          )}
         </header>
 
         {/* Clears the tab bar (60px + 12px); body padding covers the home indicator. */}
@@ -91,7 +143,7 @@ export default function Shell({ me, onLogout }: { me: Me; onLogout: () => void }
           {view === 'settings' && <Settings />}
         </div>
 
-        <nav className="fixed bottom-0 left-0 right-0 bg-(--color-bg) border-t-2 border-(--color-line-strong) z-10 safe-area-tabbar">
+        <nav className="fixed bottom-0 left-0 right-0 bg-(--color-bg) border-t border-(--color-line) z-10 safe-area-tabbar">
           <div className="max-w-2xl mx-auto grid grid-cols-[1fr_1fr_1.2fr_1fr_1fr]">
             {TABS.map((t) =>
               t.key === 'build' ? (

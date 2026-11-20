@@ -160,6 +160,17 @@ html {
   background: var(--color-bg);
   color: var(--color-ink);
 }
+.wy-actions > .wy-act {
+  /* Three buttons side by side on a phone: less padding, so a label fits. */
+  padding-left: 6px;
+  padding-right: 6px;
+  font-size: 16px;
+  white-space: nowrap;
+}
+.wy-act + .wy-act {
+  /* #93: the reset above beats a border utility on the button itself. */
+  border-left: 2px solid var(--color-ink);
+}
 .wy-act:hover:not(:disabled) {
   background: color-mix(in srgb, var(--color-ink) 7%, transparent);
 }

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import Notice from './Notice'
 import { Cross } from './Icons'
 import { blockOf } from './shapes'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -56,20 +57,20 @@ export default function Looks() {
 
   return (
     <div className="flex flex-col">
-      <div className="flex items-baseline justify-between px-4 py-3 border-b-2 border-(--color-line-strong)">
+      <div className="flex items-baseline justify-between px-4 pt-4 pb-3">
         <span className="wy-display text-5xl">LOOKS</span>
         <span className="wy-lbl">{looks.data?.length ?? 0} SAVED</span>
       </div>
 
-      {looks.isLoading && <p className="px-4 py-4 wy-lbl">LOADING LOOKS…</p>}
+      {looks.isLoading && <Notice kind="loading">loading looks…</Notice>}
       {looks.isSuccess && looks.data.length === 0 && (
-        <div className="px-4 py-8 border-b-2 border-(--color-line-strong)">
+        <div className="px-4 py-8 border-b border-(--color-line)">
           <div className="wy-display text-4xl mb-1.5">no looks saved</div>
         </div>
       )}
 
       {looks.data?.map((look) => (
-        <div key={look.id} className="border-b-2 border-(--color-line-strong)">
+        <div key={look.id} className="border-b border-(--color-line)">
           <button
             type="button"
             onClick={() => {

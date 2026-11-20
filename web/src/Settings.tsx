@@ -90,12 +90,12 @@ export default function Settings() {
 
   return (
     <div className="flex flex-col">
-      <div className="px-4 py-3 border-b-2 border-(--color-line-strong)">
+      <div className="px-4 pt-4 pb-3">
         <span className="wy-display text-5xl">SETTINGS</span>
       </div>
 
       {showIOSInstallHint && (
-        <section className="px-4 py-3 border-b-2 border-(--color-line-strong)">
+        <section className="px-4 py-3 border-b border-(--color-line)">
           <div className="wy-lbl mb-1">ADD TO HOME SCREEN</div>
           <p className="text-sm">
             Tap the Share icon in Safari, then "Add to Home Screen" — Wardy works better full-screen, without the
@@ -104,7 +104,7 @@ export default function Settings() {
         </section>
       )}
 
-      <section className="px-4 py-3 border-b-2 border-(--color-line-strong) flex flex-col gap-2">
+      <section className="px-4 py-3 border-b border-(--color-line) flex flex-col gap-2">
         <div className="wy-lbl">APPEARANCE</div>
         <div className="flex flex-wrap gap-1.5">
           {(['auto', 'light', 'dark'] as ThemePref[]).map((value) => (
@@ -125,7 +125,7 @@ export default function Settings() {
         </div>
       </section>
 
-      <section className="px-4 py-3 border-b-2 border-(--color-line-strong) flex flex-col gap-2">
+      <section className="px-4 py-3 border-b border-(--color-line) flex flex-col gap-2">
         <div className="wy-lbl">WEATHER LOCATION</div>
         <div className="flex flex-wrap gap-1.5">
           {(
@@ -157,7 +157,7 @@ export default function Settings() {
         )}
       </section>
 
-      <section className="px-4 py-3 border-b-2 border-(--color-line-strong) flex flex-col gap-2">
+      <section className="px-4 py-3 border-b border-(--color-line) flex flex-col gap-2">
         <div className="wy-lbl">HOME LOCATION</div>
 
         <form
@@ -205,7 +205,7 @@ export default function Settings() {
       </section>
 
       {(usingCurrent || hasLocation) && (
-        <section className="px-4 py-3 border-b-2 border-(--color-line-strong) flex flex-col gap-1">
+        <section className="px-4 py-3 border-b border-(--color-line) flex flex-col gap-1">
           <div className="wy-lbl">{usingCurrent ? 'CURRENT WEATHER · HERE' : 'CURRENT WEATHER · HOME'}</div>
           {weather.isLoading && <p className="text-sm text-(--color-neutral-700)">Loading…</p>}
           {weather.data?.available === false && (

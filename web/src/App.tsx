@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import Notice from './Notice'
 import { getMe } from './api'
 import LoginForm from './LoginForm'
 import Shell from './Shell'
@@ -8,7 +9,11 @@ function App() {
   const me = useQuery({ queryKey: ['me'], queryFn: getMe, retry: false })
 
   if (me.isLoading) {
-    return <main className="min-h-svh flex items-center justify-center wy-lbl">LOADING…</main>
+    return (
+      <main className="min-h-svh flex items-center justify-center">
+        <Notice kind="loading">loading…</Notice>
+      </main>
+    )
   }
 
   const refetchMe = () => queryClient.invalidateQueries({ queryKey: ['me'] })

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import Notice from './Notice'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { createLook, getSuggestions, getWeather, listItems, logWear, MOODS, todayISODate } from './api'
 import { useLocationSource, useWeatherCoords } from './location'
@@ -176,7 +177,7 @@ export default function Today() {
         </div>
       </div>
 
-      <div className="py-3 border-y-2 border-(--color-line-strong) flex flex-col gap-2">
+      <div className="py-3 border-y border-(--color-line) flex flex-col gap-2">
         <div className="flex gap-2 overflow-x-auto px-4" role="group" aria-label="Occasion">
           {OCCASIONS.map((o) => (
             <button
@@ -205,15 +206,15 @@ export default function Today() {
         </div>
       </div>
 
-      <div className="flex justify-between px-4 py-2.5 border-b-2 border-(--color-line-strong) wy-lbl">
+      <div className="flex justify-between px-4 py-2.5 border-b border-(--color-line) wy-lbl">
         <span>
           OUTFIT {outfits.length > 0 ? String((deckIndex % outfits.length) + 1).padStart(2, '0') : '00'}
         </span>
         <span>{outfits.length > 0 ? `${(deckIndex % outfits.length) + 1}/${outfits.length}` : '0/0'}</span>
       </div>
 
-      {(!ready || suggestions.isLoading) && <p className="px-4 py-4 wy-lbl">FINDING OUTFITS…</p>}
-      {suggestions.isError && <p className="px-4 py-4 text-sm text-(--color-accent-700)">Couldn't load suggestions.</p>}
+      {(!ready || suggestions.isLoading) && <Notice kind="loading">finding outfits…</Notice>}
+      {suggestions.isError && <Notice kind="error">couldn't load suggestions</Notice>}
 
       {suggestions.data && !suggestions.data.weather_available && (
         <p className="px-4 py-2 wy-lbl border-b border-(--color-line)">
@@ -225,7 +226,7 @@ export default function Today() {
       )}
 
       {suggestions.isSuccess && !outfit && (
-        <div className="px-4 py-8 border-b-2 border-(--color-line-strong)">
+        <div className="px-4 py-8 border-b border-(--color-line)">
           <div className="font-extrabold text-xl mb-1.5">NOTHING MATCHES</div>
           {suggestions.data.no_match_reason && <p className="text-sm max-w-[44ch]">{suggestions.data.no_match_reason}</p>}
         </div>
@@ -245,7 +246,7 @@ export default function Today() {
               touchAction: 'pan-y',
             }}
           >
-            <div className="grid grid-cols-2 sm:grid-cols-4 border-b-2 border-(--color-line-strong)">
+            <div className="grid grid-cols-2 sm:grid-cols-4 border-b border-(--color-line)">
               {outfit.items.map((item) => (
                 <div key={item.id} className="wy-tile">
                   <div className="wy-block h-[170px]" style={{ background: blockOf(item.category) }}>
@@ -269,7 +270,7 @@ export default function Today() {
 
           <OutfitStyle key={key} items={outfit.items} />
 
-          <div className="grid grid-cols-3 border-b-2 border-(--color-line-strong)">
+          <div className="wy-actions grid grid-cols-3 border-b-2 border-(--color-line-strong)">
             <button
               type="button"
               data-primary="1"
@@ -283,14 +284,14 @@ export default function Today() {
               type="button"
               disabled={saved || saveAsLook.isPending}
               onClick={() => saveAsLook.mutate({ key, itemIds: outfit.items.map((it) => it.id) })}
-              className="wy-act border-l-2 border-(--color-line-strong)"
+              className="wy-act"
             >
               {saved ? 'SAVED ✓' : 'SAVE AS LOOK'}
             </button>
             <button
               type="button"
               onClick={() => setDeckIndex((i) => i + 1)}
-              className="wy-act border-l-2 border-(--color-line-strong)"
+              className="wy-act"
             >
               NOT TODAY →
             </button>

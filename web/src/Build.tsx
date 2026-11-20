@@ -256,7 +256,7 @@ function SwipeRow({ onSwipe, children }: { onSwipe: (dir: 1 | -1) => void; child
 }
 
 const STRIP_CLASS =
-  'flex overflow-x-auto snap-x snap-mandatory border-t-2 border-(--color-line-strong) bg-(--color-surface)'
+  'flex overflow-x-auto snap-x snap-mandatory border-t border-(--color-line) bg-(--color-surface)'
 const STRIP_ACTION_CLASS =
   'flex-none w-26 p-2.5 text-left font-extrabold text-[10.5px] tracking-[0.06em] text-(--color-accent-700) hover:bg-(--color-ink)/7'
 
@@ -422,7 +422,7 @@ export default function Build({
 
   return (
     <div className="flex flex-col">
-      <div className="flex items-baseline justify-between px-4 py-3 border-b-2 border-(--color-line-strong)">
+      <div className="flex items-baseline justify-between px-4 pt-4 pb-3">
         <span className="wy-display text-5xl">BUILD</span>
         <span className="wy-lbl text-right">
           {filledSlots}/{visibleSlots.length + 1} SLOTS
@@ -444,13 +444,13 @@ export default function Build({
             type="button"
             onClick={nextSuggestion}
             disabled={suggestion.outfits.length < 2}
-            className="wy-act border-l-2 border-(--color-line-strong)"
+            className="wy-act"
           >
             NEXT {suggestion.index + 1}/{suggestion.outfits.length}
           </button>
         </div>
       ) : (
-        <div className="border-b-2 border-(--color-line-strong)">
+        <div className="border-b border-(--color-line)">
           <button
             type="button"
             data-primary="1"
@@ -465,7 +465,7 @@ export default function Build({
       {/* One row per slot; tapping a row opens a strip of matching pieces
           right under it (only one open at a time), so picking never moves
           the user away from the slot they're filling. */}
-      <div className="flex flex-col gap-1.5 px-4 py-3 border-b-2 border-(--color-line-strong)">
+      <div className="flex flex-col gap-1.5 px-4 py-3 border-b border-(--color-line)">
         {visibleSlots.map((slot) => {
           const item = slots[slot.key]
           const open = pickSlot === slot.key
@@ -573,7 +573,7 @@ export default function Build({
       </div>
 
       {suggestion && (
-        <div className="px-4 py-3 border-b-2 border-(--color-line-strong)">
+        <div className="px-4 py-3 border-b border-(--color-line)">
           <div className="wy-lbl" style={{ color: 'var(--color-accent-700)' }}>
             {[
               suggestion.source === 'ai' ? 'AI' : 'SIMPLE MATCH',
@@ -588,14 +588,14 @@ export default function Build({
         </div>
       )}
       {noMatch && (
-        <div className="px-4 py-3 border-b-2 border-(--color-line-strong)">
+        <div className="px-4 py-3 border-b border-(--color-line)">
           <div className="wy-lbl mb-1">NO OUTFIT FOUND</div>
           <p className="text-sm leading-relaxed">{noMatch}</p>
         </div>
       )}
 
       {clothes.length > 0 && (
-        <p className="px-4 py-3 border-b-2 border-(--color-line-strong) wy-lbl">
+        <p className="px-4 py-3 border-b border-(--color-line) wy-lbl">
           FORMALITY {avgFormality?.toFixed(1)} · WARMTH {avgWarmth?.toFixed(1)}
         </p>
       )}
@@ -607,7 +607,7 @@ export default function Build({
         <button
           type="button"
           onClick={clearAll}
-          className="wy-act border-l-2 border-(--color-line-strong)"
+          className="wy-act"
         >
           CLEAR SLOTS
         </button>
@@ -625,8 +625,8 @@ export default function Build({
             className="absolute inset-0 bg-(--color-ink)/45"
             onClick={() => setSheetOpen(false)}
           />
-          <div className="relative bg-(--color-bg) border-t-2 border-(--color-line-strong) safe-area-overlay max-h-full overflow-y-auto">
-            <div className="flex items-center justify-between px-4 py-3 border-b-2 border-(--color-line-strong)">
+          <div className="relative bg-(--color-bg) border-t border-(--color-line) safe-area-overlay max-h-full overflow-y-auto">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-(--color-line)">
               <span className="wy-display text-3xl">suggest outfit</span>
               <button type="button" onClick={() => setSheetOpen(false)} className="wy-chip">
                 <Cross /> CLOSE
@@ -710,7 +710,7 @@ export default function Build({
                   ? `${Math.round(weather.data.temp_high_c)}°/${Math.round(weather.data.temp_low_c)}° · ${coords ? 'HERE' : 'HOME'}`
                   : 'NO WEATHER'}
             </div>
-            <div className="border-t-2 border-(--color-line-strong)">
+            <div className="border-t border-(--color-line)">
               <button
                 type="button"
                 data-primary="1"

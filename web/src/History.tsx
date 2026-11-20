@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import Notice from './Notice'
 import Shape from './Shape'
 import { blockOf, shapeOf } from './shapes'
 import { deleteWear, getHistory } from './api'
@@ -22,17 +23,17 @@ export default function History() {
 
   return (
     <div className="flex flex-col">
-      <div className="px-4 py-3 border-b-2 border-(--color-line-strong)">
+      <div className="px-4 pt-4 pb-3">
         <span className="wy-display text-5xl">HISTORY</span>
       </div>
 
-      {history.isLoading && <p className="px-4 py-4 wy-lbl">LOADING…</p>}
+      {history.isLoading && <Notice kind="loading">loading…</Notice>}
 
-      <div className="wy-sec flex justify-between px-4 py-2.5 border-b-2 border-(--color-line-strong)">
+      <div className="wy-sec flex justify-between px-4 py-2.5 border-b border-(--color-line)">
         <span className="wy-lbl">NOT WORN IN A WHILE</span>
       </div>
       {history.data && history.data.items.length === 0 && <p className="px-4 py-4 text-sm">No items yet.</p>}
-      <div className="grid grid-cols-3 border-b-2 border-(--color-line-strong)">
+      <div className="grid grid-cols-3 border-b border-(--color-line)">
         {history.data?.items.map((item) => (
           <div key={item.id} className="wy-tile">
             <div className="wy-block aspect-3/4" style={{ background: blockOf(item.category) }}>
@@ -53,7 +54,7 @@ export default function History() {
         ))}
       </div>
 
-      <div className="wy-sec flex justify-between px-4 py-2.5 border-b-2 border-(--color-line-strong)">
+      <div className="wy-sec flex justify-between px-4 py-2.5 border-b border-(--color-line)">
         <span className="wy-lbl">WEAR LOG</span>
       </div>
       {history.data && history.data.wears.length === 0 && (

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import Notice from './Notice'
 import { Cross } from './Icons'
 import { COLOR_SWATCHES } from './searchFilters'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -107,16 +108,16 @@ export default function Inspo() {
 
   return (
     <div className="flex flex-col">
-      <div className="flex items-baseline justify-between px-4 py-3 border-b-2 border-(--color-line-strong)">
+      <div className="flex items-baseline justify-between px-4 pt-4 pb-3">
         <h1 className="wy-display text-5xl">INSPO</h1>
         {data && <span className="wy-lbl">{data.fits.length} {data.fits.length === 1 ? 'FIT' : 'FITS'}</span>}
       </div>
 
-      {board.isLoading && <p className="px-4 py-4 wy-lbl">LOADING…</p>}
+      {board.isLoading && <Notice kind="loading">loading…</Notice>}
 
       {data && (
-        <section aria-label="Style radar" className="border-b-2 border-(--color-line-strong)">
-          <div className="flex justify-between px-4 py-2.5 border-b-2 border-(--color-line-strong)">
+        <section aria-label="Style radar" className="border-b border-(--color-line)">
+          <div className="flex justify-between px-4 py-2.5 border-b border-(--color-line)">
             <span className="wy-lbl">OWN · WEAR · LIKE</span>
             <span className="wy-lbl">LAST 90 DAYS</span>
           </div>
@@ -163,7 +164,7 @@ export default function Inspo() {
       )}
 
       {data && profile && profile.tagged > 0 && (
-        <section className="px-4 py-3 border-b-2 border-(--color-line-strong) flex flex-col gap-2">
+        <section className="px-4 py-3 border-b border-(--color-line) flex flex-col gap-2">
           <div className="wy-lbl">YOUR STYLE · FROM {profile.tagged} FITS</div>
           {data.summary && <p className="text-lg font-bold leading-snug">{data.summary}</p>}
           {profile.styles.length > 0 && (
@@ -212,7 +213,7 @@ export default function Inspo() {
         </section>
       )}
 
-      {data && data.fits.length === 0 && <p className="px-4 py-4 text-sm">No fits yet.</p>}
+      {data && data.fits.length === 0 && <Notice kind="empty">no fits yet</Notice>}
 
       {data && data.fits.length > 0 && (
         <div className="grid grid-cols-3">
@@ -252,7 +253,7 @@ export default function Inspo() {
         data-primary="1"
         onClick={() => fileInput.current?.click()}
         disabled={upload.isPending}
-        className="wy-act flex justify-between border-b-2 border-(--color-line-strong)"
+        className="wy-act flex justify-between"
       >
         <span>{upload.isPending ? 'UPLOADING…' : '+ ADD INSPO'}</span>
         <span>→</span>
@@ -332,14 +333,14 @@ function FitDetail({ fit, onClose }: { fit: InspoFit; onClose: () => void }) {
         className="bg-(--color-bg) min-h-full sm:min-h-0 sm:max-w-lg sm:mx-auto sm:my-8 border-(--color-line-strong) sm:border-2"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className={`${OVERLAY_BAR} flex items-center justify-between gap-3 px-4 py-3 border-b-2 border-(--color-line-strong)`}>
+        <div className={`${OVERLAY_BAR} flex items-center justify-between gap-3 px-4 py-3 border-b border-(--color-line)`}>
           <span className="wy-display text-3xl">fit</span>
           <button type="button" onClick={onClose} className="wy-chip">
             <Cross /> CLOSE
           </button>
         </div>
 
-        <div className="aspect-3/4 overflow-hidden bg-(--color-surface) border-b-2 border-(--color-line-strong)">
+        <div className="aspect-3/4 overflow-hidden bg-(--color-surface) border-b border-(--color-line)">
           <img src={`/api/inspo/${fit.id}/photo`} alt="inspiration fit" className="w-full h-full object-cover" />
         </div>
 
@@ -406,7 +407,7 @@ function FitDetail({ fit, onClose }: { fit: InspoFit; onClose: () => void }) {
             type="button"
             onClick={() => remove.mutate()}
             disabled={remove.isPending}
-            className="wy-act border-l-2 border-(--color-line-strong) text-(--color-accent-700)"
+            className="wy-act text-(--color-accent-700)"
           >
             {remove.isPending ? 'DELETING…' : 'DELETE'}
           </button>
