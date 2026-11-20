@@ -22,7 +22,7 @@ Bauhaus, tokens in `web/src/index.css` — never hard-code a colour or font.
 - **Red is only the next action** (`data-primary`, the Build button, a planned
   day). Text on red is `--color-on-accent`, not `--color-bg`.
 - **Type.** Screen titles are `wy-display` (heavy, tight, lowercase, via CSS —
-  the JSX can stay uppercase). Small labels are `wy-lbl` (Space Mono).
+  the JSX can stay uppercase). Small labels are `wy-lbl` (the same font, small and lowercase; no second font).
 - **Light and dark.** `data-theme` on `<html>`: Settings > Appearance (auto,
   light, dark), saved in `localStorage` as `wardy-theme`. `index.html` sets it
   before first paint; `theme.ts` keeps it in step. Add a colour as a token in
