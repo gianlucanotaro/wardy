@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import Notice from './Notice'
 import { blockOf } from './shapes'
 import { useRef, useState } from 'react'
 import { getPlan, listLooks, setPlanDay, todayISODate, type PlanDay } from './api'
@@ -125,7 +126,7 @@ export default function Plan() {
       onPointerUp={onSwipeEnd}
       onPointerCancel={() => (swipeStart.current = null)}
     >
-      <div className="flex items-baseline justify-between px-4 py-3 border-b-2 border-(--color-line-strong)">
+      <div className="flex items-baseline justify-between px-4 pt-4 pb-3">
         <span className="wy-display text-5xl">THE WEEK</span>
         {/* Always rendered, hidden on this week, so the header keeps its
             height and the cards don't jump while paging (#77). */}
@@ -138,7 +139,7 @@ export default function Plan() {
         </button>
       </div>
 
-      <div className="flex items-center justify-between gap-2 px-2 py-1.5 border-b-2 border-(--color-line-strong)">
+      <div className="flex items-center justify-between gap-2 px-2 py-1.5 border-b border-(--color-line)">
         <WeekArrow direction="previous" onClick={() => setOffset(offset - 1)} />
         <span className="flex flex-col items-center gap-0.5 text-center" aria-live="polite">
           <span className="font-extrabold text-[13px] tracking-[0.06em]">{weekLabel(days[0], days[6])}</span>
@@ -151,7 +152,7 @@ export default function Plan() {
         <WeekArrow direction="next" onClick={() => setOffset(offset + 1)} />
       </div>
 
-      {plan.isError && <p className="px-4 py-4 text-sm text-(--color-accent-700)">Couldn't load the plan.</p>}
+      {plan.isError && <Notice kind="error">couldn't load the plan</Notice>}
 
       {plan.isLoading && days.map((d, i) => <DaySkeleton key={i} date={d} today={today} last={i === 6} />)}
 
@@ -193,7 +194,7 @@ const THUMB = `${THUMB_SIZE} border border-(--color-line-strong)`
 
 // Hairline between cards, strong rule under the last one.
 function cardBorder(last: boolean): string {
-  return last ? 'border-b-2 border-(--color-line-strong)' : 'border-b border-(--color-line)'
+  return last ? 'border-b border-(--color-line)' : 'border-b border-(--color-line)'
 }
 
 // Today: tinted ground plus a 4px accent bar, drawn as an inset shadow so

@@ -225,7 +225,7 @@ function Picker({
         )}
       </div>
 
-      <div className="flex items-center justify-between gap-2 px-2.5 py-2 border-t-2 border-(--color-line-strong)">
+      <div className="flex items-center justify-between gap-2 px-2.5 py-2 border-t border-(--color-line)">
         <span className="wy-lbl text-(--color-accent-700) truncate">
           {picked.length} SELECTED{picked.length > 0 && ` · ${picked.join(', ')}`}
         </span>

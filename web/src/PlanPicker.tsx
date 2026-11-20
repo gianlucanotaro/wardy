@@ -91,7 +91,7 @@ export default function PlanPicker({
         className="absolute inset-0 bg-(--color-ink)/45"
       />
       <div
-        className="relative flex flex-col max-h-[85dvh] bg-(--color-bg) text-(--color-ink) border-t-2 border-(--color-line-strong) safe-area-overlay pt-0!"
+        className="relative flex flex-col max-h-[85dvh] bg-(--color-bg) text-(--color-ink) border-t border-(--color-line) safe-area-overlay pt-0!"
         style={{ transform: dragY ? `translateY(${dragY}px)` : undefined }}
       >
         {/* Grab handle and title: the drag-down-to-close area. */}
@@ -105,7 +105,7 @@ export default function PlanPicker({
           <div className="h-5 grid place-items-center" aria-hidden="true">
             <i className="block w-10 h-1 bg-(--color-ink)" />
           </div>
-          <div className="flex items-start justify-between px-1 pb-2.5 pt-0.5 border-b-2 border-(--color-line-strong)">
+          <div className="flex items-start justify-between px-1 pb-2.5 pt-0.5 border-b border-(--color-line)">
             <div>
               <span className="wy-lbl">
                 {WEEKDAY[date.getDay()]} {date.getDate()} {MONTH[date.getMonth()]} · {looks.length} LOOK
@@ -160,7 +160,7 @@ export default function PlanPicker({
           <button type="button" onClick={onClear} disabled={currentLookId == null} className="wy-act text-(--color-accent-700)">
             CLEAR DAY
           </button>
-          <button type="button" onClick={onClose} className="wy-act border-l-2 border-(--color-line-strong)">
+          <button type="button" onClick={onClose} className="wy-act">
             CANCEL
           </button>
         </div>

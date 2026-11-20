@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import Notice from './Notice'
 import { Cross, Tick } from './Icons'
 import Shape from './Shape'
 import { blockOf, shapeOf } from './shapes'
@@ -153,7 +154,7 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
 
   return (
     <div className="flex flex-col">
-      <div className="flex items-baseline justify-between px-4 py-3 border-b-2 border-(--color-line-strong)">
+      <div className="flex items-baseline justify-between px-4 pt-4 pb-3">
         <h1 className="wy-display text-5xl">WARDROBE</h1>
         <button
           type="button"
@@ -181,7 +182,7 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
         </button>
       </div>
 
-      {items.isLoading && <p className="px-4 py-4 wy-lbl">LOADING WARDROBE…</p>}
+      {items.isLoading && <Notice kind="loading">loading wardrobe…</Notice>}
       {items.isSuccess && items.data.length === 0 && (
         <p className="px-4 py-4 text-sm">
           {showArchived ? 'No archived items.' : 'No items yet.'}
@@ -189,13 +190,13 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
       )}
 
       {items.isSuccess && items.data.length > 0 && (
-        <div className="px-4 py-3 border-b-2 border-(--color-line-strong) flex flex-col gap-3">
+        <div className="px-4 py-3 border-b border-(--color-line) flex flex-col gap-3">
           <WardrobeSearch query={tagQuery} onQueryChange={setTagQuery} filters={filters} onFiltersChange={setFilters} />
         </div>
       )}
 
       {items.isSuccess && items.data.length > 0 && (
-        <div className="flex justify-between px-4 py-2.5 border-b-2 border-(--color-line-strong) wy-lbl">
+        <div className="flex justify-between px-4 py-2.5 border-b border-(--color-line) wy-lbl">
           <span className="truncate">
             {filtering
               ? [...fields.map((f) => f.toUpperCase()), ...(query ? [`"${tagQuery.trim().toUpperCase()}"`] : [])].join(' · ')
@@ -291,7 +292,7 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
             className="bg-(--color-bg) min-h-full sm:min-h-0 sm:max-w-lg sm:mx-auto sm:my-8 border-(--color-line-strong) sm:border-2"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className={`${OVERLAY_BAR} flex items-center gap-3 px-4 py-3 border-b-2 border-(--color-line-strong)`}>
+            <div className={`${OVERLAY_BAR} flex items-center gap-3 px-4 py-3 border-b border-(--color-line)`}>
               <button type="button" onClick={() => setSelectedId(null)} className="wy-chip">
                 <Cross /> CLOSE
               </button>
@@ -299,7 +300,7 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
             </div>
 
             <div
-              className="wy-block aspect-3/4 border-b-2 border-(--color-line-strong)"
+              className="wy-block aspect-3/4 border-b border-(--color-line)"
               style={{ background: blockOf(selected.category) }}
             >
               <img
@@ -377,7 +378,7 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
                     setSelectedId(null)
                     flash('ADDED TO BUILD')
                   }}
-                  className="wy-act border-l-2 border-(--color-line-strong)"
+                  className="wy-act"
                 >
                   ADD TO OUTFIT
                 </button>
@@ -392,7 +393,7 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
                 type="button"
                 onClick={() => archive.mutate({ id: selected.id, archived: !selected.archived })}
                 disabled={archive.isPending}
-                className="wy-act border-l-2 border-(--color-line-strong)"
+                className="wy-act"
               >
                 {archive.isPending ? '...' : selected.archived ? 'UNARCHIVE' : 'ARCHIVE'}
               </button>
@@ -400,7 +401,7 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
                 type="button"
                 onClick={() => remove.mutate(selected.id)}
                 disabled={remove.isPending}
-                className="wy-act border-l-2 border-(--color-line-strong) text-(--color-accent-700)"
+                className="wy-act text-(--color-accent-700)"
               >
                 {remove.isPending ? 'DELETING…' : 'DELETE'}
               </button>
@@ -411,7 +412,7 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
 
       {addFlow?.stage === 'idle' && (
         <div className="fixed inset-0 z-20 bg-(--color-bg) overflow-y-auto safe-area-overlay flex flex-col">
-          <div className={`${OVERLAY_BAR} flex items-center gap-3 px-4 py-3 border-b-2 border-(--color-line-strong)`}>
+          <div className={`${OVERLAY_BAR} flex items-center gap-3 px-4 py-3 border-b border-(--color-line)`}>
             <button type="button" onClick={() => setAddFlow(null)} disabled={upload.isPending} className="wy-chip">
               <Cross /> CANCEL
             </button>
@@ -457,7 +458,7 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
 
       {addFlow?.stage === 'review' && addingItem && (
         <div className="fixed inset-0 z-20 bg-(--color-bg) overflow-y-auto safe-area-overlay">
-          <div className={`${OVERLAY_BAR} flex items-center justify-between gap-3 px-4 py-3 border-b-2 border-(--color-line-strong)`}>
+          <div className={`${OVERLAY_BAR} flex items-center justify-between gap-3 px-4 py-3 border-b border-(--color-line)`}>
             <span className="wy-lbl">REVIEW NEW ITEM</span>
             <button type="button" onClick={() => finishAdd(null)} className="wy-chip">
               <Tick /> DONE
@@ -465,7 +466,7 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
           </div>
 
           <div
-            className="wy-block aspect-3/4 border-b-2 border-(--color-line-strong)"
+            className="wy-block aspect-3/4 border-b border-(--color-line)"
             style={{ background: blockOf(addingItem.category) }}
           >
             <img
@@ -502,7 +503,7 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
             <button
               type="button"
               onClick={() => finishAdd({ stage: 'idle' })}
-              className="wy-act border-l-2 border-(--color-line-strong)"
+              className="wy-act"
             >
               ADD ANOTHER PHOTO
             </button>

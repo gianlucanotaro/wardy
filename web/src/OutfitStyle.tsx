@@ -70,7 +70,7 @@ export default function OutfitStyle({ items, compact = false }: { items: Item[];
   const selected = shares.find((s) => s.style === picked)
 
   return (
-    <div className="border-b-2 border-(--color-line-strong)">
+    <div className="border-b border-(--color-line)">
       <div className="wy-lbl px-4 pt-2.5">STYLE</div>
       <div className="px-4 pt-0.5">
         {Array.from({ length: ROWS }, (_, row) => {
