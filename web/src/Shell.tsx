@@ -22,10 +22,10 @@ import { ToastProvider } from './Toast'
 type View = 'today' | 'wardrobe' | 'build' | 'looks' | 'plan' | 'inspo' | 'history' | 'settings'
 
 // The screens that don't have a tab: behind the menu button.
-const MENU: { view: View; label: string; shape: ShapeName; color: string }[] = [
-  { view: 'inspo', label: 'inspo', shape: 'triangle', color: 'var(--color-yellow)' },
-  { view: 'history', label: 'history', shape: 'square', color: 'var(--color-blue)' },
-  { view: 'settings', label: 'settings', shape: 'half', color: 'var(--color-block-neutral)' },
+const MENU: { view: View; label: string; shape: ShapeName; bg: string; fg: string }[] = [
+  { view: 'inspo', label: 'inspo', shape: 'triangle', bg: 'var(--color-yellow)', fg: 'var(--color-block-ink)' },
+  { view: 'history', label: 'history', shape: 'square', bg: 'var(--color-blue)', fg: 'var(--color-on-accent)' },
+  { view: 'settings', label: 'settings', shape: 'half', bg: 'var(--color-block-neutral)', fg: 'var(--color-block-ink)' },
 ]
 
 const TABS: { key: View; label: string; shape: ShapeName }[] = [
@@ -83,44 +83,54 @@ export default function Shell({ me, onLogout }: { me: Me; onLogout: () => void }
             </button>
           </div>
 
-          {menuOpen && (
-            <>
-              <div className="fixed inset-0 -z-10 bg-(--color-ink)/50" onClick={() => setMenuOpen(false)} aria-hidden="true" />
-              <nav id="app-menu" aria-label="Menu" className="absolute left-0 right-0 top-full bg-(--color-bg) pb-3">
-                <div className="max-w-2xl mx-auto flex flex-col gap-1.5 px-4 pt-1">
-                  <span className="wy-lbl pb-1">{me.display_name}</span>
-                  {MENU.map((m) => (
-                    <button
-                      key={m.view}
-                      type="button"
-                      onClick={() => {
-                        setMenuOpen(false)
-                        setView(m.view)
-                      }}
-                      aria-current={view === m.view ? 'page' : undefined}
-                      className="flex items-center gap-3 px-4 min-h-16 text-left"
-                      style={{
-                        background: `color-mix(in srgb, ${m.color} 24%, var(--color-bg))`,
-                        boxShadow: view === m.view ? 'inset 6px 0 0 var(--color-accent)' : undefined,
-                      }}
-                    >
-                      <Shape name={m.shape} size={16} />
-                      <span className="wy-display text-3xl">{m.label}</span>
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => logoutMutation.mutate()}
-                    className="flex items-center gap-3 px-4 min-h-16 text-left border-2 border-dashed border-(--color-line)"
-                  >
-                    <Cross />
-                    <span className="wy-display text-3xl">log out</span>
-                  </button>
-                </div>
-              </nav>
-            </>
-          )}
         </header>
+
+        {menuOpen && (
+          <nav id="app-menu" aria-label="Menu" className="fixed inset-0 z-30 flex flex-col bg-(--color-bg) safe-area-overlay">
+            <div className="w-full max-w-2xl mx-auto flex items-center gap-4 px-4 py-2">
+              <span className="wy-display text-3xl">wardy</span>
+              <span className="wy-lbl mr-auto">{me.display_name}</span>
+              <button
+                type="button"
+                aria-label="Close menu"
+                onClick={() => setMenuOpen(false)}
+                className="size-11 rounded-full border-2 border-(--color-ink) grid place-items-center"
+              >
+                <Cross />
+              </button>
+            </div>
+            <div className="flex-1 w-full max-w-2xl mx-auto flex flex-col gap-1.5 px-4 pb-4">
+              {MENU.map((m) => (
+                <button
+                  key={m.view}
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false)
+                    setView(m.view)
+                  }}
+                  aria-current={view === m.view ? 'page' : undefined}
+                  className="flex-1 min-h-20 flex flex-col justify-between p-5 text-left"
+                  style={{
+                    background: m.bg,
+                    color: m.fg,
+                    boxShadow: view === m.view ? 'inset 8px 0 0 var(--color-accent)' : undefined,
+                  }}
+                >
+                  <Shape name={m.shape} size={26} />
+                  <span className="wy-display text-6xl">{m.label}</span>
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => logoutMutation.mutate()}
+                className="flex-1 min-h-20 flex flex-col justify-between p-5 text-left bg-(--color-ink) text-(--color-bg)"
+              >
+                <Cross />
+                <span className="wy-display text-6xl">log out</span>
+              </button>
+            </div>
+          </nav>
+        )}
 
         {/* Clears the tab bar (60px + 12px); body padding covers the home indicator. */}
         <div className="flex-1 w-full max-w-2xl mx-auto pb-[72px]">
