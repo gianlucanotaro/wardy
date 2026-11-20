@@ -72,7 +72,7 @@ export default function WardrobeSearch({
           onChange={(e) => onQueryChange(e.target.value)}
           placeholder="SEARCH TAGS, OR TYPE COLOR: …"
           aria-label="Search your wardrobe"
-          className="w-full h-11 border border-(--color-line) bg-(--color-surface) pl-[34px] pr-3 text-sm placeholder:text-(--color-neutral-700) focus:outline-2 focus:outline-(--color-accent)"
+          className="wy-input w-full h-11 pl-[34px] pr-3 text-sm"
         />
         {open && (
           <Picker

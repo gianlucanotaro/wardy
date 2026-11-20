@@ -2,6 +2,13 @@ import type { RadarLayer, StyleRadar } from './api'
 
 export type LayerKey = 'owned' | 'worn' | 'inspo'
 
+// Each layer's colour, in the chart and on the cards that explain it.
+export const LAYER_COLOR: Record<LayerKey, string> = {
+  owned: '#1baf7a',
+  worn: '#2a78d6',
+  inspo: '#ec3013',
+}
+
 // The biggest gaps between layers, in words: liked but not worn, owned but
 // not worn, and what's worn most. Each only when both layers have data.
 export function radarInsights(radar: StyleRadar): { kind: LayerKey; style: string; text: string; detail: string }[] {

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Cross } from './Icons'
 import Shape from './Shape'
-import { blockOf, shapeOf } from './shapes'
+import { blockOf, shapeOf, tintOf } from './shapes'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createLook,
@@ -113,6 +113,7 @@ function itemTitle(it: Item): string {
 // affordance. Tapping it opens the slot's picker strip below.
 function SlotRow({
   label,
+  category,
   thumb,
   title,
   badge,
@@ -121,6 +122,7 @@ function SlotRow({
   onToggle,
 }: {
   label: string
+  category: string
   thumb: Item | undefined
   title: string
   badge?: string
@@ -133,13 +135,12 @@ function SlotRow({
       type="button"
       onClick={onToggle}
       aria-expanded={open}
-      className={`w-full grid grid-cols-[44px_minmax(0,1fr)_auto] items-center gap-3 min-h-[76px] px-4 py-2.5 text-left hover:bg-(--color-ink)/7 ${
-        open ? 'bg-(--color-ink)/7' : ''
-      }`}
+      className="w-full grid grid-cols-[64px_minmax(0,1fr)_auto] items-center gap-3 min-h-24 px-4 py-3 text-left"
+      style={{ background: tintOf(category) }}
     >
       <span
-        className="wy-block w-11 h-14 grid place-items-center font-extrabold text-xl text-(--color-neutral-700)"
-        style={{ background: thumb ? blockOf(thumb.category) : 'var(--color-surface)' }}
+        className="wy-block w-16 h-[76px] grid place-items-center font-extrabold text-3xl text-(--color-ink)"
+        style={thumb ? { background: blockOf(thumb.category) } : { border: `2px dashed ${blockOf(category)}` }}
       >
         {thumb ? (
           <img src={`/api/items/${thumb.id}/thumb`} alt={thumb.name || thumb.category} className="w-full h-full object-cover" />
@@ -149,10 +150,10 @@ function SlotRow({
       </span>
       <span className="flex flex-col gap-0.5 min-w-0">
         <span className="wy-lbl flex items-center gap-1.5">
-          {thumb && <Shape name={shapeOf(thumb.category)} size={10} />}
+          <Shape name={shapeOf(thumb?.category ?? category)} size={10} />
           {label}
         </span>
-        <span className="font-extrabold text-base tracking-tight truncate lowercase">{title}</span>
+        <span className="font-extrabold text-xl tracking-tight truncate lowercase">{title}</span>
         {badge && (
           <span className="self-start mt-0.5 bg-(--color-accent-100) text-(--color-accent-700) font-extrabold text-[8.5px] tracking-[0.1em] px-1.5 py-0.5">
             {badge}
@@ -464,16 +465,17 @@ export default function Build({
       {/* One row per slot; tapping a row opens a strip of matching pieces
           right under it (only one open at a time), so picking never moves
           the user away from the slot they're filling. */}
-      <div className="border-b-2 border-(--color-line-strong)">
+      <div className="flex flex-col gap-1.5 px-4 py-3 border-b-2 border-(--color-line-strong)">
         {visibleSlots.map((slot) => {
           const item = slots[slot.key]
           const open = pickSlot === slot.key
           const options = open ? (items.data?.filter((it) => it.category === slot.category) ?? []) : []
           return (
-            <div key={slot.key} className="border-b border-(--color-line)">
+            <div key={slot.key}>
               <SwipeRow onSwipe={(dir) => swapSlot(slot, dir)}>
                 <SlotRow
                   label={slot.label}
+                  category={slot.category}
                   thumb={item}
                   title={item ? itemTitle(item) : 'EMPTY'}
                   badge={item ? inspoBadge(item) : undefined}
@@ -531,6 +533,7 @@ export default function Build({
             <div>
               <SlotRow
                 label={accessories.length > 1 ? `ACCESSORIES · ${accessories.length}` : 'ACCESSORIES'}
+                category="accessory"
                 thumb={accessories[0]}
                 title={accessories.length ? accessories.map(itemTitle).join(' + ') : 'NONE'}
                 action={accessories.length ? 'EDIT ▾' : 'ADD ▾'}
@@ -672,7 +675,7 @@ export default function Build({
                 rows={3}
                 maxLength={PROMPT_MAX}
                 placeholder="e.g. dinner with my parents, smart but not stiff"
-                className="w-full resize-none border border-(--color-line) bg-(--color-surface) px-3 py-2 text-base focus:outline-2 focus:outline-(--color-accent)"
+                className="wy-input w-full resize-none px-3 py-2 text-base"
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
               />

@@ -142,7 +142,7 @@ export default function Looks() {
                       rename.mutate({ id: selected.id, name: next })
                     }
                   }}
-                  className="border border-(--color-line) bg-(--color-surface) px-3 py-2 text-sm focus:outline-2 focus:outline-(--color-accent)"
+                  className="wy-input px-3 py-2 text-sm"
                 />
               </label>
 

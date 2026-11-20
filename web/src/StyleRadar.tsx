@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { StyleRadar as Radar } from './api'
-import type { LayerKey } from './radarInsights'
+import { LAYER_COLOR, type LayerKey } from './radarInsights'
 
 // The style radar (docs/mockups/style-radar.html): what you own, what you
 // wore in the last 90 days and what your inspo board likes, as three
@@ -12,9 +12,9 @@ import type { LayerKey } from './radarInsights'
 // style's values are one tap away, so colour is never the only cue.
 
 const LAYERS: { key: LayerKey; name: string; color: string; dash: string }[] = [
-  { key: 'owned', name: 'Owned', color: '#1baf7a', dash: '' },
-  { key: 'worn', name: 'Worn', color: '#2a78d6', dash: '' },
-  { key: 'inspo', name: 'Inspo', color: '#ec3013', dash: '5 4' },
+  { key: 'owned', name: 'Owned', color: LAYER_COLOR.owned, dash: '' },
+  { key: 'worn', name: 'Worn', color: LAYER_COLOR.worn, dash: '' },
+  { key: 'inspo', name: 'Inspo', color: LAYER_COLOR.inspo, dash: '5 4' },
 ]
 
 // Geometry in viewBox units (-40 0 480 380): the chart sits at CX,CY with
@@ -83,12 +83,12 @@ export default function StyleRadar({ radar }: { radar: Radar }) {
               key={r}
               points={radar.axes.map((_, i) => pt(i, r).join(',')).join(' ')}
               fill="none"
-              stroke="rgba(32,30,29,0.14)"
+              stroke="var(--color-line)"
             />
           ))}
           {radar.axes.map((_, i) => {
             const [x, y] = pt(i, MAX)
-            return <line key={i} x1={CX} y1={CY} x2={x} y2={y} stroke={hot === i ? '#9b9797' : 'rgba(32,30,29,0.14)'} strokeWidth={hot === i ? 1.5 : 1} />
+            return <line key={i} x1={CX} y1={CY} x2={x} y2={y} stroke={hot === i ? 'var(--color-neutral-500)' : 'var(--color-line)'} strokeWidth={hot === i ? 1.5 : 1} />
           })}
           {[20, 40].map((r) => (
             <text

@@ -211,21 +211,21 @@ export function CustomTagsField({ value, onChange }: { value: string[]; onChange
   }
 
   return (
-    <div className="flex flex-col gap-2 border border-(--color-line) bg-(--color-surface) p-3">
+    <div className="flex flex-col gap-2">
       <span className="wy-lbl">YOUR TAGS</span>
 
       <div className="flex flex-wrap gap-1.5">
         {value.map((tag) => (
           <span
             key={tag}
-            className="flex items-center gap-1.5 border border-(--color-line-strong) px-2 py-1 text-xs font-extrabold uppercase tracking-wide bg-(--color-bg)"
+            className="inline-flex items-center rounded-full bg-(--color-ink) text-(--color-bg) pl-4 pr-1 min-h-11 text-sm font-bold lowercase"
           >
             {tag}
             <button
               type="button"
               onClick={() => onChange(value.filter((t) => t !== tag))}
               aria-label={`Remove tag ${tag}`}
-              className="text-(--color-neutral-500)"
+              className="size-11 flex items-center justify-center"
             >
               <Cross />
             </button>
@@ -245,7 +245,7 @@ export function CustomTagsField({ value, onChange }: { value: string[]; onChange
         }}
         onBlur={addTag}
         placeholder="ADD A TAG…"
-        className="border border-(--color-line) bg-(--color-bg) px-2 py-1.5 text-sm focus:outline-2 focus:outline-(--color-accent)"
+        className="wy-input px-3 py-2 text-sm"
       />
     </div>
   )
@@ -360,7 +360,7 @@ export function ScaleField({
         </span>
         <span className="wy-lbl text-right">{rangeLabel.toUpperCase()}</span>
       </div>
-      <div className="grid grid-cols-5 gap-1">
+      <div className="grid grid-cols-5 gap-2">
         {values.map((v) => {
           const on = v >= min && v <= max
           return (
@@ -370,12 +370,12 @@ export function ScaleField({
               onClick={() => tap(v)}
               aria-label={`${label} ${v}: ${labels[v]}`}
               aria-pressed={on}
-              className={`min-h-11 border font-extrabold text-xs ${
-                v === anchor ? 'border-(--color-ink) border-2' : 'border-(--color-line)'
-              }`}
+              className="min-h-11 rounded-full border-2 border-(--color-ink) font-extrabold text-sm"
               style={{
                 background: on ? 'var(--color-accent)' : 'transparent',
                 color: on ? 'var(--color-on-accent)' : 'var(--color-ink)',
+                outline: v === anchor ? '2px solid var(--color-ink)' : 'none',
+                outlineOffset: 2,
               }}
             >
               {v}
