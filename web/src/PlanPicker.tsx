@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { blockOf } from './shapes'
 import type { Look } from './api'
 
 // Above this many looks the sheet gets a search box (#76: "from 9 looks").
@@ -194,7 +195,9 @@ function LookRow({ look, on, onClick }: { look: Look; on: boolean; onClick: () =
         </span>
         <span className="h-10 flex gap-[3px] overflow-hidden">
           {shown.map((it) => (
-            <img key={it.id} src={`/api/items/${it.id}/thumb`} alt="" loading="lazy" className={`${thumb} object-cover bg-(--color-surface)`} />
+            <span key={it.id} className={`wy-block ${thumb}`} style={{ background: blockOf(it.category) }}>
+              <img src={`/api/items/${it.id}/thumb`} alt="" loading="lazy" className="w-full h-full object-cover" />
+            </span>
           ))}
           {more > 0 && (
             <span className={`${thumb} flex items-center justify-center bg-(--color-bg) font-extrabold text-[11px]`}>+{more}</span>

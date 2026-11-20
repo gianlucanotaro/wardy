@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { blockOf } from './shapes'
 import { useRef, useState } from 'react'
 import { getPlan, listLooks, setPlanDay, todayISODate, type PlanDay } from './api'
 import PlanWorn from './PlanWorn'
@@ -276,13 +277,13 @@ function DayCard({
             rather than widening the card. */}
         <span className="h-[60px] flex gap-1 overflow-hidden">
           {shown.map((it) => (
-            <img
+            <span
               key={it.id}
-              src={`/api/items/${it.id}/thumb`}
-              alt=""
-              loading="lazy"
-              className={`${THUMB} object-cover bg-(--color-surface) ${isPast && !wear ? 'grayscale opacity-55' : ''}`}
-            />
+              className={`wy-block ${THUMB_SIZE} ${isPast && !wear ? 'grayscale opacity-55' : ''}`}
+              style={{ background: blockOf(it.category) }}
+            >
+              <img src={`/api/items/${it.id}/thumb`} alt="" loading="lazy" className="w-full h-full object-cover" />
+            </span>
           ))}
           {more > 0 && (
             <span className={`${THUMB} flex items-center justify-center bg-(--color-bg) font-extrabold text-[12px]`}>

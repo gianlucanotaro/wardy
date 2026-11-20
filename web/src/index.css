@@ -175,7 +175,7 @@ html {
 }
 /* Secondary action that still needs to read as a button, e.g. SSO login. */
 .wy-act[data-outline] {
-  border: 1px solid var(--color-line-strong);
+  border: 2px solid var(--color-line-strong);
 }
 .wy-toast {
   background: var(--color-ink);
