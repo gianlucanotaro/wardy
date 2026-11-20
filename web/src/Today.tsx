@@ -3,6 +3,8 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { createLook, getSuggestions, getWeather, listItems, logWear, MOODS, todayISODate } from './api'
 import { useLocationSource, useWeatherCoords } from './location'
 import OutfitStyle from './OutfitStyle'
+import Shape from './Shape'
+import { blockOf, shapeOf } from './shapes'
 import { OCCASIONS } from './taxonomy'
 import { useToast } from './useToast'
 
@@ -149,74 +151,58 @@ export default function Today() {
 
   return (
     <div className="flex flex-col">
-      <div className="flex items-baseline justify-between px-4 py-3 border-b-2 border-(--color-line-strong)">
-        <span className="font-extrabold text-3xl tracking-tight">TODAY</span>
-        <span className="wy-lbl">{dateLabel}</span>
-      </div>
-
-      <div className="grid grid-cols-2 sm:grid-cols-4 border-b-2 border-(--color-line-strong)">
-        <div className="wy-cell">
-          <div className="wy-lbl">{weather.data?.available ? (coords ? 'TEMP · HERE' : 'TEMP · HOME') : 'TEMP'}</div>
-          <div className="font-extrabold text-2xl tracking-tight">
-            {weather.data?.available ? `${Math.round(weather.data.temp_high_c)}°/${Math.round(weather.data.temp_low_c)}°` : '—'}
+      <div className="flex items-start justify-between gap-4 px-4 pt-4 pb-3">
+        <div>
+          <div className="wy-lbl">
+            {dateLabel} · {weather.data?.available ? (coords ? 'HERE' : 'HOME') : 'NO WEATHER'}
+          </div>
+          <div className="wy-display text-8xl mt-1.5">
+            {weather.data?.available ? `${Math.round(weather.data.temp_high_c)}°` : '—'}
+            <span className="text-(--color-accent)">.</span>
           </div>
         </div>
-        <div className="wy-cell">
-          <div className="wy-lbl">CONDITION</div>
-          <div className="font-extrabold text-2xl tracking-tight">
-            {weather.data?.available
-              ? `${CONDITION_LABELS[weather.data.condition] ?? weather.data.condition.toUpperCase()} · ${weather.data.precip_probability}%`
-              : 'UNKNOWN'}
+        <div className="text-right text-xs font-bold leading-snug pt-2">
+          {weather.data?.available && (
+            <div>
+              {(CONDITION_LABELS[weather.data.condition] ?? weather.data.condition).toLowerCase()}
+              <br />
+              {weather.data.precip_probability}% rain · low {Math.round(weather.data.temp_low_c)}°
+            </div>
+          )}
+          <div className="wy-lbl mt-1.5">
+            {occasion}
+            {mood ? ` · ${mood}` : ''}
           </div>
-        </div>
-        <div className="wy-cell">
-          <div className="wy-lbl">WARDROBE</div>
-          <div className="font-extrabold text-2xl tracking-tight">{items.data?.length ?? 0} ITEMS</div>
-        </div>
-        <div className="wy-cell border-r-0" style={{ background: 'var(--color-accent)', color: 'var(--color-bg)' }}>
-          <div className="wy-lbl" style={{ color: 'var(--color-bg)' }}>
-            OCCASION
-          </div>
-          <div className="font-extrabold text-2xl tracking-tight uppercase">{occasion}</div>
+          <div className="wy-lbl">{items.data?.length ?? 0} items</div>
         </div>
       </div>
 
-      <div className="wy-sec flex justify-between px-4 py-2.5 border-b-2 border-(--color-line-strong)">
-        <span className="wy-lbl">INPUTS</span>
-        <span className="wy-lbl">TAP TO CHANGE</span>
-      </div>
-      <div className="px-4 py-3 border-b-2 border-(--color-line-strong) flex flex-col gap-3">
-        <div>
-          <div className="wy-lbl mb-1.5">OCCASION</div>
-          <div className="flex flex-wrap gap-1.5">
-            {OCCASIONS.map((o) => (
-              <button
-                key={o}
-                type="button"
-                className="wy-chip"
-                data-on={o === occasion || undefined}
-                onClick={() => selectInput(() => setOccasion(o))}
-              >
-                {o.toUpperCase()}
-              </button>
-            ))}
-          </div>
+      <div className="py-3 border-y-2 border-(--color-line-strong) flex flex-col gap-2">
+        <div className="flex gap-2 overflow-x-auto px-4" role="group" aria-label="Occasion">
+          {OCCASIONS.map((o) => (
+            <button
+              key={o}
+              type="button"
+              className="wy-chip"
+              data-on={o === occasion || undefined}
+              onClick={() => selectInput(() => setOccasion(o))}
+            >
+              {o}
+            </button>
+          ))}
         </div>
-        <div>
-          <div className="wy-lbl mb-1.5">MOOD</div>
-          <div className="flex flex-wrap gap-1.5">
-            {MOODS.map((m) => (
-              <button
-                key={m}
-                type="button"
-                className="wy-chip"
-                data-on={m === mood || undefined}
-                onClick={() => selectInput(() => setMood(m === mood ? '' : m))}
-              >
-                {m.toUpperCase()}
-              </button>
-            ))}
-          </div>
+        <div className="flex gap-2 overflow-x-auto px-4" role="group" aria-label="Mood">
+          {MOODS.map((m) => (
+            <button
+              key={m}
+              type="button"
+              className="wy-chip"
+              data-on={m === mood || undefined}
+              onClick={() => selectInput(() => setMood(m === mood ? '' : m))}
+            >
+              {m}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -263,19 +249,20 @@ export default function Today() {
             <div className="grid grid-cols-2 sm:grid-cols-4 border-b-2 border-(--color-line-strong)">
               {outfit.items.map((item) => (
                 <div key={item.id} className="wy-tile">
-                  <div className="h-[130px] border border-(--color-line-strong) bg-(--color-surface) overflow-hidden">
+                  <div className="wy-block h-[170px]" style={{ background: blockOf(item.category) }}>
                     <img
                       src={`/api/items/${item.id}/thumb`}
                       alt={item.name || item.category}
                       className="w-full h-full object-cover"
                     />
+                    <span className="absolute left-2 top-2 text-(--color-block-ink)">
+                      <Shape name={shapeOf(item.category)} />
+                    </span>
                   </div>
-                  <div className="font-extrabold text-xs mt-1.5 tracking-tight truncate">
-                    {(item.name || item.subcategory || item.category).toUpperCase()}
+                  <div className="font-extrabold text-sm mt-1.5 tracking-tight truncate lowercase">
+                    {item.name || item.subcategory || item.category}
                   </div>
-                  <div className="text-[9.5px] text-(--color-neutral-700) tracking-wide truncate">
-                    {item.color_primary?.toUpperCase()}
-                  </div>
+                  <div className="wy-lbl truncate">{item.color_primary}</div>
                 </div>
               ))}
             </div>

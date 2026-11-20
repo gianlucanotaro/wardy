@@ -4,8 +4,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import './index.css'
 import App from './App.tsx'
 import { registerSW } from 'virtual:pwa-register'
+import { applyTheme, watchSystemTheme } from './theme'
 
 const queryClient = new QueryClient()
+
+applyTheme()
+watchSystemTheme()
 
 // iOS Safari ignores user-scalable=no and touch-action for pinch on some
 // versions; cancelling its proprietary gesture event is what reliably stops it.

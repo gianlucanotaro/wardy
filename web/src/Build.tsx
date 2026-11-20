@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import Shape from './Shape'
+import { blockOf, shapeOf } from './shapes'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createLook,
@@ -134,7 +136,10 @@ function SlotRow({
         open ? 'bg-(--color-ink)/7' : ''
       }`}
     >
-      <span className="w-11 h-14 border border-(--color-line-strong) bg-(--color-surface) overflow-hidden grid place-items-center font-extrabold text-xl text-(--color-neutral-700)">
+      <span
+        className="wy-block w-11 h-14 grid place-items-center font-extrabold text-xl text-(--color-neutral-700)"
+        style={{ background: thumb ? blockOf(thumb.category) : 'var(--color-surface)' }}
+      >
         {thumb ? (
           <img src={`/api/items/${thumb.id}/thumb`} alt={thumb.name || thumb.category} className="w-full h-full object-cover" />
         ) : (
@@ -142,8 +147,11 @@ function SlotRow({
         )}
       </span>
       <span className="flex flex-col gap-0.5 min-w-0">
-        <span className="wy-lbl">{label}</span>
-        <span className="font-extrabold text-[15px] tracking-tight truncate">{title}</span>
+        <span className="wy-lbl flex items-center gap-1.5">
+          {thumb && <Shape name={shapeOf(thumb.category)} size={10} />}
+          {label}
+        </span>
+        <span className="font-extrabold text-base tracking-tight truncate lowercase">{title}</span>
         {badge && (
           <span className="self-start mt-0.5 bg-(--color-accent-100) text-(--color-accent-700) font-extrabold text-[8.5px] tracking-[0.1em] px-1.5 py-0.5">
             {badge}
@@ -169,9 +177,8 @@ function PickCard({ item, picked, onPick }: { item: Item; picked: boolean; onPic
       className="flex-none w-26 snap-start p-2.5 border-r border-(--color-line) text-left hover:bg-(--color-ink)/7"
     >
       <div
-        className={`aspect-3/4 overflow-hidden bg-(--color-bg) ${
-          picked ? 'border-2 border-(--color-accent)' : 'border border-(--color-line-strong)'
-        }`}
+        className={`wy-block aspect-3/4 ${picked ? 'outline-3 -outline-offset-3 outline-(--color-accent)' : ''}`}
+        style={{ background: blockOf(item.category) }}
       >
         <img
           src={`/api/items/${item.id}/thumb`}
@@ -185,6 +192,64 @@ function PickCard({ item, picked, onPick }: { item: Item; picked: boolean; onPic
         {item.color_primary.toUpperCase()}
       </div>
     </button>
+  )
+}
+
+// Drag a slot sideways to swap its piece for the previous or next one of the
+// same category (it wraps round). The PICK strip is the same choice by tap, so
+// nothing depends on the gesture. A drag never counts as a tap on the row.
+const SWIPE_PX = 56
+
+function SwipeRow({ onSwipe, children }: { onSwipe: (dir: 1 | -1) => void; children: React.ReactNode }) {
+  const [dx, setDx] = useState(0)
+  const [dragging, setDragging] = useState(false)
+  const startX = useRef<number | null>(null)
+  const moved = useRef(false)
+  const reduced = useRef(window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+
+  function end() {
+    if (startX.current === null) return
+    startX.current = null
+    setDragging(false)
+    if (Math.abs(dx) >= SWIPE_PX) onSwipe(dx < 0 ? 1 : -1)
+    setDx(0)
+  }
+
+  return (
+    <div
+      className="overflow-hidden"
+      style={{ touchAction: 'pan-y' }}
+      onPointerDown={(e) => {
+        startX.current = e.clientX
+        moved.current = false
+      }}
+      onPointerMove={(e) => {
+        if (startX.current === null) return
+        const d = e.clientX - startX.current
+        if (!moved.current && Math.abs(d) < 8) return
+        if (!moved.current) e.currentTarget.setPointerCapture(e.pointerId)
+        moved.current = true
+        setDragging(true)
+        setDx(d)
+      }}
+      onPointerUp={end}
+      onPointerCancel={end}
+      onClickCapture={(e) => {
+        if (moved.current) {
+          e.stopPropagation()
+          moved.current = false
+        }
+      }}
+    >
+      <div
+        style={{
+          transform: `translateX(${dx}px)`,
+          transition: reduced.current || dragging ? 'none' : 'transform 180ms ease-out',
+        }}
+      >
+        {children}
+      </div>
+    </div>
   )
 }
 
@@ -294,6 +359,18 @@ export default function Build({
     markEdited()
   }
 
+  // Swipe on a slot: the previous or next piece of its category.
+  function swapSlot(slot: (typeof SLOTS)[number], dir: 1 | -1) {
+    const options = items.data?.filter((it) => it.category === slot.category) ?? []
+    const current = slots[slot.key]
+    if (options.length === 0 || (options.length === 1 && current)) return
+    const at = options.findIndex((it) => it.id === current?.id)
+    const next = at < 0 ? (dir > 0 ? 0 : options.length - 1) : (at + dir + options.length) % options.length
+    setSlots((prev) => ({ ...prev, [slot.key]: options[next] }))
+    setPickSlot(null)
+    markEdited()
+  }
+
   function clearAll() {
     setSlots({})
     setAccessories([])
@@ -344,9 +421,10 @@ export default function Build({
   return (
     <div className="flex flex-col">
       <div className="flex items-baseline justify-between px-4 py-3 border-b-2 border-(--color-line-strong)">
-        <span className="font-extrabold text-3xl tracking-tight">BUILD</span>
-        <span className="wy-lbl">
+        <span className="wy-display text-5xl">BUILD</span>
+        <span className="wy-lbl text-right">
           {filledSlots}/{visibleSlots.length + 1} SLOTS
+          <br />← SWIPE A SLOT TO SWAP →
         </span>
       </div>
 
@@ -392,15 +470,17 @@ export default function Build({
           const options = open ? (items.data?.filter((it) => it.category === slot.category) ?? []) : []
           return (
             <div key={slot.key} className="border-b border-(--color-line)">
-              <SlotRow
-                label={slot.label}
-                thumb={item}
-                title={item ? itemTitle(item) : 'EMPTY'}
-                badge={item ? inspoBadge(item) : undefined}
-                action={item ? 'SWAP ▾' : 'PICK ▾'}
-                open={open}
-                onToggle={() => setPickSlot(open ? null : slot.key)}
-              />
+              <SwipeRow onSwipe={(dir) => swapSlot(slot, dir)}>
+                <SlotRow
+                  label={slot.label}
+                  thumb={item}
+                  title={item ? itemTitle(item) : 'EMPTY'}
+                  badge={item ? inspoBadge(item) : undefined}
+                  action={item ? 'SWAP ▾' : 'PICK ▾'}
+                  open={open}
+                  onToggle={() => setPickSlot(open ? null : slot.key)}
+                />
+              </SwipeRow>
               {open && (
                 <div className={STRIP_CLASS}>
                   {options.map((it) => (
@@ -543,7 +623,7 @@ export default function Build({
           />
           <div className="relative bg-(--color-bg) border-t-2 border-(--color-line-strong) safe-area-overlay max-h-full overflow-y-auto">
             <div className="flex items-center justify-between px-4 py-3 border-b-2 border-(--color-line-strong)">
-              <span className="font-extrabold text-2xl tracking-tight">SUGGEST OUTFIT</span>
+              <span className="wy-display text-3xl">suggest outfit</span>
               <button type="button" onClick={() => setSheetOpen(false)} className="wy-chip">
                 ✕ CLOSE
               </button>

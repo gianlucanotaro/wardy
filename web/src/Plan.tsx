@@ -83,7 +83,7 @@ export default function Plan() {
   return (
     <div className="flex flex-col">
       <div className="flex items-baseline justify-between px-4 py-3 border-b-2 border-(--color-line-strong)">
-        <span className="font-extrabold text-3xl tracking-tight">THE WEEK</span>
+        <span className="wy-display text-5xl">THE WEEK</span>
         {offset !== 0 && (
           <button type="button" onClick={() => setOffset(0)} className="wy-chip">
             THIS WEEK
@@ -119,14 +119,14 @@ export default function Plan() {
               gridTemplateColumns: '64px 1fr auto',
               borderColor: 'var(--color-line)',
               background: on ? 'var(--color-accent)' : 'var(--color-bg)',
-              color: on ? 'var(--color-bg)' : 'var(--color-ink)',
+              color: on ? 'var(--color-on-accent)' : 'var(--color-ink)',
             }}
           >
             <span className="flex flex-col">
-              <span className="font-extrabold text-[15px] tracking-wide">{WEEKDAY_LABELS[i]}</span>
+              <span className="font-extrabold text-[15px] tracking-wide lowercase">{WEEKDAY_LABELS[i]}</span>
               <span className="text-[11px] font-semibold opacity-70">{days[i].getDate()}</span>
             </span>
-            <span className="font-extrabold text-[19px] tracking-tight truncate">
+            <span className="font-extrabold text-[19px] tracking-tight truncate lowercase">
               {day.look?.name?.toUpperCase() || 'UNPLANNED'}
             </span>
             <span className="flex gap-1">

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { blockOf } from './shapes'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { deleteLook, listLooks, logWear, todayISODate, updateLook } from './api'
 import OutfitStyle from './OutfitStyle'
@@ -55,14 +56,14 @@ export default function Looks() {
   return (
     <div className="flex flex-col">
       <div className="flex items-baseline justify-between px-4 py-3 border-b-2 border-(--color-line-strong)">
-        <span className="font-extrabold text-3xl tracking-tight">LOOKS</span>
+        <span className="wy-display text-5xl">LOOKS</span>
         <span className="wy-lbl">{looks.data?.length ?? 0} SAVED</span>
       </div>
 
       {looks.isLoading && <p className="px-4 py-4 wy-lbl">LOADING LOOKS…</p>}
       {looks.isSuccess && looks.data.length === 0 && (
         <div className="px-4 py-8 border-b-2 border-(--color-line-strong)">
-          <div className="font-extrabold text-xl mb-1.5">NO LOOKS SAVED</div>
+          <div className="wy-display text-4xl mb-1.5">no looks saved</div>
         </div>
       )}
 
@@ -77,7 +78,7 @@ export default function Looks() {
             }}
             className="w-full flex items-baseline justify-between gap-3 px-4 py-3 text-left"
           >
-            <span className="font-extrabold text-xl tracking-tight truncate min-w-0">
+            <span className="font-extrabold text-xl tracking-tight truncate min-w-0 lowercase">
               {look.name?.toUpperCase() || 'UNTITLED'}
             </span>
             <span className="wy-lbl whitespace-nowrap">
@@ -90,7 +91,8 @@ export default function Looks() {
             {look.items.map((item) => (
               <div
                 key={item.id}
-                className="aspect-3/4 border border-(--color-line-strong) bg-(--color-surface) overflow-hidden"
+                className="wy-block aspect-3/4"
+                style={{ background: blockOf(item.category) }}
               >
                 <img
                   src={`/api/items/${item.id}/thumb`}

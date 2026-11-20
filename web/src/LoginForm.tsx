@@ -59,7 +59,7 @@ export default function LoginForm({ onSuccess }: { onSuccess: () => void }) {
           mutation.mutate()
         }}
       >
-        <h1 className="font-extrabold text-3xl tracking-tight text-center mb-3">WARDY</h1>
+        <h1 className="wy-display text-6xl text-center mb-3">wardy</h1>
         <label className="flex flex-col gap-1 text-sm" htmlFor="email">
           <span className="wy-lbl">EMAIL OR USERNAME</span>
           <input

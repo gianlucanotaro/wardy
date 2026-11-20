@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getSettings, getWeather, updateSettings } from './api'
 import { type LocationSource, useLocationSource, useWeatherCoords } from './location'
+import { type ThemePref, getThemePref, setThemePref } from './theme'
 import { useToast } from './useToast'
 
 const CONDITION_LABELS: Record<string, string> = {
@@ -33,6 +34,7 @@ export default function Settings() {
   const queryClient = useQueryClient()
   const flash = useToast()
   const [showIOSInstallHint] = useState(isIOSInstallable)
+  const [themePref, setThemeState] = useState<ThemePref>(getThemePref)
   const settings = useQuery({ queryKey: ['settings'], queryFn: getSettings })
   const hasLocation = settings.data?.home_lat != null && settings.data?.home_lon != null
   const [locationSource, setLocationSource] = useLocationSource()
@@ -88,7 +90,7 @@ export default function Settings() {
   return (
     <div className="flex flex-col">
       <div className="px-4 py-3 border-b-2 border-(--color-line-strong)">
-        <span className="font-extrabold text-3xl tracking-tight">SETTINGS</span>
+        <span className="wy-display text-5xl">SETTINGS</span>
       </div>
 
       {showIOSInstallHint && (
@@ -100,6 +102,27 @@ export default function Settings() {
           </p>
         </section>
       )}
+
+      <section className="px-4 py-3 border-b-2 border-(--color-line-strong) flex flex-col gap-2">
+        <div className="wy-lbl">APPEARANCE</div>
+        <div className="flex flex-wrap gap-1.5">
+          {(['auto', 'light', 'dark'] as ThemePref[]).map((value) => (
+            <button
+              key={value}
+              type="button"
+              className="wy-chip"
+              data-on={value === themePref || undefined}
+              aria-pressed={value === themePref}
+              onClick={() => {
+                setThemePref(value)
+                setThemeState(value)
+              }}
+            >
+              {value}
+            </button>
+          ))}
+        </div>
+      </section>
 
       <section className="px-4 py-3 border-b-2 border-(--color-line-strong) flex flex-col gap-2">
         <div className="wy-lbl">WEATHER LOCATION</div>
