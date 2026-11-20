@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Cross } from './Icons'
 import { blockOf } from './shapes'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { deleteLook, listLooks, logWear, todayISODate, updateLook } from './api'
@@ -161,7 +162,7 @@ export default function Looks() {
                           })
                         }
                       >
-                        ✕ {(item.name || item.category).toUpperCase()}
+                        <Cross /> {(item.name || item.category).toUpperCase()}
                       </button>
                     ))}
                   </div>

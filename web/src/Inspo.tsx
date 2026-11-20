@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Cross } from './Icons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   deleteInspo,
@@ -316,14 +317,12 @@ function FitDetail({ fit, onClose }: { fit: InspoFit; onClose: () => void }) {
         <div className={`${OVERLAY_BAR} flex items-center justify-between gap-3 px-4 py-3 border-b-2 border-(--color-line-strong)`}>
           <span className="wy-display text-3xl">fit</span>
           <button type="button" onClick={onClose} className="wy-chip">
-            ✕ CLOSE
+            <Cross /> CLOSE
           </button>
         </div>
 
-        <div className="border-b-2 border-(--color-line-strong) p-4">
-          <div className="aspect-3/4 border-2 border-(--color-line-strong) bg-(--color-surface) overflow-hidden">
-            <img src={`/api/inspo/${fit.id}/photo`} alt="inspiration fit" className="w-full h-full object-cover" />
-          </div>
+        <div className="aspect-3/4 overflow-hidden bg-(--color-surface) border-b-2 border-(--color-line-strong)">
+          <img src={`/api/inspo/${fit.id}/photo`} alt="inspiration fit" className="w-full h-full object-cover" />
         </div>
 
         {fit.tagging_pending && <p className="px-4 pt-3 wy-lbl">TAGGING…</p>}
@@ -343,6 +342,7 @@ function FitDetail({ fit, onClose }: { fit: InspoFit; onClose: () => void }) {
             value={draft.colors}
             options={[...COLORS]}
             max={MAX_INSPO_COLORS}
+            swatches
             onChange={(colors) => update({ ...draft, colors })}
           />
           <PiecesField ai={ai} value={draft.pieces} onChange={(pieces) => update({ ...draft, pieces })} />
@@ -414,7 +414,7 @@ function PiecesField({ ai, value, onChange }: { ai: boolean; value: string[]; on
             onClick={() => onChange(value.filter((v) => v !== p))}
             aria-label={`Remove ${p}`}
           >
-            {p.toUpperCase()} ×
+            {p.toUpperCase()} <Cross />
           </button>
         ))}
       </div>
