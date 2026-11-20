@@ -1,4 +1,6 @@
 import { useRef, useState } from 'react'
+import Shape from './Shape'
+import { blockOf, shapeOf } from './shapes'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { archiveItem, deleteItem, listItems, logWear, todayISODate, uploadItem, type Item } from './api'
 import TagEditor from './TagEditor'
@@ -151,7 +153,7 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
   return (
     <div className="flex flex-col">
       <div className="flex items-baseline justify-between px-4 py-3 border-b-2 border-(--color-line-strong)">
-        <h1 className="font-extrabold text-3xl tracking-tight">WARDROBE</h1>
+        <h1 className="wy-display text-5xl">WARDROBE</h1>
         <button
           type="button"
           onClick={() => {
@@ -159,7 +161,7 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
             setAddFlow({ stage: 'idle' })
           }}
           className="wy-chip"
-          style={{ background: 'var(--color-accent)', color: 'var(--color-bg)', borderColor: 'var(--color-accent)' }}
+          style={{ background: 'var(--color-accent)', color: 'var(--color-on-accent)', borderColor: 'var(--color-accent)' }}
         >
           + ADD ITEM
         </button>
@@ -215,29 +217,32 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
             }}
             className="wy-tile"
           >
-            <div className="relative aspect-3/4 border border-(--color-line-strong) bg-(--color-surface) overflow-hidden">
+            <div className="wy-block aspect-3/4" style={{ background: blockOf(item.category) }}>
               <img
                 src={`/api/items/${item.id}/thumb`}
                 alt={item.name || 'wardrobe item'}
                 className="w-full h-full object-cover"
                 loading="lazy"
               />
+              <span className="absolute left-2 top-2 text-(--color-block-ink)">
+                <Shape name={shapeOf(item.category)} />
+              </span>
               {item.tagging_pending && (
                 <span className="absolute bottom-1 right-1 bg-(--color-ink) text-(--color-bg) text-[9px] font-extrabold uppercase tracking-wide px-1.5 py-0.5">
                   Tagging…
                 </span>
               )}
             </div>
-            <div className="font-extrabold text-xs mt-1.5 tracking-tight truncate">
-              {(item.name || item.subcategory || item.category).toUpperCase()}
+            <div className="font-extrabold text-xs mt-1.5 tracking-tight truncate lowercase">
+              {item.name || item.subcategory || item.category}
             </div>
-            <div className="text-[9.5px] text-(--color-neutral-700) tracking-wide truncate">{meta(item)}</div>
+            <div className="wy-lbl truncate">{meta(item)}</div>
           </button>
         ))}
       </div>
       {items.isSuccess && items.data.length > 0 && visibleItems?.length === 0 && (
         <div className="px-4 py-7 flex flex-col gap-3.5 items-start">
-          <p className="font-extrabold text-[22px] leading-tight tracking-tight uppercase">
+          <p className="font-extrabold text-[22px] leading-tight tracking-tight lowercase">
             {loosen.length > 1 ? `Nothing matches all ${loosen.length} filters.` : `Nothing matches ${loosen[0]?.label}.`}
           </p>
           {loosen.length > 1 && loosen.some((l) => l.count > 0) && (
@@ -304,7 +309,7 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
 
             <div className="px-4 pt-4">
               <div className="wy-lbl">{(selected.category || 'UNTAGGED').toUpperCase()}</div>
-              <div className="font-extrabold text-[28px] leading-none tracking-tight mt-1 mb-3">
+              <div className="wy-display text-[34px] mt-1 mb-3">
                 {(selected.name || selected.subcategory || 'Item').toUpperCase()}
               </div>
             </div>
@@ -406,7 +411,7 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
           </div>
 
           <div className="flex-1 flex flex-col items-center justify-center gap-6 px-8 text-center">
-            <h2 className="font-extrabold text-3xl tracking-tight leading-tight">
+            <h2 className="wy-display text-5xl leading-tight">
               PHOTOGRAPH IT ONCE.
               <br />
               WE TAG THE REST.
@@ -430,7 +435,7 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
               className="wy-act disabled:opacity-45"
               style={{
                 background: 'var(--color-accent)',
-                color: 'var(--color-bg)',
+                color: 'var(--color-on-accent)',
                 borderColor: 'var(--color-accent)',
                 padding: '14px 28px',
               }}

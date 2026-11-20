@@ -107,7 +107,7 @@ export default function Inspo() {
   return (
     <div className="flex flex-col">
       <div className="flex items-baseline justify-between px-4 py-3 border-b-2 border-(--color-line-strong)">
-        <h1 className="font-extrabold text-3xl tracking-tight">INSPO</h1>
+        <h1 className="wy-display text-5xl">INSPO</h1>
         {data && <span className="wy-lbl">{data.fits.length} FITS</span>}
       </div>
 
@@ -314,7 +314,7 @@ function FitDetail({ fit, onClose }: { fit: InspoFit; onClose: () => void }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className={`${OVERLAY_BAR} flex items-center justify-between gap-3 px-4 py-3 border-b-2 border-(--color-line-strong)`}>
-          <span className="font-extrabold text-xl tracking-tight">FIT</span>
+          <span className="wy-display text-3xl">fit</span>
           <button type="button" onClick={onClose} className="wy-chip">
             ✕ CLOSE
           </button>

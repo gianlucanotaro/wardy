@@ -125,7 +125,7 @@ export default function Plan() {
       onPointerCancel={() => (swipeStart.current = null)}
     >
       <div className="flex items-baseline justify-between px-4 py-3 border-b-2 border-(--color-line-strong)">
-        <span className="font-extrabold text-3xl tracking-tight">THE WEEK</span>
+        <span className="wy-display text-5xl">THE WEEK</span>
         {/* Always rendered, hidden on this week, so the header keeps its
             height and the cards don't jump while paging (#77). */}
         <button

@@ -226,7 +226,7 @@ function Picker({
             type="button"
             onClick={onDone}
             className="wy-chip min-w-[72px]"
-            style={{ background: 'var(--color-accent)', color: 'var(--color-bg)', borderColor: 'var(--color-accent)' }}
+            style={{ background: 'var(--color-accent)', color: 'var(--color-on-accent)', borderColor: 'var(--color-accent)' }}
           >
             DONE
           </button>

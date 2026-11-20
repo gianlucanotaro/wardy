@@ -1,36 +1,63 @@
-/* "Modernist" — the theme designed in claude.ai/design (project "Digital
-   Wardrobe Outfit Suggester"). Flat and architectural: one red accent on an
-   off-white ground, zero border radius, strong 2px dividers, uppercase
-   labels in Archivo. Never hard-code a color/font this block already
-   carries — use the tokens below. */
-@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&display=swap');
+/* "Bauhaus" — design concept 2. Flat colour blocks on warm paper, one red
+   accent that only ever marks the next action, blue and yellow for blocks.
+   Circle = tops, square = bottoms, triangle = layers (see shapes.tsx).
+   Heavy lowercase display type (Bricolage Grotesque), small mono labels
+   (Space Mono). Light and dark follow the phone unless Settings says otherwise. Never hard-code a color or
+   font this block already carries — use the tokens below. */
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,700;12..96,800&family=Space+Mono:wght@400;700&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Archivo", system-ui, sans-serif;
-  --color-bg: #f3f2f2;
-  --color-surface: #eae9e9;
-  --color-ink: #201e1d;
-  --color-line: color-mix(in srgb, #201e1d 30%, transparent);
-  --color-line-strong: #201e1d;
+  --font-sans: "Bricolage Grotesque", system-ui, sans-serif;
+  --font-mono: "Space Mono", ui-monospace, monospace;
+  --color-bg: #f1ece2;
+  --color-surface: #e4ddcf;
+  --color-ink: #151413;
+  --color-line: color-mix(in srgb, var(--color-ink) 30%, transparent);
+  --color-line-strong: var(--color-ink);
   --color-accent: #ec3013;
   --color-accent-600: #dd2b0f;
   --color-accent-700: #ae1800;
-  --color-accent-100: #fff2ef;
-  --color-neutral-500: #9b9797;
-  --color-neutral-700: #605d5d;
+  --color-accent-100: #fde6e0;
+  --color-on-accent: #ffffff;
+  --color-blue: #2340c8;
+  --color-yellow: #f4b400;
+  --color-block-neutral: #d9d0bf;
+  --color-block-ink: #151413;
+  --color-neutral-500: #8a8378;
+  --color-neutral-700: #6e675e;
+}
+
+/* Set on <html> by theme.ts (and index.html, before first paint). */
+:root[data-theme='dark'] {
+  --color-bg: #121110;
+  --color-surface: #201e1c;
+  --color-ink: #f1ece2;
+  --color-accent: #ff4326;
+  --color-accent-600: #ff5a40;
+  --color-accent-700: #ff7a62;
+  --color-accent-100: #3a1710;
+  --color-on-accent: #121110;
+  --color-blue: #4f6bff;
+  --color-yellow: #ffc21a;
+  --color-block-neutral: #8f877a;
+  --color-neutral-500: #9a9286;
+  --color-neutral-700: #9a9286;
+  color-scheme: dark;
 }
 
 :root {
   /* Minimum horizontal breathing room on every screen edge — applied by
      the safe-area rules below, which take whichever is larger. */
   --gutter-x: 12px;
+  color-scheme: light;
 }
 
 html,
 body {
   background: var(--color-bg);
   color: var(--color-ink);
+  font-family: var(--font-sans);
 }
 
 /* No pinch- or double-tap-zoom (iOS ignores the viewport meta's
@@ -39,44 +66,75 @@ html {
   touch-action: pan-x pan-y;
 }
 
+/* Screen titles: heavy, tight, lowercase. */
+.wy-display {
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 0.9;
+  text-transform: lowercase;
+}
+
+/* Flat colour blocks behind garment photos. The photo multiplies into the
+   block, so a light photo background takes the block's colour (in dark too). */
+.wy-block {
+  position: relative;
+  overflow: hidden;
+}
+.wy-block > img {
+  mix-blend-mode: multiply;
+}
+
 /* Component classes — the handful of compound patterns that repeat across
    every screen, mirroring the design file's own .wy-* classes. Everything
    else stays inline Tailwind utilities. */
 .wy-lbl {
-  font: 800 9px var(--font-sans);
-  letter-spacing: 0.12em;
+  font: 700 10px var(--font-mono);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--color-neutral-700);
 }
 .wy-tab {
   background: transparent;
   border: 0;
-  border-right: 1px solid var(--color-line);
-  padding: 13px 4px 15px;
-  min-height: 48px;
-  font: 800 9.5px var(--font-sans);
-  letter-spacing: 0.09em;
+  padding: 10px 4px 8px;
+  min-height: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  font: 700 9px var(--font-mono);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--color-neutral-700);
 }
-.wy-tab:last-child {
-  border-right: 0;
-}
 .wy-tab:hover {
-  background: color-mix(in srgb, var(--color-ink) 7%, transparent);
   color: var(--color-ink);
 }
 .wy-tab[data-on] {
-  color: var(--color-accent-700);
+  color: var(--color-ink);
+}
+/* The Build tab: a red disc that rises out of the bar. */
+.wy-fab {
+  width: 60px;
+  height: 60px;
+  margin-top: -28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  border: 4px solid var(--color-bg);
 }
 .wy-chip {
-  border: 1px solid var(--color-line);
+  border: 2px solid var(--color-ink);
+  border-radius: 999px;
   background: transparent;
-  min-height: 36px;
-  padding: 6px 11px;
-  font: 800 10.5px var(--font-sans);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  min-height: 44px;
+  padding: 6px 16px;
+  font: 700 12px var(--font-sans);
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
+  white-space: nowrap;
   color: var(--color-ink);
 }
 .wy-chip:hover {
@@ -91,10 +149,10 @@ html {
   border: 0;
   min-height: 52px;
   padding: var(--space-3, 12px) var(--space-4, 16px);
-  font: 800 13px var(--font-sans);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  text-align: left;
+  font: 800 17px var(--font-sans);
+  letter-spacing: -0.01em;
+  text-transform: lowercase;
+  text-align: center;
   background: var(--color-bg);
   color: var(--color-ink);
 }
@@ -106,7 +164,7 @@ html {
 }
 .wy-act[data-primary] {
   background: var(--color-accent);
-  color: var(--color-bg);
+  color: var(--color-on-accent);
 }
 .wy-act[data-primary]:hover:not(:disabled) {
   background: var(--color-accent-600);
@@ -119,9 +177,8 @@ html {
   background: var(--color-ink);
   color: var(--color-bg);
   padding: 11px 16px;
-  font: 800 11px var(--font-sans);
-  letter-spacing: 0.08em;
-  box-shadow: 0 3px 10px color-mix(in srgb, #2d2b2b 16%, transparent);
+  font: 700 11px var(--font-mono);
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   animation: wy-toast-in 140ms ease-out;
 }
@@ -144,9 +201,7 @@ html {
 .wy-tile {
   background: transparent;
   border: 0;
-  border-right: 1px solid var(--color-line);
-  border-bottom: 1px solid var(--color-line);
-  padding: 10px;
+  padding: 3px;
   text-align: left;
   display: block;
   width: 100%;

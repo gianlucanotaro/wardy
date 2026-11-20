@@ -9,6 +9,8 @@ import Plan from './Plan'
 import History from './History'
 import Inspo from './Inspo'
 import Settings from './Settings'
+import Shape from './Shape'
+import type { ShapeName } from './shapes'
 import { ToastProvider } from './Toast'
 
 // The persistent chrome: a sticky header (brand + the utility screens the
@@ -18,12 +20,12 @@ import { ToastProvider } from './Toast'
 // and header links are the only navigation.
 type View = 'today' | 'wardrobe' | 'build' | 'looks' | 'plan' | 'inspo' | 'history' | 'settings'
 
-const TABS: { key: View; label: string }[] = [
-  { key: 'today', label: 'TODAY' },
-  { key: 'wardrobe', label: 'WARDROBE' },
-  { key: 'build', label: 'BUILD' },
-  { key: 'looks', label: 'LOOKS' },
-  { key: 'plan', label: 'PLAN' },
+const TABS: { key: View; label: string; shape: ShapeName }[] = [
+  { key: 'today', label: 'TODAY', shape: 'circle' },
+  { key: 'wardrobe', label: 'WARDROBE', shape: 'square' },
+  { key: 'build', label: 'BUILD', shape: 'circle' },
+  { key: 'looks', label: 'LOOKS', shape: 'triangle' },
+  { key: 'plan', label: 'PLAN', shape: 'half' },
 ]
 
 export default function Shell({ me, onLogout }: { me: Me; onLogout: () => void }) {
@@ -46,7 +48,7 @@ export default function Shell({ me, onLogout }: { me: Me; onLogout: () => void }
       <div className="flex flex-col bg-(--color-bg) text-(--color-ink)">
         <header className="sticky top-0 z-10 border-b-2 border-(--color-line-strong) bg-(--color-bg) pt-[env(safe-area-inset-top)]">
           <div className="flex items-center gap-4 px-4 py-3">
-            <span className="font-extrabold text-lg tracking-tight mr-auto">WARDY</span>
+            <span className="wy-display text-2xl mr-auto">wardy</span>
             <span className="hidden sm:inline wy-lbl">{me.display_name}</span>
             <button
               type="button"
@@ -68,8 +70,8 @@ export default function Shell({ me, onLogout }: { me: Me; onLogout: () => void }
           </div>
         </header>
 
-        {/* Clears the tab bar (50px + 12px); body padding covers the home indicator. */}
-        <div className="flex-1 w-full max-w-2xl mx-auto pb-[62px]">
+        {/* Clears the tab bar (60px + 12px); body padding covers the home indicator. */}
+        <div className="flex-1 w-full max-w-2xl mx-auto pb-[72px]">
           {view === 'today' && <Today />}
           {view === 'wardrobe' && (
             <Wardrobe
@@ -90,18 +92,34 @@ export default function Shell({ me, onLogout }: { me: Me; onLogout: () => void }
         </div>
 
         <nav className="fixed bottom-0 left-0 right-0 bg-(--color-bg) border-t-2 border-(--color-line-strong) z-10 safe-area-tabbar">
-          <div className="max-w-2xl mx-auto grid grid-cols-5">
-            {TABS.map((t) => (
-              <button
-                key={t.key}
-                type="button"
-                className="wy-tab"
-                data-on={view === t.key || undefined}
-                onClick={() => setView(t.key)}
-              >
-                {t.label}
-              </button>
-            ))}
+          <div className="max-w-2xl mx-auto grid grid-cols-[1fr_1fr_1.2fr_1fr_1fr]">
+            {TABS.map((t) =>
+              t.key === 'build' ? (
+                <button
+                  key={t.key}
+                  type="button"
+                  className="wy-tab"
+                  data-on={view === t.key || undefined}
+                  onClick={() => setView(t.key)}
+                >
+                  <span className="wy-fab text-3xl font-extrabold leading-none" aria-hidden="true">
+                    +
+                  </span>
+                  {t.label}
+                </button>
+              ) : (
+                <button
+                  key={t.key}
+                  type="button"
+                  className="wy-tab"
+                  data-on={view === t.key || undefined}
+                  onClick={() => setView(t.key)}
+                >
+                  <Shape name={t.shape} size={22} />
+                  {t.label}
+                </button>
+              ),
+            )}
           </div>
         </nav>
       </div>

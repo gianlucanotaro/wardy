@@ -1,4 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import Shape from './Shape'
+import { blockOf, shapeOf } from './shapes'
 import { deleteWear, getHistory } from './api'
 import { useToast } from './useToast'
 
@@ -21,7 +23,7 @@ export default function History() {
   return (
     <div className="flex flex-col">
       <div className="px-4 py-3 border-b-2 border-(--color-line-strong)">
-        <span className="font-extrabold text-3xl tracking-tight">HISTORY</span>
+        <span className="wy-display text-5xl">HISTORY</span>
       </div>
 
       {history.isLoading && <p className="px-4 py-4 wy-lbl">LOADING…</p>}
@@ -33,13 +35,16 @@ export default function History() {
       <div className="grid grid-cols-3 border-b-2 border-(--color-line-strong)">
         {history.data?.items.map((item) => (
           <div key={item.id} className="wy-tile">
-            <div className="aspect-3/4 border border-(--color-line-strong) bg-(--color-surface) overflow-hidden">
+            <div className="wy-block aspect-3/4" style={{ background: blockOf(item.category) }}>
               <img
                 src={`/api/items/${item.id}/thumb`}
                 alt={item.name || item.category}
                 className="w-full h-full object-cover"
                 loading="lazy"
               />
+              <span className="absolute left-2 top-2 text-(--color-block-ink)">
+                <Shape name={shapeOf(item.category)} />
+              </span>
             </div>
             <div className="text-[9.5px] text-(--color-neutral-700) tracking-wide mt-1.5 truncate uppercase">
               {item.last_worn_on ? `Last worn ${item.last_worn_on}` : 'Never worn'}
@@ -58,12 +63,13 @@ export default function History() {
         <div key={wear.id} className="flex items-center gap-3 px-4 py-3 border-b border-(--color-line)">
           <div className="flex gap-1 overflow-x-auto flex-1">
             {wear.items.map((item) => (
-              <img
-                key={item.id}
-                src={`/api/items/${item.id}/thumb`}
-                alt={item.name || item.category}
-                className="w-12 h-12 object-cover border border-(--color-line-strong) flex-shrink-0"
-              />
+              <div key={item.id} className="wy-block w-12 h-12 flex-shrink-0" style={{ background: blockOf(item.category) }}>
+                <img
+                  src={`/api/items/${item.id}/thumb`}
+                  alt={item.name || item.category}
+                  className="w-full h-full object-cover"
+                />
+              </div>
             ))}
           </div>
           <div className="flex flex-col items-end gap-1">

@@ -8,6 +8,28 @@ hooks only. Built to `web/dist`, embedded via `go:embed`.
 Mobile-first: design at 380px, then widen. Most sessions happen on a phone while
 getting dressed.
 
+## Look
+
+Bauhaus, tokens in `web/src/index.css` — never hard-code a colour or font.
+
+- **Shapes mean categories.** Circle = tops (and dresses), square = bottoms,
+  triangle = layers, half-circle = shoes (`shapes.ts`, drawn by `Shape.tsx`).
+  They mark garments in grids and slots and are the tab bar's icons. Always
+  written out next to the garment too: the shape is a cue, never the only one.
+- **Colour blocks behind photos.** Each category has a block colour
+  (`blockOf()`); a `.wy-block` multiplies the photo into it, so light photo
+  backgrounds take the colour. Use it wherever a garment photo shows.
+- **Red is only the next action** (`data-primary`, the Build button, a planned
+  day). Text on red is `--color-on-accent`, not `--color-bg`.
+- **Type.** Screen titles are `wy-display` (heavy, tight, lowercase, via CSS —
+  the JSX can stay uppercase). Small labels are `wy-lbl` (Space Mono).
+- **Light and dark.** `data-theme` on `<html>`: Settings > Appearance (auto,
+  light, dark), saved in `localStorage` as `wardy-theme`. `index.html` sets it
+  before first paint; `theme.ts` keeps it in step. Add a colour as a token in
+  both blocks of `index.css`.
+- **Bottom bar:** five tabs, Build in the middle as a raised red disc. Tap
+  targets stay at least 44px.
+
 ## Screens
 
 Proposed set — confirm before building beyond phase 3.
@@ -18,12 +40,12 @@ Proposed set — confirm before building beyond phase 3.
 | `/items/new` | Capture or pick a photo, upload, land on review. |
 | `/items/:id` | Detail and tag editing. |
 | `/suggest` | Pick occasion + mood → outfit cards. |
-| Build | Fill slots by hand, or SUGGEST OUTFIT (occasion + mood + optional request in your own words, last 3 kept per device as chips) → AI fills the slots; NEXT steps through the other suggestions, every slot stays swappable. |
+| Build | Fill slots by hand, or SUGGEST OUTFIT (occasion + mood + optional request in your own words, last 3 kept per device as chips) → AI fills the slots; NEXT steps through the other suggestions, every slot stays swappable. Swipe a slot sideways to swap its piece for the previous or next one of that category; tapping opens the same choice as a strip (the gesture is never the only way). |
 | Inspo | Photos of other people's fits (header link). Style profile on top — style bars, colours, pieces, AI summary, "use in suggestions" switch — then the grid; tap a fit to tag it. Suggestions that used it say YOUR STYLE and tag matching pieces "LIKE N OF YOUR INSPO FITS". |
 | `/looks` | Saved outfits. |
 | `/looks/:id` | Look detail, edit, log as worn. |
 | `/history` | Wear log, "not worn in a while". |
-| `/settings` | Weather location (where I am / home), home location, account. |
+| `/settings` | Appearance (auto, light, dark), weather location (where I am / home), home location, account. |
 
 ## Photo capture
 
