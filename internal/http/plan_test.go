@@ -122,3 +122,38 @@ func TestPlanEndpointOwnershipScoped(t *testing.T) {
 		t.Errorf("user B should not see user A's plan, got: %v", days)
 	}
 }
+
+// #78: the plan carries each day's wears, and only the caller's own.
+func TestPlanEndpointWearsOwnershipScoped(t *testing.T) {
+	s := newTestStore(t)
+	h := newTestHandler(t, s)
+
+	cookieA := loginAndGetCookie(t, h, s, "a@example.com", "correct horse battery staple")
+	itemA := createTestItem(t, s, 1)
+	rec := doJSON(h, cookieA, http.MethodPost, "/api/wears", map[string]any{
+		"item_ids": []int64{itemA}, "worn_on": "2026-09-14",
+	})
+	if rec.Code != http.StatusCreated && rec.Code != http.StatusOK {
+		t.Fatalf("log wear: status %d, body %s", rec.Code, rec.Body.String())
+	}
+
+	cookieB := loginAndGetCookie(t, h, s, "b@example.com", "correct horse battery staple")
+
+	var days []map[string]any
+	rec = doJSON(h, cookieA, http.MethodGet, "/api/plan?start=2026-09-14&end=2026-09-15", nil)
+	json.Unmarshal(rec.Body.Bytes(), &days)
+	if wears, _ := days[0]["wears"].([]any); len(wears) != 1 {
+		t.Errorf("user A's plan: days[0].wears = %v, want one wear", days[0]["wears"])
+	}
+	if wears, ok := days[1]["wears"].([]any); !ok || len(wears) != 0 {
+		t.Errorf("user A's plan: days[1].wears = %v, want []", days[1]["wears"])
+	}
+
+	rec = doJSON(h, cookieB, http.MethodGet, "/api/plan?start=2026-09-14&end=2026-09-15", nil)
+	json.Unmarshal(rec.Body.Bytes(), &days)
+	for _, d := range days {
+		if wears, _ := d["wears"].([]any); len(wears) != 0 {
+			t.Errorf("user B's plan shows user A's wear on %v: %v", d["date"], d["wears"])
+		}
+	}
+}

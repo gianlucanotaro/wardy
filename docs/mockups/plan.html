@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plan Mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  /* Wardy's "Modernist" look, same tokens as web/src/index.css. Nothing here
+     needs a new token: the day card uses bg, surface, ink, line,
+     line-strong, accent, accent-700, accent-100 and neutral-700 only. */
+  :root {
+    color-scheme: light;
+    --bg: #f3f2f2;
+    --surface: #eae9e9;
+    --ink: #201e1d;
+    --line: color-mix(in srgb, #201e1d 30%, transparent);
+    --line-strong: #201e1d;
+    --accent: #ec3013;
+    --accent-700: #ae1800;
+    --accent-100: #fff2ef;
+    --n500: #9b9797;
+    --n700: #605d5d;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #dcdbdb; color: var(--ink); font-family: "Archivo", system-ui, sans-serif; padding: 24px 16px 48px; }
+  .lbl { font: 800 9px "Archivo", sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--n700); }
+
+  /* ---------- page chrome around the frames ---------- */
+  .doc { max-width: 1680px; margin: 0 auto; }
+  .doc h1 { font-weight: 800; font-size: 34px; letter-spacing: -.025em; margin: 0 0 4px; }
+  .doc > p { margin: 0 0 16px; max-width: 760px; font-size: 14px; line-height: 20px; }
+  .decide { background: var(--bg); border: 2px solid var(--ink); margin-bottom: 28px; max-width: 1180px; }
+  .decide h2 { margin: 0; padding: 10px 16px; border-bottom: 2px solid var(--ink); font: 800 13px "Archivo", sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+  .decide ol { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); }
+  .decide li { padding: 12px 16px 14px; border-right: 1px solid var(--line); font-size: 13px; line-height: 18px; }
+  .decide li:last-child { border-right: 0; }
+  .decide li b { display: block; font: 800 11px "Archivo", sans-serif; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
+  .decide .rec { display: block; margin-top: 6px; }
+  .decide .rec::before { content: "RECOMMENDED "; font: 800 9px "Archivo", sans-serif; letter-spacing: .12em; color: var(--accent-700); }
+  .decide .alt { display: block; margin-top: 6px; color: var(--n700); }
+  .decide .alt::before { content: "ALTERNATIVE "; font: 800 9px "Archivo", sans-serif; letter-spacing: .12em; }
+  @media (max-width: 900px) { .decide ol { grid-template-columns: 1fr; } .decide li { border-right: 0; border-bottom: 1px solid var(--line); } }
+
+  .frames { display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start; }
+  .frame { width: 390px; flex: none; }
+  .cap { min-height: 68px; margin-bottom: 8px; }
+  .cap b { display: block; font: 800 12px "Archivo", sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+  .cap span { display: block; font-size: 12.5px; line-height: 17px; color: var(--n700); margin-top: 2px; }
+  .cap .tag { display: inline-block; margin-left: 6px; padding: 1px 5px; border: 1px solid var(--accent-700); color: var(--accent-700); font: 800 9px "Archivo", sans-serif; letter-spacing: .1em; vertical-align: 2px; }
+  .cap .tag.later { border-style: dashed; border-color: var(--n700); color: var(--n700); }
+
+  /* ---------- the phone ---------- */
+  .phone { position: relative; height: 1010px; overflow: hidden; background: var(--bg); border: 2px solid var(--ink); padding: 0 12px; display: flex; flex-direction: column; }
+  .appbar { display: flex; align-items: center; justify-content: space-between; height: 52px; border-bottom: 2px solid var(--ink); padding: 0 4px; flex: none; }
+  .appbar .brand { font-weight: 800; font-size: 20px; letter-spacing: -.02em; }
+  .appbar .links { display: flex; gap: 14px; }
+  .appbar .links span { font: 800 8.5px "Archivo", sans-serif; letter-spacing: .12em; color: var(--n700); }
+  .head { display: flex; align-items: baseline; justify-content: space-between; padding: 12px 16px; border-bottom: 2px solid var(--ink); flex: none; }
+  .head .t { font-weight: 800; font-size: 30px; line-height: 36px; letter-spacing: -.025em; }
+  .chip { border: 1px solid var(--line); background: transparent; min-height: 36px; padding: 6px 11px; font: 800 10.5px "Archivo", sans-serif; letter-spacing: .08em; text-transform: uppercase; color: var(--ink); display: inline-flex; align-items: center; gap: 6px; }
+  .chip[data-on] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .pager { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; border-bottom: 2px solid var(--ink); flex: none; }
+  .arrow { width: 44px; height: 44px; border: 1px solid var(--line); display: grid; place-items: center; }
+  .pager .mid { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .pager .range { font-weight: 800; font-size: 13px; letter-spacing: .06em; }
+  .pager .lbl.now { color: var(--accent-700); }
+  .scroll { flex: 1; overflow: hidden; }
+  .tabs { flex: none; display: grid; grid-template-columns: repeat(5, 1fr); border-top: 2px solid var(--ink); margin: 0 -12px; padding: 0 12px; background: var(--bg); }
+  .tabs span { text-align: center; padding: 15px 2px 17px; font: 800 9px "Archivo", sans-serif; letter-spacing: .09em; color: var(--n700); border-right: 1px solid var(--line); }
+  .tabs span:last-child { border-right: 0; color: var(--accent-700); }
+
+  /* ---------- THE DAY CARD (the #77 spec) ---------- */
+  .day {
+    display: grid; grid-template-columns: 64px 1fr; gap: 12px; align-items: start;
+    height: 112px; padding: 12px 16px; border-bottom: 1px solid var(--line);
+    background: var(--bg); color: var(--ink); width: 100%; text-align: left; overflow: hidden;
+  }
+  .day.last { border-bottom: 2px solid var(--line-strong); }
+  .day .wd { font-weight: 800; font-size: 13px; line-height: 16px; letter-spacing: .08em; }
+  .day .num { font-weight: 800; font-size: 30px; line-height: 30px; letter-spacing: -.02em; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .day .datecol .lbl { margin-top: 6px; display: block; }
+  .day .body { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .day .title { height: 20px; display: flex; justify-content: space-between; align-items: center; gap: 8px; min-width: 0; }
+  .day .name { font-weight: 800; font-size: 15px; line-height: 20px; letter-spacing: -.01em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .day .empty { font: 800 11px "Archivo", sans-serif; letter-spacing: .12em; color: var(--n700); }
+  .thumbs { display: flex; gap: 4px; height: 60px; }
+  .th { width: 45px; height: 60px; flex: none; border: 1px solid var(--line-strong); background: var(--surface); overflow: hidden; display: grid; place-items: center; }
+  .th svg { width: 100%; height: 100%; display: block; }
+  .th.more { background: var(--bg); font-weight: 800; font-size: 12px; }
+  .prompt { height: 60px; border: 1px dashed var(--line-strong); display: grid; place-items: center; font: 800 10.5px "Archivo", sans-serif; letter-spacing: .08em; color: var(--n700); }
+  .day.today { background: var(--accent-100); box-shadow: inset 4px 0 0 var(--accent); }
+  .day.today .wd, .day.today .num, .day.today .datecol .lbl { color: var(--accent-700); }
+  .day.past .wd, .day.past .num, .day.past .name { color: var(--n700); }
+  .day.past .th svg { filter: grayscale(1); opacity: .55; }
+  .day.loading .bar { width: 120px; height: 12px; background: var(--surface); margin: 4px 0; }
+  .day.loading .sk { width: 45px; height: 60px; background: var(--surface); }
+  .focusring { outline: 2px solid var(--line-strong); outline-offset: -2px; }
+
+  /* #78: what was worn, in the same 20px title row */
+  .worn { font-size: 12px; line-height: 20px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--n700); }
+  .worn b { font-weight: 800; letter-spacing: .02em; text-transform: uppercase; color: var(--ink); }
+  .worn .pl { text-transform: uppercase; font-weight: 600; letter-spacing: .02em; }
+  .day.past.hasworn .th svg { filter: none; opacity: 1; }
+  .tick { display: inline-block; width: 12px; height: 12px; vertical-align: -1px; margin-right: 3px; }
+
+  /* #80 / #82: later slots */
+  .fc { flex: none; font: 800 11px "Archivo", sans-serif; letter-spacing: .02em; font-variant-numeric: tabular-nums; display: inline-flex; gap: 5px; align-items: center; }
+  .fc .rain { color: var(--n700); font-weight: 600; }
+  .occ { display: inline-block; margin-top: 6px; padding: 2px 4px; border: 1px solid var(--line-strong); font: 800 8.5px "Archivo", sans-serif; letter-spacing: .1em; }
+  .later-mark { outline: 2px dashed var(--n700); outline-offset: 1px; }
+
+  /* ---------- sheet (#76) ---------- */
+  .scrim { position: absolute; inset: 0; background: color-mix(in srgb, #201e1d 45%, transparent); }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; height: 760px; background: var(--bg); border-top: 2px solid var(--ink); display: flex; flex-direction: column; padding: 0 12px; }
+  .grab { height: 20px; display: grid; place-items: center; flex: none; }
+  .grab i { width: 40px; height: 4px; background: var(--ink); }
+  .sh-head { display: flex; justify-content: space-between; align-items: flex-start; padding: 2px 4px 10px; border-bottom: 2px solid var(--ink); flex: none; }
+  .sh-head .t { font-weight: 800; font-size: 24px; line-height: 28px; letter-spacing: -.02em; }
+  .x { width: 44px; height: 44px; border: 1px solid var(--line); display: grid; place-items: center; flex: none; }
+  .search { display: flex; align-items: center; gap: 8px; height: 44px; margin: 10px 4px; padding: 0 12px; border: 1px solid var(--line-strong); font-size: 14px; color: var(--n700); flex: none; }
+  .occrow { display: flex; gap: 6px; padding: 0 4px 10px; flex: none; }
+  .list { flex: 1; overflow: hidden; border-top: 1px solid var(--line); }
+  .row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 10px; min-height: 76px; padding: 8px 4px; border-bottom: 1px solid var(--line); }
+  .row .rn { font-weight: 800; font-size: 14px; line-height: 18px; text-transform: uppercase; letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .rs { font-size: 11.5px; color: var(--n700); margin-bottom: 5px; }
+  .row .thumbs { height: 40px; gap: 3px; }
+  .row .th { width: 30px; height: 40px; }
+  .row .pick { width: 44px; height: 44px; display: grid; place-items: center; }
+  .row[data-on] { background: var(--accent-100); box-shadow: inset 4px 0 0 var(--accent); }
+  .row[data-on] .rn { color: var(--accent-700); }
+  .fits { font: 800 8.5px "Archivo", sans-serif; letter-spacing: .1em; color: var(--accent-700); margin-left: 6px; }
+  .sh-acts { display: grid; grid-template-columns: 1fr 1fr; border-top: 2px solid var(--ink); margin: 0 -12px; flex: none; }
+  .act { min-height: 52px; padding: 12px 16px; font: 800 13px "Archivo", sans-serif; letter-spacing: .06em; text-transform: uppercase; background: var(--bg); display: flex; align-items: center; }
+  .act + .act { border-left: 2px solid var(--ink); }
+  .act.p { background: var(--accent-700); color: var(--bg); }
+  .act.danger { color: var(--accent-700); }
+
+  /* ---------- small alternative frames ---------- */
+  .altcol { width: 390px; flex: none; }
+  .mini { background: var(--bg); border: 2px dashed var(--n700); padding: 0 12px; }
+  .note { font-size: 12.5px; line-height: 17px; padding: 10px 4px 12px; color: var(--ink); }
+  .note b { font-weight: 800; text-transform: uppercase; letter-spacing: .04em; font-size: 11px; }
+  .slot { display: grid; grid-template-columns: 52px 1fr; align-items: center; gap: 8px; height: 66px; }
+  .slot + .slot { border-top: 1px solid var(--line); }
+  .slot .lbl { color: var(--ink); }
+  .day.tall { height: 176px; }
+  .unsaved { display: inline-block; padding: 1px 4px; border: 1px dashed var(--line-strong); font: 800 8.5px "Archivo", sans-serif; letter-spacing: .1em; margin-left: 6px; vertical-align: 2px; }
+  .spec { margin-top: 28px; background: var(--bg); border: 2px solid var(--ink); max-width: 1180px; }
+  .spec h2 { margin: 0; padding: 10px 16px; border-bottom: 2px solid var(--ink); font: 800 13px "Archivo", sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+  .spec table { border-collapse: collapse; width: 100%; font-size: 12.5px; line-height: 17px; }
+  .spec td, .spec th { text-align: left; vertical-align: top; padding: 8px 16px; border-bottom: 1px solid var(--line); }
+  .spec th { font: 800 10px "Archivo", sans-serif; letter-spacing: .1em; text-transform: uppercase; width: 150px; }
+  code { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; }
+</style>
+</head>
+<body>
+
+<!-- Garment placeholders: flat shapes, coloured per use with `color`. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="g-tee" viewBox="0 0 45 60"><path fill="currentColor" stroke="#201e1d" stroke-width="1" d="M15 14l-9 5 3 8 5-2v22h17V25l5 2 3-8-9-5c-1 3-4 5-7.5 5S16 17 15 14z"/></symbol>
+  <symbol id="g-hood" viewBox="0 0 45 60"><path fill="currentColor" stroke="#201e1d" stroke-width="1" d="M16 10c2-3 11-3 13 0l9 5 2 28-5 1-2-18v24H12V26l-2 18-5-1 2-28z"/><path stroke="#f3f2f2" stroke-width="1" d="M20 14v8M25 14v8"/></symbol>
+  <symbol id="g-shirt" viewBox="0 0 45 60"><path fill="currentColor" stroke="#201e1d" stroke-width="1" d="M17 11l5.5 5 5.5-5 9 4 3 29-5 1-2-17v22H12V28l-2 17-5-1 3-29z"/><path stroke="#201e1d" stroke-width=".8" d="M22.5 16v32"/></symbol>
+  <symbol id="g-coat" viewBox="0 0 45 60"><path fill="currentColor" stroke="#201e1d" stroke-width="1" d="M16 8l6.5 6 6.5-6 8 4 3 33-5 1-1-20v29H11V26l-1 20-5-1 3-33z"/><path stroke="#201e1d" stroke-width=".8" fill="none" d="M22.5 14v41M16 8l6.5 14L29 8"/></symbol>
+  <symbol id="g-pants" viewBox="0 0 45 60"><path fill="currentColor" stroke="#201e1d" stroke-width="1" d="M13 6h19l3 50h-8l-4.5-34L18 56h-8z"/></symbol>
+  <symbol id="g-skirt" viewBox="0 0 45 60"><path fill="currentColor" stroke="#201e1d" stroke-width="1" d="M15 14h15l7 32H8z"/></symbol>
+  <symbol id="g-shoe" viewBox="0 0 45 60"><path fill="currentColor" stroke="#201e1d" stroke-width="1" d="M6 34h10l3 4c5 2 12 2 18 4 2 1 2 6 0 6H6z"/><path stroke="#f3f2f2" stroke-width="1.5" d="M7 46h30"/></symbol>
+  <symbol id="g-boot" viewBox="0 0 45 60"><path fill="currentColor" stroke="#201e1d" stroke-width="1" d="M12 14h11v24c6 2 12 3 14 6 1 2 0 5-2 5H12z"/></symbol>
+  <symbol id="g-bag" viewBox="0 0 45 60"><path fill="none" stroke="#201e1d" stroke-width="1.5" d="M16 26c0-8 13-8 13 0"/><path fill="currentColor" stroke="#201e1d" stroke-width="1" d="M10 26h25l-2 22H12z"/></symbol>
+  <symbol id="g-knit" viewBox="0 0 45 60"><path fill="currentColor" stroke="#201e1d" stroke-width="1" d="M16 11c2 2 11 2 13 0l9 5 2 29-5 1-2-17v22H12V29l-2 17-5-1 2-29z"/><path stroke="#201e1d" stroke-width=".6" d="M12 47h21M14 20v26M18 20v26M22 20v26M26 20v26M30 20v26"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-l" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" d="M15 4 7 12l8 8"/></symbol>
+  <symbol id="i-r" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" d="M9 4l8 8-8 8"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" d="M5 5l14 14M19 5 5 19"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2.5"/><path stroke="currentColor" stroke-width="2.5" d="M15.5 15.5 21 21"/></symbol>
+  <symbol id="i-rain" viewBox="0 0 24 24"><path fill="currentColor" d="M12 3s-6 7-6 11a6 6 0 0 0 12 0c0-4-6-11-6-11z"/></symbol>
+</svg>
+
+<div class="doc">
+  <h1>PLAN · REDESIGN</h1>
+  <p>Mock-up for issue #75 (epic #74). The week stays a vertical list, but every day becomes a card with readable outfit thumbnails. Tapping a day opens a look picker sheet instead of cycling through looks. Past days say what was worn. Upcoming days have reserved space for the forecast and an occasion. Sample data; today is Thu 12 Nov.</p>
+
+  <section class="decide" aria-labelledby="dec-h">
+    <h2 id="dec-h">Decisions for you</h2>
+    <ol>
+      <li><b>1 · One outfit per day, or several?</b>
+        <span class="rec">One look per day. The card stays at a fixed 112px and the plan_days table doesn't change. If you need a second outfit for the evening, save it as a look and wear it.</span>
+        <span class="alt">Slots per day (DAY / EVENING). The card grows to 176px, the picker asks which slot, and plan_days needs a slot column (schema change). See frame A.</span></li>
+      <li><b>2 · Unsaved outfits in the plan?</b>
+        <span class="rec">Only saved looks. "Plan for…" on Build or a suggestion (#81) saves a look first, with an editable name such as "BUILD · FRI 13 NOV", then plans it. One kind of thing in the plan, no new table.</span>
+        <span class="alt">The plan stores the raw outfit and shows it with an UNSAVED tag, plus a "save as look" action. Needs a plan_items table. See frame B.</span></li>
+      <li><b>3 · Occasion per day?</b>
+        <span class="rec">Yes, but later (#82, after the schema approval). It is set at the top of the picker sheet, shown as a small tag under the date, and looks that fit it rank first with a FITS tag. See frames 3 and 4.</span>
+        <span class="alt">No column. The picker shows every look in a fixed order and Today keeps its own occasion chips. No migration.</span></li>
+    </ol>
+  </section>
+
+  <div class="frames">
+
+    <!-- ============ 1. WEEK VIEW ============ -->
+    <div class="frame">
+      <div class="cap"><b>1 · The week <span class="tag">#77</span></b><span>Mon–Wed past (grey), Thu today (accent bar), Fri planned with 6 pieces (+N), Sat/Sun empty with a prompt. Mon has keyboard focus.</span></div>
+      <div class="phone">
+        <div class="appbar"><span class="brand">WARDY</span><span class="links"><span>INSPO</span><span>HISTORY</span><span>SETTINGS</span></span></div>
+        <div class="head"><span class="t">THE WEEK</span></div>
+        <div class="pager">
+          <span class="arrow"><svg width="14" height="14"><use href="#i-l"/></svg></span>
+          <span class="mid"><span class="range">NOV 9 – NOV 15</span><span class="lbl now">THIS WEEK</span></span>
+          <span class="arrow"><svg width="14" height="14"><use href="#i-r"/></svg></span>
+        </div>
+        <div class="scroll">
+          <div class="day past focusring">
+            <div class="datecol"><div class="wd">MON</div><div class="num">9</div></div>
+            <div class="body"><div class="title"><span class="name">Grey office</span></div>
+              <div class="thumbs"><span class="th" style="color:#8d8b8a"><svg><use href="#g-knit"/></svg></span><span class="th" style="color:#2b3550"><svg><use href="#g-pants"/></svg></span><span class="th" style="color:#201e1d"><svg><use href="#g-shoe"/></svg></span></div></div>
+          </div>
+          <div class="day past">
+            <div class="datecol"><div class="wd">TUE</div><div class="num">10</div></div>
+            <div class="body"><div class="title"><span class="empty">NOTHING PLANNED</span></div></div>
+          </div>
+          <div class="day past">
+            <div class="datecol"><div class="wd">WED</div><div class="num">11</div></div>
+            <div class="body"><div class="title"><span class="name">Black and beige</span></div>
+              <div class="thumbs"><span class="th" style="color:#232120"><svg><use href="#g-hood"/></svg></span><span class="th" style="color:#d9c7a0"><svg><use href="#g-pants"/></svg></span><span class="th" style="color:#f3f2f2"><svg><use href="#g-shoe"/></svg></span><span class="th" style="color:#e8c33c"><svg><use href="#g-coat"/></svg></span></div></div>
+          </div>
+          <div class="day today">
+            <div class="datecol"><div class="wd">THU</div><div class="num">12</div><span class="lbl">TODAY</span></div>
+            <div class="body"><div class="title"><span class="name">Navy smart casual</span></div>
+              <div class="thumbs"><span class="th" style="color:#f6f4ee"><svg><use href="#g-shirt"/></svg></span><span class="th" style="color:#2b3550"><svg><use href="#g-coat"/></svg></span><span class="th" style="color:#c9b48c"><svg><use href="#g-pants"/></svg></span><span class="th" style="color:#6b3f22"><svg><use href="#g-boot"/></svg></span></div></div>
+          </div>
+          <div class="day">
+            <div class="datecol"><div class="wd">FRI</div><div class="num">13</div></div>
+            <div class="body"><div class="title"><span class="name">Dinner at Marta's</span></div>
+              <div class="thumbs"><span class="th" style="color:#201e1d"><svg><use href="#g-knit"/></svg></span><span class="th" style="color:#7a1f1a"><svg><use href="#g-skirt"/></svg></span><span class="th" style="color:#201e1d"><svg><use href="#g-boot"/></svg></span><span class="th" style="color:#b38b5d"><svg><use href="#g-bag"/></svg></span><span class="th more">+2</span></div></div>
+          </div>
+          <div class="day">
+            <div class="datecol"><div class="wd">SAT</div><div class="num">14</div></div>
+            <div class="body"><div class="title"><span class="empty">UNPLANNED</span></div><div class="prompt">+ PLAN A LOOK</div></div>
+          </div>
+          <div class="day last">
+            <div class="datecol"><div class="wd">SUN</div><div class="num">15</div></div>
+            <div class="body"><div class="title"><span class="empty">UNPLANNED</span></div><div class="prompt">+ PLAN A LOOK</div></div>
+          </div>
+        </div>
+        <div class="tabs"><span>TODAY</span><span>WARDROBE</span><span>BUILD</span><span>LOOKS</span><span>PLAN</span></div>
+      </div>
+    </div>
+
+    <!-- ============ 2. PAST DAYS WITH WEAR ============ -->
+    <div class="frame">
+      <div class="cap"><b>2 · What was worn <span class="tag">#78</span></b><span>Past days put the wear in the title row, and the thumbnails show what was worn, in colour. The loading state for the next week is at the bottom.</span></div>
+      <div class="phone">
+        <div class="appbar"><span class="brand">WARDY</span><span class="links"><span>INSPO</span><span>HISTORY</span><span>SETTINGS</span></span></div>
+        <div class="head"><span class="t">THE WEEK</span></div>
+        <div class="pager">
+          <span class="arrow"><svg width="14" height="14"><use href="#i-l"/></svg></span>
+          <span class="mid"><span class="range">NOV 9 – NOV 15</span><span class="lbl now">THIS WEEK</span></span>
+          <span class="arrow"><svg width="14" height="14"><use href="#i-r"/></svg></span>
+        </div>
+        <div class="scroll">
+          <div class="day past hasworn">
+            <div class="datecol"><div class="wd">MON</div><div class="num">9</div></div>
+            <div class="body"><div class="title"><span class="worn"><span class="pl">Planned grey office</span> · wore <b>Black and beige</b></span></div>
+              <div class="thumbs"><span class="th" style="color:#232120"><svg><use href="#g-hood"/></svg></span><span class="th" style="color:#d9c7a0"><svg><use href="#g-pants"/></svg></span><span class="th" style="color:#f3f2f2"><svg><use href="#g-shoe"/></svg></span></div></div>
+          </div>
+          <div class="day past hasworn">
+            <div class="datecol"><div class="wd">TUE</div><div class="num">10</div></div>
+            <div class="body"><div class="title"><span class="worn">Wore <b>Sunday run</b></span></div>
+              <div class="thumbs"><span class="th" style="color:#2f6db3"><svg><use href="#g-tee"/></svg></span><span class="th" style="color:#232120"><svg><use href="#g-pants"/></svg></span><span class="th" style="color:#f3f2f2"><svg><use href="#g-shoe"/></svg></span></div></div>
+          </div>
+          <div class="day past hasworn">
+            <div class="datecol"><div class="wd">WED</div><div class="num">11</div></div>
+            <div class="body"><div class="title"><span class="worn"><svg class="tick" style="color:#201e1d"><use href="#i-check"/></svg><b>Black and beige</b> · as planned</span></div>
+              <div class="thumbs"><span class="th" style="color:#232120"><svg><use href="#g-hood"/></svg></span><span class="th" style="color:#d9c7a0"><svg><use href="#g-pants"/></svg></span><span class="th" style="color:#f3f2f2"><svg><use href="#g-shoe"/></svg></span><span class="th" style="color:#e8c33c"><svg><use href="#g-coat"/></svg></span></div></div>
+          </div>
+          <div class="day past">
+            <div class="datecol"><div class="wd">SUN</div><div class="num">8</div></div>
+            <div class="body"><div class="title"><span class="worn"><span class="pl">Planned grey office</span> · <b>nothing logged</b></span></div>
+              <div class="thumbs"><span class="th" style="color:#8d8b8a"><svg><use href="#g-knit"/></svg></span><span class="th" style="color:#2b3550"><svg><use href="#g-pants"/></svg></span><span class="th" style="color:#201e1d"><svg><use href="#g-shoe"/></svg></span></div></div>
+          </div>
+          <div style="padding:10px 4px 6px" class="lbl">Loading state (first load of a week)</div>
+          <div class="day loading" style="border-top:1px solid var(--line)">
+            <div class="datecol"><div class="wd">MON</div><div class="num">16</div></div>
+            <div class="body"><div class="title"><span class="bar"></span></div><div class="thumbs"><span class="sk"></span><span class="sk"></span><span class="sk"></span><span class="sk"></span></div></div>
+          </div>
+          <div class="day loading last">
+            <div class="datecol"><div class="wd">TUE</div><div class="num">17</div></div>
+            <div class="body"><div class="title"><span class="bar"></span></div><div class="thumbs"><span class="sk"></span><span class="sk"></span><span class="sk"></span><span class="sk"></span></div></div>
+          </div>
+        </div>
+        <div class="tabs"><span>TODAY</span><span>WARDROBE</span><span>BUILD</span><span>LOOKS</span><span>PLAN</span></div>
+      </div>
+    </div>
+
+    <!-- ============ 3. LOOK PICKER ============ -->
+    <div class="frame">
+      <div class="cap"><b>3 · Look picker <span class="tag">#76</span></b><span>Tapping Fri opens the sheet. Tap a look to plan it and close the sheet. Search appears from 9 looks. Swipe down, X or Escape closes it.</span></div>
+      <div class="phone">
+        <div class="appbar"><span class="brand">WARDY</span><span class="links"><span>INSPO</span><span>HISTORY</span><span>SETTINGS</span></span></div>
+        <div class="head"><span class="t">THE WEEK</span></div>
+        <div class="scrim"></div>
+        <div class="sheet" role="dialog" aria-label="Choose a look for Friday 13 November">
+          <div class="grab"><i></i></div>
+          <div class="sh-head">
+            <div><span class="lbl">FRI 13 NOV · 14 LOOKS</span><div class="t">CHOOSE A LOOK</div></div>
+            <span class="x" aria-label="Close"><svg width="14" height="14"><use href="#i-x"/></svg></span>
+          </div>
+          <div class="search"><svg width="16" height="16" style="color:#201e1d"><use href="#i-search"/></svg>Search looks</div>
+          <div class="list">
+            <div class="row" data-on>
+              <div style="min-width:0"><div class="rn">Dinner at Marta's</div><div class="rs">6 pieces · planned for this day</div>
+                <div class="thumbs"><span class="th" style="color:#201e1d"><svg><use href="#g-knit"/></svg></span><span class="th" style="color:#7a1f1a"><svg><use href="#g-skirt"/></svg></span><span class="th" style="color:#201e1d"><svg><use href="#g-boot"/></svg></span><span class="th" style="color:#b38b5d"><svg><use href="#g-bag"/></svg></span><span class="th more">+2</span></div></div>
+              <span class="pick" style="color:var(--accent-700)"><svg width="18" height="18"><use href="#i-check"/></svg></span>
+            </div>
+            <div class="row">
+              <div style="min-width:0"><div class="rn">Navy smart casual</div><div class="rs">4 pieces · planned Thu 12</div>
+                <div class="thumbs"><span class="th" style="color:#f6f4ee"><svg><use href="#g-shirt"/></svg></span><span class="th" style="color:#2b3550"><svg><use href="#g-coat"/></svg></span><span class="th" style="color:#c9b48c"><svg><use href="#g-pants"/></svg></span><span class="th" style="color:#6b3f22"><svg><use href="#g-boot"/></svg></span></div></div>
+              <span class="pick"></span>
+            </div>
+            <div class="row">
+              <div style="min-width:0"><div class="rn">Grey office</div><div class="rs">3 pieces · worn 9 Nov</div>
+                <div class="thumbs"><span class="th" style="color:#8d8b8a"><svg><use href="#g-knit"/></svg></span><span class="th" style="color:#2b3550"><svg><use href="#g-pants"/></svg></span><span class="th" style="color:#201e1d"><svg><use href="#g-shoe"/></svg></span></div></div>
+              <span class="pick"></span>
+            </div>
+            <div class="row">
+              <div style="min-width:0"><div class="rn">Black and beige</div><div class="rs">4 pieces · worn 11 Nov</div>
+                <div class="thumbs"><span class="th" style="color:#232120"><svg><use href="#g-hood"/></svg></span><span class="th" style="color:#d9c7a0"><svg><use href="#g-pants"/></svg></span><span class="th" style="color:#f3f2f2"><svg><use href="#g-shoe"/></svg></span><span class="th" style="color:#e8c33c"><svg><use href="#g-coat"/></svg></span></div></div>
+              <span class="pick"></span>
+            </div>
+            <div class="row">
+              <div style="min-width:0"><div class="rn">Sunday run</div><div class="rs">3 pieces · worn 10 Nov</div>
+                <div class="thumbs"><span class="th" style="color:#2f6db3"><svg><use href="#g-tee"/></svg></span><span class="th" style="color:#232120"><svg><use href="#g-pants"/></svg></span><span class="th" style="color:#f3f2f2"><svg><use href="#g-shoe"/></svg></span></div></div>
+              <span class="pick"></span>
+            </div>
+          </div>
+          <div class="sh-acts"><span class="act danger">Clear day</span><span class="act">Cancel</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 4. LATER: FORECAST + OCCASION ============ -->
+    <div class="frame">
+      <div class="cap"><b>4 · Forecast and occasion <span class="tag later">LATER · #80 #82</span></b><span>Dashed outlines show what comes later. The forecast fills the right end of the title row, and the occasion is a tag under the date. If the weather API is down, the row stays empty and the card doesn't move.</span></div>
+      <div class="phone">
+        <div class="appbar"><span class="brand">WARDY</span><span class="links"><span>INSPO</span><span>HISTORY</span><span>SETTINGS</span></span></div>
+        <div class="head"><span class="t">THE WEEK</span></div>
+        <div class="pager">
+          <span class="arrow"><svg width="14" height="14"><use href="#i-l"/></svg></span>
+          <span class="mid"><span class="range">NOV 9 – NOV 15</span><span class="lbl now">THIS WEEK</span></span>
+          <span class="arrow"><svg width="14" height="14"><use href="#i-r"/></svg></span>
+        </div>
+        <div class="scroll">
+          <div class="day today">
+            <div class="datecol"><div class="wd">THU</div><div class="num">12</div><span class="occ later-mark">WORK</span></div>
+            <div class="body"><div class="title"><span class="name">Navy smart casual</span><span class="fc later-mark">14°/9° <span class="rain"><svg width="9" height="9" style="vertical-align:-1px"><use href="#i-rain"/></svg>40%</span></span></div>
+              <div class="thumbs"><span class="th" style="color:#f6f4ee"><svg><use href="#g-shirt"/></svg></span><span class="th" style="color:#2b3550"><svg><use href="#g-coat"/></svg></span><span class="th" style="color:#c9b48c"><svg><use href="#g-pants"/></svg></span><span class="th" style="color:#6b3f22"><svg><use href="#g-boot"/></svg></span></div></div>
+          </div>
+          <div class="day">
+            <div class="datecol"><div class="wd">FRI</div><div class="num">13</div><span class="occ later-mark">DATE</span></div>
+            <div class="body"><div class="title"><span class="name">Dinner at Marta's</span><span class="fc later-mark">11°/6° <span class="rain"><svg width="9" height="9" style="vertical-align:-1px"><use href="#i-rain"/></svg>80%</span></span></div>
+              <div class="thumbs"><span class="th" style="color:#201e1d"><svg><use href="#g-knit"/></svg></span><span class="th" style="color:#7a1f1a"><svg><use href="#g-skirt"/></svg></span><span class="th" style="color:#201e1d"><svg><use href="#g-boot"/></svg></span><span class="th" style="color:#b38b5d"><svg><use href="#g-bag"/></svg></span><span class="th more">+2</span></div></div>
+          </div>
+          <div class="day">
+            <div class="datecol"><div class="wd">SAT</div><div class="num">14</div></div>
+            <div class="body"><div class="title"><span class="empty">UNPLANNED</span><span class="fc later-mark">16°/8° <span class="rain"><svg width="9" height="9" style="vertical-align:-1px"><use href="#i-rain"/></svg>5%</span></span></div><div class="prompt">+ PLAN A LOOK</div></div>
+          </div>
+          <div class="day">
+            <div class="datecol"><div class="wd">SUN</div><div class="num">15</div></div>
+            <div class="body"><div class="title"><span class="empty">UNPLANNED</span></div><div class="prompt">+ PLAN A LOOK</div></div>
+          </div>
+          <div style="padding:10px 4px 6px" class="lbl">Sun: weather unavailable, no forecast, same height</div>
+          <div style="border-top:2px solid var(--ink);padding:10px 4px 0" class="lbl">Picker with an occasion (#82): chips on top, fitting looks first</div>
+          <div class="occrow" style="padding-top:8px"><span class="chip">WORK</span><span class="chip">CASUAL</span><span class="chip" data-on>DATE</span><span class="chip">FORMAL</span></div>
+          <div class="row" style="border-top:1px solid var(--line)">
+            <div style="min-width:0"><div class="rn">Dinner at Marta's<span class="fits">FITS DATE</span></div><div class="rs">6 pieces</div></div><span class="pick"></span>
+          </div>
+        </div>
+        <div class="tabs"><span>TODAY</span><span>WARDROBE</span><span>BUILD</span><span>LOOKS</span><span>PLAN</span></div>
+      </div>
+    </div>
+
+    <!-- ============ ALTERNATIVES ============ -->
+    <div class="altcol">
+      <div class="cap"><b>A · Alternative: two outfits per day</b><span>Against decision 1. Each slot is its own tap target (66px). The card is 176px, so the week is about 1.5 screens long.</span></div>
+      <div class="mini">
+        <div class="day tall last" style="height:auto">
+          <div class="datecol"><div class="wd">FRI</div><div class="num">13</div></div>
+          <div class="body" style="gap:0">
+            <div class="slot"><span class="lbl">DAY</span><div class="thumbs" style="height:60px"><span class="th" style="color:#f6f4ee"><svg><use href="#g-shirt"/></svg></span><span class="th" style="color:#c9b48c"><svg><use href="#g-pants"/></svg></span><span class="th" style="color:#6b3f22"><svg><use href="#g-boot"/></svg></span></div></div>
+            <div class="slot"><span class="lbl">EVENING</span><div class="thumbs" style="height:60px"><span class="th" style="color:#201e1d"><svg><use href="#g-knit"/></svg></span><span class="th" style="color:#7a1f1a"><svg><use href="#g-skirt"/></svg></span><span class="th" style="color:#201e1d"><svg><use href="#g-boot"/></svg></span></div></div>
+          </div>
+        </div>
+        <p class="note"><b>Cost:</b> a slot column in plan_days (schema change), and the picker, Today (#79) and wear logging all have to ask which slot.</p>
+      </div>
+
+      <div class="cap" style="margin-top:24px"><b>B · Alternative: unsaved outfit in the plan</b><span>Against decision 2. An outfit from Build is planned without saving it as a look.</span></div>
+      <div class="mini">
+        <div class="day last">
+          <div class="datecol"><div class="wd">SAT</div><div class="num">14</div></div>
+          <div class="body"><div class="title"><span class="name">Built outfit<span class="unsaved">UNSAVED</span></span></div>
+            <div class="thumbs"><span class="th" style="color:#2f6db3"><svg><use href="#g-tee"/></svg></span><span class="th" style="color:#232120"><svg><use href="#g-pants"/></svg></span><span class="th" style="color:#f3f2f2"><svg><use href="#g-shoe"/></svg></span></div></div>
+        </div>
+        <p class="note"><b>Cost:</b> a plan_items table, a second code path everywhere the plan is read, and outfits with no name. <b>Recommended instead:</b> "Plan for…" saves the look first, and the name is editable in the same step.</p>
+      </div>
+    </div>
+  </div>
+
+  <section class="spec" aria-labelledby="spec-h">
+    <h2 id="spec-h">Day card spec (#77)</h2>
+    <table>
+      <tr><th>Card</th><td>A <code>&lt;button&gt;</code> covering the whole card. Fixed height 112px including the 1px <code>--color-line</code> bottom border (the last card has a 2px <code>--color-line-strong</code> one). Grid <code>64px 1fr</code>, gap 12, padding 12px 16px. The height is the same in every state, so paging weeks doesn't shift the layout.</td></tr>
+      <tr><th>Date column</th><td>Weekday 800 13px, .08em. Day number 800 30px/30px, -0.02em, tabular-nums.</td></tr>
+      <tr><th>Title row</th><td>20px high. Look name 800 15px uppercase, truncated. The right end stays free for the forecast (#80). Past days put "Planned X · wore Y" here (#78).</td></tr>
+      <tr><th>Thumbnails</th><td>45×60 (3:4), gap 4px, 1px <code>--color-line-strong</code> border, <code>--color-surface</code> background, object-cover, alt="". Up to 5; with more than 5, show 4 and a "+N" tile. The row has overflow hidden, so below about 360px the fifth tile is clipped and the card doesn't get wider. On past days the "+N" tile is not greyed.</td></tr>
+      <tr><th>Unplanned</th><td>Title "UNPLANNED" in 800 11px .12em <code>--color-neutral-700</code>. A 60px dashed box with "+ PLAN A LOOK" (800 10.5px, neutral-700). A past day with no plan says "NOTHING PLANNED" and has no box.</td></tr>
+      <tr><th>Today</th><td><code>--color-accent-100</code> background, a 4px <code>--color-accent</code> inset bar on the left, weekday, number and the TODAY label in <code>--color-accent-700</code>. No solid red fills: white on accent is 3.9:1.</td></tr>
+      <tr><th>Past</th><td>Text in <code>--color-neutral-700</code>, thumbnails grayscale at .55 opacity (images only). Once the wear is shown (#78), the thumbnails show what was worn, in full colour.</td></tr>
+      <tr><th>Loading</th><td>Real weekday and number. The title is a 120×12 surface bar, plus 4 surface blocks of 45×60. A pulse is allowed, but off under reduced motion.</td></tr>
+      <tr><th>Error</th><td>A failed load shows "Couldn't load the plan." in <code>--color-accent-700</code>, text-sm, the same as Today. It never shows an endless skeleton.</td></tr>
+      <tr><th>Header</th><td>Same as today's page. The THIS WEEK chip is always rendered and hidden with <code>visibility: hidden</code> on the current week, so the header keeps its height and the cards don't move when you page.</td></tr>
+      <tr><th>A11y</th><td>aria-label like "Today, Thursday 12 November, Navy smart casual. Tap to change". Visible focus: a 2px ink outline, offset -2px. Targets: 112px cards, 44px week arrows, 76px picker rows, 52px sheet actions.</td></tr>
+    </table>
+  </section>
+</div>
+</body>
+</html>

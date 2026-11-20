@@ -18,6 +18,7 @@ import (
 const (
 	defaultBaseURL = "https://api.open-meteo.com/v1/forecast"
 	cacheTTL       = time.Hour
+	forecastDays   = 7
 )
 
 // Forecast is today's weather at one location — just what outfit
@@ -30,6 +31,20 @@ type Forecast struct {
 	WindSpeedKPH      float64
 	Condition         string
 	FetchedAt         time.Time
+
+	// Days is the daily forecast from today on (up to forecastDays), for
+	// the plan (#80). It comes from the same request as today's fields.
+	Days []Day
+}
+
+// Day is one date's forecast. Date is "YYYY-MM-DD" in the location's own
+// time zone.
+type Day struct {
+	Date              string
+	TempHighC         float64
+	TempLowC          float64
+	PrecipProbability int // 0-100
+	Condition         string
 }
 
 type cacheEntry struct {
@@ -94,11 +109,12 @@ func cacheKey(lat, lon float64) string {
 
 func (c *Client) fetch(ctx context.Context, lat, lon float64) (Forecast, error) {
 	q := url.Values{
-		"latitude":  {fmt.Sprintf("%f", lat)},
-		"longitude": {fmt.Sprintf("%f", lon)},
-		"current":   {"wind_speed_10m,weather_code"},
-		"daily":     {"temperature_2m_max,temperature_2m_min,precipitation_probability_max"},
-		"timezone":  {"auto"},
+		"latitude":      {fmt.Sprintf("%f", lat)},
+		"longitude":     {fmt.Sprintf("%f", lon)},
+		"current":       {"wind_speed_10m,weather_code"},
+		"daily":         {"temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code"},
+		"timezone":      {"auto"},
+		"forecast_days": {fmt.Sprint(forecastDays)},
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"?"+q.Encode(), nil)
@@ -122,6 +138,8 @@ func (c *Client) fetch(ctx context.Context, lat, lon float64) (Forecast, error) 
 			WeatherCode  int     `json:"weather_code"`
 		} `json:"current"`
 		Daily struct {
+			Time                        []string  `json:"time"`
+			WeatherCode                 []int     `json:"weather_code"`
 			Temperature2mMax            []float64 `json:"temperature_2m_max"`
 			Temperature2mMin            []float64 `json:"temperature_2m_min"`
 			PrecipitationProbabilityMax []int     `json:"precipitation_probability_max"`
@@ -144,6 +162,20 @@ func (c *Client) fetch(ctx context.Context, lat, lon float64) (Forecast, error) 
 	}
 	if len(raw.Daily.PrecipitationProbabilityMax) > 0 {
 		f.PrecipProbability = raw.Daily.PrecipitationProbabilityMax[0]
+	}
+
+	// One Day per date that has all four values; a short or missing array
+	// just ends the list early rather than failing today's forecast.
+	d := raw.Daily
+	n := min(len(d.Time), len(d.Temperature2mMax), len(d.Temperature2mMin), len(d.PrecipitationProbabilityMax), len(d.WeatherCode))
+	for i := range n {
+		f.Days = append(f.Days, Day{
+			Date:              d.Time[i],
+			TempHighC:         d.Temperature2mMax[i],
+			TempLowC:          d.Temperature2mMin[i],
+			PrecipProbability: d.PrecipitationProbabilityMax[i],
+			Condition:         conditionFromWMOCode(d.WeatherCode[i]),
+		})
 	}
 
 	return f, nil

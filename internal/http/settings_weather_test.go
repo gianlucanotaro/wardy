@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/gianlucanotaro/wardy/internal/weather"
@@ -154,6 +155,40 @@ func TestWeatherSuccess(t *testing.T) {
 	}
 	if resp["temp_high_c"] != 25.0 || resp["condition"] != "clear" {
 		t.Errorf("unexpected weather response: %v", resp)
+	}
+}
+
+// #80: the plan reads the daily forecast from the same response. The
+// fixture is a recorded Open-Meteo reply.
+func TestWeatherDailyForecast(t *testing.T) {
+	s := newTestStore(t)
+	fixture, err := os.ReadFile("../weather/testdata/open-meteo-zurich.json")
+	if err != nil {
+		t.Fatalf("read fixture: %v", err)
+	}
+	fakeServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(fixture)
+	}))
+	t.Cleanup(fakeServer.Close)
+
+	h := newTestHandlerFull(t, s, true, weather.NewClientWithBaseURL(fakeServer.URL))
+	cookie := loginAndGetCookie(t, h, s, "me@example.com", "correct horse battery staple")
+	patchSettings(h, cookie, 47.3769, 8.5417)
+
+	var resp struct {
+		Available bool
+		Days      []map[string]any
+	}
+	json.Unmarshal(getWeather(h, cookie).Body.Bytes(), &resp)
+	if !resp.Available || len(resp.Days) != 7 {
+		t.Fatalf("want available with 7 days, got %+v", resp)
+	}
+	want := map[string]any{"date": "2026-11-14", "temp_high_c": 5.7, "temp_low_c": 0.9, "precip_probability": 0.0, "condition": "fog"}
+	for k, v := range want {
+		if resp.Days[2][k] != v {
+			t.Errorf("days[2].%s = %v, want %v", k, resp.Days[2][k], v)
+		}
 	}
 }
 

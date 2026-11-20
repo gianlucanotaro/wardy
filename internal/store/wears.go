@@ -112,6 +112,42 @@ func (s *Store) WearsByUser(ctx context.Context, userID int64) ([]Wear, error) {
 	return wears, nil
 }
 
+// wearsInRange returns userID's wears from start to end (inclusive,
+// "YYYY-MM-DD"), each with its items, grouped by worn_on and oldest first
+// within a date: the plan shows what was worn next to what was planned.
+func (s *Store) wearsInRange(ctx context.Context, userID int64, start, end string) (map[string][]Wear, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id, user_id, look_id, worn_on, occasion, weather_summary, notes, created_at
+		 FROM wears WHERE user_id = ? AND worn_on BETWEEN ? AND ? ORDER BY worn_on, id`, userID, start, end)
+	if err != nil {
+		return nil, fmt.Errorf("query wears in range: %w", err)
+	}
+	defer rows.Close()
+
+	var wears []Wear
+	for rows.Next() {
+		wear, err := scanWear(rows)
+		if err != nil {
+			return nil, err
+		}
+		wears = append(wears, wear)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate wears in range: %w", err)
+	}
+
+	byDate := make(map[string][]Wear)
+	for _, wear := range wears {
+		items, err := itemsForWear(ctx, s.db, wear.ID)
+		if err != nil {
+			return nil, err
+		}
+		wear.Items = items
+		byDate[wear.WornOn] = append(byDate[wear.WornOn], wear)
+	}
+	return byDate, nil
+}
+
 // WearByID returns the wear with id, but only if it belongs to userID.
 func (s *Store) WearByID(ctx context.Context, userID, id int64) (*Wear, error) {
 	row := s.db.QueryRowContext(ctx,

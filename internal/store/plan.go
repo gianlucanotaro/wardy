@@ -8,10 +8,12 @@ import (
 )
 
 // PlanDay is a single calendar date's planned look — the weekly planner's
-// unit. Look is nil for an unplanned date.
+// unit. Look is nil for an unplanned date. Wears is what was logged as
+// worn that date, oldest first, and never nil (an empty list encodes as []).
 type PlanDay struct {
-	Date string `json:"date"`
-	Look *Look  `json:"look"`
+	Date  string `json:"date"`
+	Look  *Look  `json:"look"`
+	Wears []Wear `json:"wears"`
 }
 
 // UpsertPlanDay assigns lookID to date for userID, or clears it when lookID
@@ -79,9 +81,17 @@ func (s *Store) PlanDaysInRange(ctx context.Context, userID int64, start, end st
 		return nil, err
 	}
 
+	wears, err := s.wearsInRange(ctx, userID, start, end)
+	if err != nil {
+		return nil, err
+	}
+
 	days := make([]PlanDay, len(dates))
 	for i, date := range dates {
-		days[i] = PlanDay{Date: date}
+		days[i] = PlanDay{Date: date, Wears: wears[date]}
+		if days[i].Wears == nil {
+			days[i].Wears = []Wear{}
+		}
 		if lookID, ok := lookIDs[date]; ok {
 			look, err := s.LookByID(ctx, userID, lookID)
 			if err != nil && !errors.Is(err, ErrNotFound) {
