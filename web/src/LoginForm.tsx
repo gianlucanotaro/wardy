@@ -70,7 +70,7 @@ export default function LoginForm({ onSuccess }: { onSuccess: () => void }) {
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
-            className="border border-(--color-line) bg-(--color-surface) px-3 py-2 focus:outline-2 focus:outline-(--color-accent)"
+            className="wy-input px-3 py-2"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
@@ -82,7 +82,7 @@ export default function LoginForm({ onSuccess }: { onSuccess: () => void }) {
             type="password"
             required
             autoComplete="current-password"
-            className="border border-(--color-line) bg-(--color-surface) px-3 py-2 focus:outline-2 focus:outline-(--color-accent)"
+            className="wy-input px-3 py-2"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />

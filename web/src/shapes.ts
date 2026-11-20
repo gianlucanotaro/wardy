@@ -32,3 +32,8 @@ export function shapeOf(category: string): ShapeName {
 export function blockOf(category: string): string {
   return BLOCK_OF[category as Category] ?? 'var(--color-block-neutral)'
 }
+
+// A calm version of a category's block, for the background of a whole row.
+export function tintOf(category: string): string {
+  return `color-mix(in srgb, ${blockOf(category)} 24%, var(--color-bg))`
+}

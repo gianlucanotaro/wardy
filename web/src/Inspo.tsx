@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Cross } from './Icons'
+import { COLOR_SWATCHES } from './searchFilters'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   deleteInspo,
@@ -16,7 +17,6 @@ import { ChipGroup, CustomTagsField, Field, MultiField, ScaleField } from './Tag
 import {
   CATEGORIES,
   COLORS,
-  COLOR_SWATCH,
   FITS,
   FORMALITY_LABELS,
   MAX_INSPO_COLORS,
@@ -30,7 +30,7 @@ import {
 } from './taxonomy'
 import { useToast } from './useToast'
 import StyleRadar from './StyleRadar'
-import { radarInsights } from './radarInsights'
+import { LAYER_COLOR, radarInsights } from './radarInsights'
 
 // The INSPO screen (#49): photos of other people's outfits, tagged, adding
 // up to the style profile on top — which outfit suggestions use as a
@@ -57,8 +57,8 @@ function tagsOf(fit: InspoFit): InspoTags {
 function Swatch({ color }: { color: string }) {
   return (
     <span
-      className="inline-block w-4 h-4 border border-(--color-line-strong) align-middle"
-      style={{ background: COLOR_SWATCH[color as Color] ?? 'transparent' }}
+      className="inline-block size-5 rounded-full border-2 border-(--color-line) align-middle"
+      style={{ background: COLOR_SWATCHES[color as Color] ?? 'transparent' }}
       title={color}
     />
   )
@@ -109,7 +109,7 @@ export default function Inspo() {
     <div className="flex flex-col">
       <div className="flex items-baseline justify-between px-4 py-3 border-b-2 border-(--color-line-strong)">
         <h1 className="wy-display text-5xl">INSPO</h1>
-        {data && <span className="wy-lbl">{data.fits.length} FITS</span>}
+        {data && <span className="wy-lbl">{data.fits.length} {data.fits.length === 1 ? 'FIT' : 'FITS'}</span>}
       </div>
 
       {board.isLoading && <p className="px-4 py-4 wy-lbl">LOADING…</p>}
@@ -123,27 +123,40 @@ export default function Inspo() {
           <StyleRadar radar={data.radar} />
           {radarInsights(data.radar).length > 0 && (
             <>
-              <div className="px-4 py-2.5 border-y-2 border-(--color-line-strong) wy-lbl">WHAT THE GAPS SAY</div>
-              {radarInsights(data.radar).map((g) => (
-                <div key={g.kind} className="px-4 py-3 border-b border-(--color-line) last:border-b-0 text-sm">
-                  {g.kind === 'inspo' && (
-                    <>
-                      You like <b className="font-extrabold uppercase">{g.style}</b> {g.text}
-                    </>
-                  )}
-                  {g.kind === 'owned' && (
-                    <>
-                      Your <b className="font-extrabold uppercase">{g.style}</b> {g.text}
-                    </>
-                  )}
-                  {g.kind === 'worn' && (
-                    <>
-                      <b className="font-extrabold uppercase">{g.style}</b> {g.text}
-                    </>
-                  )}
-                  <span className="block mt-0.5 text-[12.5px] text-(--color-neutral-700)">{g.detail}</span>
-                </div>
-              ))}
+              <div className="px-4 pt-3 wy-lbl">WHAT THE GAPS SAY</div>
+              <div className="flex flex-col gap-1.5 px-4 py-3">
+                {radarInsights(data.radar).map((g) => (
+                  <div
+                    key={g.kind}
+                    className="flex gap-3 px-4 py-3 text-sm"
+                    style={{ background: `color-mix(in srgb, ${LAYER_COLOR[g.kind]} 14%, var(--color-bg))` }}
+                  >
+                    <span
+                      className="size-3 mt-1.5 shrink-0"
+                      style={{ background: LAYER_COLOR[g.kind] }}
+                      aria-hidden="true"
+                    />
+                    <span>
+                      {g.kind === 'inspo' && (
+                        <>
+                          You like <b className="font-extrabold uppercase">{g.style}</b> {g.text}
+                        </>
+                      )}
+                      {g.kind === 'owned' && (
+                        <>
+                          Your <b className="font-extrabold uppercase">{g.style}</b> {g.text}
+                        </>
+                      )}
+                      {g.kind === 'worn' && (
+                        <>
+                          <b className="font-extrabold uppercase">{g.style}</b> {g.text}
+                        </>
+                      )}
+                      <span className="block mt-0.5 text-[12.5px] text-(--color-neutral-700)">{g.detail}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
             </>
           )}
         </section>
@@ -152,7 +165,7 @@ export default function Inspo() {
       {data && profile && profile.tagged > 0 && (
         <section className="px-4 py-3 border-b-2 border-(--color-line-strong) flex flex-col gap-2">
           <div className="wy-lbl">YOUR STYLE · FROM {profile.tagged} FITS</div>
-          {data.summary && <p className="text-sm leading-relaxed">{data.summary}</p>}
+          {data.summary && <p className="text-lg font-bold leading-snug">{data.summary}</p>}
           {profile.styles.length > 0 && (
             <div className="flex flex-col gap-1">
               {profile.styles.map((s) => (
@@ -186,9 +199,14 @@ export default function Inspo() {
             </span>
             <input
               type="checkbox"
-              className="w-5 h-5 accent-(--color-ink)"
+              role="switch"
+              className="peer sr-only"
               checked={data.use_in_suggestions}
               onChange={(e) => toggleUse.mutate(e.target.checked)}
+            />
+            <span
+              aria-hidden="true"
+              className="relative h-7 w-12 shrink-0 rounded-full border-2 border-(--color-ink) peer-checked:bg-(--color-accent) peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-(--color-accent) after:absolute after:top-0.5 after:left-0.5 after:size-5 after:rounded-full after:bg-(--color-ink) after:transition-transform peer-checked:after:translate-x-5"
             />
           </label>
         </section>
@@ -203,12 +221,12 @@ export default function Inspo() {
               <div className="relative aspect-3/4 border border-(--color-line-strong) bg-(--color-surface) overflow-hidden">
                 <img src={`/api/inspo/${fit.id}/thumb`} alt="inspiration fit" className="w-full h-full object-cover" loading="lazy" />
                 {fit.styles?.[0] && (
-                  <span className="absolute top-1 left-1 bg-(--color-bg) text-[9px] font-extrabold uppercase tracking-wide px-1.5 py-0.5">
+                  <span className="absolute top-1.5 left-1.5 rounded-full bg-(--color-bg) text-(--color-ink) text-[10px] font-bold lowercase px-2 py-0.5">
                     {fit.styles[0]}
                   </span>
                 )}
                 {fit.tagging_pending && (
-                  <span className="absolute bottom-1 right-1 bg-(--color-ink) text-(--color-bg) text-[9px] font-extrabold uppercase tracking-wide px-1.5 py-0.5">
+                  <span className="absolute bottom-1.5 right-1.5 rounded-full bg-(--color-ink) text-(--color-bg) text-[10px] font-bold lowercase px-2 py-0.5">
                     Tagging…
                   </span>
                 )}
@@ -251,7 +269,7 @@ function ShareBar({ count, of }: { count: InspoCount; of: number }) {
   return (
     <div className="grid grid-cols-[92px_1fr_34px] items-center gap-2 font-extrabold text-[9.5px] tracking-[0.08em] uppercase">
       <span className="truncate">{count.value}</span>
-      <span className="h-2 bg-(--color-surface) relative" aria-hidden="true">
+      <span className="h-3 rounded-full overflow-hidden bg-(--color-surface) relative" aria-hidden="true">
         <span className="absolute inset-y-0 left-0 bg-(--color-ink)" style={{ width: `${pct}%` }} />
       </span>
       <span className="text-right">{pct}%</span>
@@ -423,7 +441,7 @@ function PiecesField({ ai, value, onChange }: { ai: boolean; value: string[]; on
         disabled={full}
         onChange={(e) => e.target.value && onChange([...value, e.target.value])}
         aria-label="Add a piece"
-        className="min-h-11 border border-(--color-line) bg-(--color-surface) px-2 text-sm font-extrabold uppercase tracking-wide disabled:opacity-45"
+        className="wy-input px-2 text-sm font-extrabold lowercase disabled:opacity-45"
       >
         <option value="">{full ? `MAX ${MAX_INSPO_PIECES}` : '+ ADD A PIECE'}</option>
         {CATEGORIES.map((cat) => (

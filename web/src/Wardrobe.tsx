@@ -325,8 +325,9 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
               </p>
             )}
 
-            <div className="grid grid-cols-2 border-t border-(--color-line)">
+            <div className="grid grid-cols-2">
               <ScaleCell
+                tint="var(--color-blue)"
                 label="FORMALITY"
                 min={selected.formality_min}
                 max={selected.formality_max}
@@ -335,6 +336,7 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
                 range={occasionsFor(selected.formality_min, selected.formality_max).join(' · ').toUpperCase() || '—'}
               />
               <ScaleCell
+                tint="var(--color-yellow)"
                 label="WARMTH"
                 min={selected.warmth_min}
                 max={selected.warmth_max}
@@ -522,6 +524,7 @@ function ScaleCell({
   rangeLabel,
   range,
   note,
+  tint,
 }: {
   label: string
   min: number
@@ -530,21 +533,32 @@ function ScaleCell({
   rangeLabel: string
   range: string
   note?: string
+  tint: string
 }) {
   return (
-    <div className="wy-cell flex flex-col gap-1.5">
+    <div
+      className="p-4 flex flex-col gap-2"
+      style={{ background: `color-mix(in srgb, ${tint} 22%, var(--color-bg))` }}
+    >
       <div className="flex justify-between gap-2">
         <span className="wy-lbl">{label}</span>
         <span className="wy-lbl text-right">{min === max ? min : `${min}–${max}`}</span>
       </div>
-      <div className="grid grid-cols-5 gap-1" aria-hidden="true">
+      <div className="flex gap-2" aria-hidden="true">
         {[1, 2, 3, 4, 5].map((n) => (
-          <div key={n} className={`h-3 ${n >= min && n <= max ? 'bg-(--color-accent)' : 'bg-(--color-ink)/20'}`} />
+          <span
+            key={n}
+            className="size-5 rounded-full border-2"
+            style={{
+              borderColor: n >= min && n <= max ? 'var(--color-accent)' : 'var(--color-line)',
+              background: n >= min && n <= max ? 'var(--color-accent)' : 'transparent',
+            }}
+          />
         ))}
       </div>
       <div className="wy-lbl">{(min === max ? labels[min] : `${labels[min]} – ${labels[max]}`).toUpperCase()}</div>
       <div className="wy-lbl mt-1">{rangeLabel}</div>
-      <div className="font-extrabold text-[13px] leading-tight tracking-[0.02em]">{range}</div>
+      <div className="font-extrabold text-base leading-tight lowercase">{range}</div>
       {note && <div className="wy-lbl text-(--color-accent-700)">{note}</div>}
     </div>
   )

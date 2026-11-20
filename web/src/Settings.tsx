@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import Shape from './Shape'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getSettings, getWeather, updateSettings } from './api'
 import { type LocationSource, useLocationSource, useWeatherCoords } from './location'
@@ -173,7 +174,7 @@ export default function Settings() {
               type="number"
               step="any"
               required
-              className="border border-(--color-line) bg-(--color-surface) px-3 py-2 focus:outline-2 focus:outline-(--color-accent)"
+              className="wy-input px-3 py-2"
               value={lat}
               onChange={(e) => setLat(e.target.value)}
             />
@@ -185,14 +186,14 @@ export default function Settings() {
               type="number"
               step="any"
               required
-              className="border border-(--color-line) bg-(--color-surface) px-3 py-2 focus:outline-2 focus:outline-(--color-accent)"
+              className="wy-input px-3 py-2"
               value={lon}
               onChange={(e) => setLon(e.target.value)}
             />
           </label>
 
-          <button type="button" onClick={useMyLocation} className="wy-lbl text-left mt-1">
-            USE MY CURRENT LOCATION
+          <button type="button" onClick={useMyLocation} className="wy-chip self-start mt-1">
+            <Shape name="circle" size={10} /> use my current location
           </button>
           {geoError && <p className="text-sm text-(--color-accent-700)">{geoError}</p>}
 

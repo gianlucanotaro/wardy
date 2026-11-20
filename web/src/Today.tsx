@@ -158,7 +158,6 @@ export default function Today() {
           </div>
           <div className="wy-display text-8xl mt-1.5">
             {weather.data?.available ? `${Math.round(weather.data.temp_high_c)}°` : '—'}
-            <span className="text-(--color-accent)">.</span>
           </div>
         </div>
         <div className="text-right text-xs font-bold leading-snug pt-2">

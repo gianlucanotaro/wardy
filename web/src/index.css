@@ -214,6 +214,24 @@ html {
   background: color-mix(in srgb, var(--color-ink) 7%, transparent);
 }
 
+/* Text fields: a flat filled block with a rule underneath. No padding here
+   (unlayered rules beat Tailwind's px-/py-): set it where it is used. */
+.wy-input {
+  min-height: 44px;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  border: 0;
+  border-bottom: 2px solid var(--color-ink);
+  border-radius: 0;
+}
+.wy-input::placeholder {
+  color: var(--color-neutral-700);
+}
+.wy-input:focus {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
 /* Standalone-mode PWA on notch/home-indicator devices — requires
    viewport-fit=cover in index.html's viewport meta, or these all
    evaluate to 0. Covers normal document flow; fixed-position overlays
