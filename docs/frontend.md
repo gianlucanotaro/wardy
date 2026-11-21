@@ -73,6 +73,16 @@ uploaded as it is: a cut-out is a bonus, never a reason to lose a photo. The
 item view has "cut out the background", "redo" and "remove it"; Settings has an
 on/off switch, per phone.
 
+**Sizes are normalized.** In a tile, a cut-out garment is moved to the middle
+and scaled so its longest side fills the tile less an 8% margin, so a shoe and
+a coat have the same weight whatever they were in their photos
+(`normalize.ts`, from `items.mask_box`). Nothing is cropped or re-saved: it is
+a CSS transform, and the item's own photo and the add-review screen stay as
+taken. A garment is enlarged at most 2.5x, and one that needs more than about
+1.3x comes from the full-size file instead of the thumbnail, so it stays sharp.
+A tile passes its own width/height as `tile`; it must clip what spills out
+(`.wy-block` does). A photo without a cut-out is shown as before.
+
 Every place that shows an item's photo uses `ItemImg`, which shows the photo
 through its mask when there is one. Without a mask a photo is blended into its
 colour block (`.wy-block`); with one, the garment sits on the block in its own

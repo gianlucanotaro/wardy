@@ -97,3 +97,46 @@ func ProcessMask(data []byte, photoW, photoH int) ([]byte, error) {
 	}
 	return buf.Bytes(), nil
 }
+
+// Box is where a garment sits in its photo: the box around everything the mask
+// keeps, as fractions of the photo's width and height, and the photo's
+// width/height (so a screen can lay it out without loading the photo). It is
+// what lets the app give every garment the same size in its tile.
+type Box struct {
+	X     float64 `json:"x"`
+	Y     float64 `json:"y"`
+	W     float64 `json:"w"`
+	H     float64 `json:"h"`
+	Ratio float64 `json:"ratio"`
+}
+
+// MeasureMask finds the garment's Box in a stored mask (one ProcessMask made):
+// every pixel that is at least half opaque counts. The mask has the photo's
+// shape, so its own width/height is the photo's.
+func MeasureMask(mask []byte) (Box, error) {
+	img, err := png.Decode(bytes.NewReader(mask))
+	if err != nil {
+		return Box{}, fmt.Errorf("%w: not a PNG", ErrBadMask)
+	}
+	b := img.Bounds()
+	minX, minY, maxX, maxY := b.Dx(), b.Dy(), -1, -1
+	for y := 0; y < b.Dy(); y++ {
+		for x := 0; x < b.Dx(); x++ {
+			if _, _, _, a := img.At(b.Min.X+x, b.Min.Y+y).RGBA(); a>>8 >= 128 {
+				minX, maxX = min(minX, x), max(maxX, x)
+				minY, maxY = min(minY, y), max(maxY, y)
+			}
+		}
+	}
+	if maxX < 0 {
+		return Box{}, fmt.Errorf("%w: nothing is kept", ErrBadMask)
+	}
+	w, h := float64(b.Dx()), float64(b.Dy())
+	return Box{
+		X:     float64(minX) / w,
+		Y:     float64(minY) / h,
+		W:     float64(maxX-minX+1) / w,
+		H:     float64(maxY-minY+1) / h,
+		Ratio: w / h,
+	}, nil
+}

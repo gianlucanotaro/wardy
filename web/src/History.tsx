@@ -61,7 +61,7 @@ export default function History() {
           <div className="flex gap-1 overflow-x-auto flex-1">
             {wear.items.map((item) => (
               <div key={item.id} className="wy-block w-12 h-12 flex-shrink-0" style={{ background: blockOf(item.category) }}>
-                <ItemImg item={item} />
+                <ItemImg item={item} tile={1} />
               </div>
             ))}
           </div>

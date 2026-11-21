@@ -1,3 +1,4 @@
+import type { GarmentBox } from './normalize'
 import { type Coords } from './location'
 
 export type Me = { email: string; display_name: string }
@@ -34,6 +35,8 @@ export type Item = TagsPayload & {
   // The cut-out (docs/backend.md): '' without one. It is also the mask's
   // version, so the URL changes when the mask does.
   mask_path: string
+  // Where the garment sits in its photo; null until measured (normalize.ts).
+  mask_box: GarmentBox | null
   // Set once a tag_item job (AI or, going forward, any future automated
   // tagger) has written its result — null if the item was only ever
   // manually tagged. Paired with user_edited_at to tell "AI's untouched
