@@ -128,6 +128,10 @@ func TestUploadWithMaskKeepsTheCutOut(t *testing.T) {
 	if item.MaskPath == "" || !fileExists(filepath.Join(photosDir, item.MaskPath)) {
 		t.Fatalf("mask not stored: mask_path %q", item.MaskPath)
 	}
+	// fixtureMaskPNG keeps the middle half; the box says so, with the photo's shape
+	if b := item.MaskBox.Box; !item.MaskBox.Valid || b.X < 0.24 || b.X > 0.26 || b.W < 0.49 || b.W > 0.51 || b.Ratio < 1.33 || b.Ratio > 1.34 {
+		t.Errorf("mask_box = %+v, want x .25 w .5 ratio 4/3", item.MaskBox)
+	}
 
 	got := request(h, cookie, http.MethodGet, "/api/items/"+strconv.FormatInt(item.ID, 10)+"/mask")
 	if got.Code != http.StatusOK || got.Header().Get("Content-Type") != "image/png" {
@@ -289,5 +293,40 @@ func TestModelRoute(t *testing.T) {
 		if rec := request(h, cookie, http.MethodGet, "/api/models/"+name); rec.Code == http.StatusOK {
 			t.Errorf("/api/models/%s served a file", name)
 		}
+	}
+}
+
+func TestMaskBoxFollowsTheMask(t *testing.T) {
+	s := newTestStore(t)
+	h, _, _ := newTestHandlerDirs(t, s)
+	cookie := loginAndGetCookie(t, h, s, "me@example.com", "correct horse battery staple")
+
+	item := decodeItem(t, uploadItem(t, h, cookie, newFixtureJPEG(t)))
+	if item.MaskBox.Valid {
+		t.Fatalf("a plain upload has a box: %+v", item.MaskBox)
+	}
+
+	// a mask that keeps only the left tenth: the box moves with it
+	m := image.NewNRGBA(image.Rect(0, 0, 100, 75))
+	for y := 0; y < 75; y++ {
+		for x := 0; x < 10; x++ {
+			m.SetNRGBA(x, y, color.NRGBA{A: 255})
+		}
+	}
+	var buf bytes.Buffer
+	png.Encode(&buf, m)
+	put := decodeItem(t, putMask(t, h, cookie, item.ID, buf.Bytes()))
+	if b := put.MaskBox.Box; !put.MaskBox.Valid || b.X != 0 || b.W < 0.09 || b.W > 0.11 || b.H != 1 {
+		t.Errorf("after PUT: mask_box = %+v, want x 0, w .1, h 1", put.MaskBox)
+	}
+	got := decodeItem(t, request(h, cookie, http.MethodGet, "/api/items/"+strconv.FormatInt(item.ID, 10)))
+	if got.MaskBox != put.MaskBox {
+		t.Errorf("GET says %+v, PUT said %+v", got.MaskBox, put.MaskBox)
+	}
+
+	request(h, cookie, http.MethodDelete, "/api/items/"+strconv.FormatInt(item.ID, 10)+"/mask")
+	after := request(h, cookie, http.MethodGet, "/api/items/"+strconv.FormatInt(item.ID, 10))
+	if !bytes.Contains(after.Body.Bytes(), []byte(`"mask_box":null`)) {
+		t.Errorf("after DELETE the JSON should say \"mask_box\":null, got %s", after.Body.String())
 	}
 }

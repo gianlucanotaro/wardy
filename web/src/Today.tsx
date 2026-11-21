@@ -251,7 +251,7 @@ export default function Today() {
               {outfit.items.map((item) => (
                 <div key={item.id} className="wy-tile">
                   <div className="wy-block h-[170px]" style={{ background: blockOf(item.category) }}>
-                    <ItemImg item={item} />
+                    <ItemImg item={item} tile={1} />
                     <span className="absolute left-2 top-2 text-(--color-block-ink)">
                       <Shape name={shapeOf(item.category)} />
                     </span>

@@ -89,3 +89,34 @@ func TestProcessMaskRejectsWhatIsNotAUsableMask(t *testing.T) {
 		})
 	}
 }
+
+func TestMeasureMaskFindsTheGarmentsBox(t *testing.T) {
+	// maskFixture keeps the middle: a quarter in from every side
+	out, err := ProcessMask(pngBytes(t, maskFixture(400, 300)), 400, 300)
+	if err != nil {
+		t.Fatalf("ProcessMask: %v", err)
+	}
+	box, err := MeasureMask(out)
+	if err != nil {
+		t.Fatalf("MeasureMask: %v", err)
+	}
+	near := func(name string, got, want float64) {
+		if got < want-0.01 || got > want+0.01 {
+			t.Errorf("%s = %.3f, want %.3f", name, got, want)
+		}
+	}
+	near("x", box.X, 0.25)
+	near("y", box.Y, 0.25)
+	near("w", box.W, 0.5)
+	near("h", box.H, 0.5)
+	near("ratio", box.Ratio, 400.0/300.0)
+}
+
+func TestMeasureMaskRefusesWhatIsNotAMask(t *testing.T) {
+	if _, err := MeasureMask([]byte("nope")); !errors.Is(err, ErrBadMask) {
+		t.Errorf("garbage: got %v, want ErrBadMask", err)
+	}
+	if _, err := MeasureMask(pngBytes(t, image.NewNRGBA(image.Rect(0, 0, 50, 50)))); !errors.Is(err, ErrBadMask) {
+		t.Errorf("nothing kept: got %v, want ErrBadMask", err)
+	}
+}

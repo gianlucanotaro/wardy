@@ -36,6 +36,7 @@ type Item struct {
 	PhotoPath      string     `json:"photo_path"`
 	ThumbPath      string     `json:"thumb_path"`
 	MaskPath       string     `json:"mask_path"`
+	MaskBox        MaybeBox   `json:"mask_box"`
 	AITaggedAt     NullString `json:"ai_tagged_at"`
 	UserEditedAt   NullString `json:"user_edited_at"`
 	Archived       bool       `json:"archived"`
@@ -99,7 +100,7 @@ func (s *Store) ItemsByUser(ctx context.Context, userID int64, archived bool) ([
 	// (see ItemsByLastWorn), so this needs its own items.-qualified list.
 	rows, err := s.db.QueryContext(ctx, `SELECT items.id, items.user_id, items.name, items.category, items.subcategory,
 		items.color_primary, items.color_secondary, items.pattern, items.material, items.formality_min, items.formality_max, items.warmth_min, items.warmth_max,
-		items.fit, items.brand, items.notes, items.seasons, items.occasions, items.custom_tags, items.styles, items.photo_path, items.thumb_path, items.mask_path,
+		items.fit, items.brand, items.notes, items.seasons, items.occasions, items.custom_tags, items.styles, items.photo_path, items.thumb_path, items.mask_path, items.mask_box,
 		items.ai_tagged_at, items.user_edited_at, items.archived, items.created_at, COUNT(wi.wear_id), MAX(w.worn_on)
 		FROM items
 		LEFT JOIN wear_items wi ON wi.item_id = items.id
@@ -133,7 +134,7 @@ func scanItemWithWearStats(row rowScanner) (ItemWithWearStats, error) {
 	err := row.Scan(
 		&it.ID, &it.UserID, &it.Name, &it.Category, &it.Subcategory, &it.ColorPrimary,
 		&it.ColorSecondary, &it.Pattern, &it.Material, &it.FormalityMin, &it.FormalityMax, &it.WarmthMin, &it.WarmthMax, &it.Fit,
-		&it.Brand, &it.Notes, &it.Seasons, &it.Occasions, &it.CustomTags, &it.Styles, &it.PhotoPath, &it.ThumbPath, &it.MaskPath,
+		&it.Brand, &it.Notes, &it.Seasons, &it.Occasions, &it.CustomTags, &it.Styles, &it.PhotoPath, &it.ThumbPath, &it.MaskPath, &it.MaskBox,
 		&it.AITaggedAt, &it.UserEditedAt, &it.Archived, &it.CreatedAt,
 		&it.WearCount, &it.LastWornOn,
 	)
@@ -379,26 +380,64 @@ func (s *Store) DeleteItem(ctx context.Context, userID, id int64) (photoPath, th
 	return photoPath, thumbPath, maskPath, nil
 }
 
-// SetItemMask records maskPath as the item's cut-out ("" removes it), scoped
-// to userID, and returns the mask it replaced so the caller can delete that
-// file. Returns ErrNotFound if the item doesn't exist or belongs to a
-// different user.
-func (s *Store) SetItemMask(ctx context.Context, userID, id int64, maskPath string) (previous string, err error) {
+// SetItemMask records maskPath as the item's cut-out ("" removes it) together
+// with where the garment sits in its photo, scoped to userID, and returns the
+// mask it replaced so the caller can delete that file. Returns ErrNotFound if
+// the item doesn't exist or belongs to a different user.
+func (s *Store) SetItemMask(ctx context.Context, userID, id int64, maskPath string, box MaybeBox) (previous string, err error) {
 	row := s.db.QueryRowContext(ctx, `SELECT mask_path FROM items WHERE id = ? AND user_id = ?`, id, userID)
 	if err := row.Scan(&previous); errors.Is(err, sql.ErrNoRows) {
 		return "", ErrNotFound
 	} else if err != nil {
 		return "", fmt.Errorf("look up item mask: %w", err)
 	}
-	if _, err := s.db.ExecContext(ctx, `UPDATE items SET mask_path = ? WHERE id = ? AND user_id = ?`, maskPath, id, userID); err != nil {
+	if _, err := s.db.ExecContext(ctx, `UPDATE items SET mask_path = ?, mask_box = ? WHERE id = ? AND user_id = ?`, maskPath, box, id, userID); err != nil {
 		return "", fmt.Errorf("set item mask: %w", err)
 	}
 	return previous, nil
 }
 
+// MaskRef names an item's cut-out file, for the backfill.
+type MaskRef struct {
+	ID       int64
+	MaskPath string
+}
+
+// ItemsNeedingMaskBox lists every item (all users, archived too) that has a
+// cut-out whose box has not been measured: the backfill's work list.
+func (s *Store) ItemsNeedingMaskBox(ctx context.Context) ([]MaskRef, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT id, mask_path FROM items WHERE mask_path != '' AND mask_box = '' ORDER BY id`)
+	if err != nil {
+		return nil, fmt.Errorf("query items needing a mask box: %w", err)
+	}
+	defer rows.Close()
+	var refs []MaskRef
+	for rows.Next() {
+		var r MaskRef
+		if err := rows.Scan(&r.ID, &r.MaskPath); err != nil {
+			return nil, fmt.Errorf("scan mask ref: %w", err)
+		}
+		refs = append(refs, r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate items needing a mask box: %w", err)
+	}
+	return refs, nil
+}
+
+// SetItemMaskBox records a measured box for an item's current mask. It only
+// writes if the mask is still maskPath, so a mask replaced while the backfill
+// was measuring the old one is not given the old one's box.
+func (s *Store) SetItemMaskBox(ctx context.Context, id int64, maskPath string, box MaybeBox) error {
+	if _, err := s.db.ExecContext(ctx, `UPDATE items SET mask_box = ? WHERE id = ? AND mask_path = ?`, box, id, maskPath); err != nil {
+		return fmt.Errorf("set item mask box: %w", err)
+	}
+	return nil
+}
+
 const itemColumns = `SELECT id, user_id, name, category, subcategory, color_primary,
 	color_secondary, pattern, material, formality_min, formality_max, warmth_min, warmth_max, fit, brand, notes,
-	seasons, occasions, custom_tags, styles, photo_path, thumb_path, mask_path, ai_tagged_at, user_edited_at,
+	seasons, occasions, custom_tags, styles, photo_path, thumb_path, mask_path, mask_box, ai_tagged_at, user_edited_at,
 	archived, created_at`
 
 // rowScanner is satisfied by both *sql.Row and *sql.Rows.
@@ -411,7 +450,7 @@ func scanItem(row rowScanner) (Item, error) {
 	err := row.Scan(
 		&it.ID, &it.UserID, &it.Name, &it.Category, &it.Subcategory, &it.ColorPrimary,
 		&it.ColorSecondary, &it.Pattern, &it.Material, &it.FormalityMin, &it.FormalityMax, &it.WarmthMin, &it.WarmthMax, &it.Fit,
-		&it.Brand, &it.Notes, &it.Seasons, &it.Occasions, &it.CustomTags, &it.Styles, &it.PhotoPath, &it.ThumbPath, &it.MaskPath,
+		&it.Brand, &it.Notes, &it.Seasons, &it.Occasions, &it.CustomTags, &it.Styles, &it.PhotoPath, &it.ThumbPath, &it.MaskPath, &it.MaskBox,
 		&it.AITaggedAt, &it.UserEditedAt, &it.Archived, &it.CreatedAt,
 	)
 	if err != nil {

@@ -144,7 +144,7 @@ function SlotRow({
         style={thumb ? { background: blockOf(thumb.category) } : { border: `2px dashed ${blockOf(category)}` }}
       >
         {thumb ? (
-          <ItemImg item={thumb} />
+          <ItemImg item={thumb} tile={64 / 76} />
         ) : (
           '+'
         )}

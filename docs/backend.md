@@ -55,6 +55,12 @@ phone for it).
   most 1000px, ~20 KB, as `data/photos/<user_id>/<uuid>_mask.png`, recorded in
   `items.mask_path` (`''` for none). Every replacement gets a new name, so the
   URL (`?v=`) changes and browsers never show a stale one.
+- When a mask is saved the server **measures the garment**: the box round
+  everything the mask keeps, as fractions of the photo's width and height, plus
+  the photo's width/height, stored as JSON in `items.mask_box`
+  (`images.MeasureMask`). Cut-outs made before migration 0010 are measured
+  when the server starts (`jobs.BackfillMaskBoxes`; a mask file it cannot read
+  is logged and left). This is what the app uses to normalize sizes.
 - The photo stays a plain JPEG: the original is never touched, and the AI
   tagger still sees it. The app shows the garment through the mask on its
   colour block (`ItemImg.tsx`), in its own colours.

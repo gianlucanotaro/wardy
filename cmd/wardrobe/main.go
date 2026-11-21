@@ -104,6 +104,13 @@ func run() error {
 		}
 	}
 
+	// Cut-outs made before their garment's box was measured get it now.
+	if n, err := jobs.BackfillMaskBoxes(ctx, s, photosDir); err != nil {
+		slog.Error("mask box backfill", "error", err)
+	} else if n > 0 {
+		slog.Info("measured cut-out boxes", "items", n)
+	}
+
 	weatherClient := weather.NewClient()
 
 	// Single sign-on (#51); off unless all of issuer, client and redirect are set.
