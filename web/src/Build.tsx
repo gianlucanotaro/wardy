@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import ItemImg from './ItemImg'
 import { Cross } from './Icons'
 import Shape from './Shape'
 import { blockOf, shapeOf, tintOf } from './shapes'
@@ -143,7 +144,7 @@ function SlotRow({
         style={thumb ? { background: blockOf(thumb.category) } : { border: `2px dashed ${blockOf(category)}` }}
       >
         {thumb ? (
-          <img src={`/api/items/${thumb.id}/thumb`} alt={thumb.name || thumb.category} className="w-full h-full object-cover" />
+          <ItemImg item={thumb} />
         ) : (
           '+'
         )}
@@ -182,12 +183,7 @@ function PickCard({ item, picked, onPick }: { item: Item; picked: boolean; onPic
         className={`wy-block aspect-3/4 ${picked ? 'outline-3 -outline-offset-3 outline-(--color-accent)' : ''}`}
         style={{ background: blockOf(item.category) }}
       >
-        <img
-          src={`/api/items/${item.id}/thumb`}
-          alt={item.name || item.category}
-          className="w-full h-full object-cover"
-          loading="lazy"
-        />
+        <ItemImg item={item} loading="lazy" />
       </div>
       <div className="font-extrabold text-[10.5px] leading-tight mt-1.5 truncate">{itemTitle(item)}</div>
       <div className="text-[9px] tracking-wide text-(--color-neutral-700) truncate">

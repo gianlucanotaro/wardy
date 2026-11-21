@@ -180,7 +180,7 @@ and the permanent fallback.
 ## Non-goals
 
 Social features. Sharing. E-commerce or shopping suggestions. Native mobile
-apps. Background removal. Multi-tenancy. Billing. Docker in
+apps. Multi-tenancy. Billing. Docker in
 production. Kubernetes. Local LLM hosting — a 4 GB VPS can't, and the API costs
 a few dollars a month.
 

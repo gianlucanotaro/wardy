@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import ItemImg from './ItemImg'
 import Notice from './Notice'
 import Shape from './Shape'
 import { blockOf, shapeOf } from './shapes'
@@ -37,12 +38,7 @@ export default function History() {
         {history.data?.items.map((item) => (
           <div key={item.id} className="wy-tile">
             <div className="wy-block aspect-3/4" style={{ background: blockOf(item.category) }}>
-              <img
-                src={`/api/items/${item.id}/thumb`}
-                alt={item.name || item.category}
-                className="w-full h-full object-cover"
-                loading="lazy"
-              />
+              <ItemImg item={item} loading="lazy" />
               <span className="absolute left-2 top-2 text-(--color-block-ink)">
                 <Shape name={shapeOf(item.category)} />
               </span>
@@ -65,11 +61,7 @@ export default function History() {
           <div className="flex gap-1 overflow-x-auto flex-1">
             {wear.items.map((item) => (
               <div key={item.id} className="wy-block w-12 h-12 flex-shrink-0" style={{ background: blockOf(item.category) }}>
-                <img
-                  src={`/api/items/${item.id}/thumb`}
-                  alt={item.name || item.category}
-                  className="w-full h-full object-cover"
-                />
+                <ItemImg item={item} />
               </div>
             ))}
           </div>

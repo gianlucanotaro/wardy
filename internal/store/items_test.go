@@ -71,7 +71,7 @@ func TestItemOwnership(t *testing.T) {
 	})
 
 	t.Run("delete", func(t *testing.T) {
-		if _, _, err := s.DeleteItem(ctx, userB, itemID); !errors.Is(err, ErrNotFound) {
+		if _, _, _, err := s.DeleteItem(ctx, userB, itemID); !errors.Is(err, ErrNotFound) {
 			t.Errorf("DeleteItem as user B = %v, want ErrNotFound", err)
 		}
 		if _, err := s.ItemByID(ctx, userA, itemID); err != nil {

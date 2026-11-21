@@ -1,10 +1,13 @@
 import { useRef, useState } from 'react'
+import ItemImg from './ItemImg'
 import Notice from './Notice'
 import { Cross, Tick } from './Icons'
 import Shape from './Shape'
 import { blockOf, shapeOf } from './shapes'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { archiveItem, deleteItem, listItems, logWear, todayISODate, uploadItem, type Item } from './api'
+import CutoutControls from './CutoutControls'
+import { makeMask, shouldCutOut } from './cutout'
 import TagEditor from './TagEditor'
 import { useToast } from './useToast'
 import { FORMALITY_LABELS, WARMTH_LABELS } from './taxonomy'
@@ -97,9 +100,28 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
   // state" behavior the issue asks for.
   const aiJustSuggested = Boolean(addingItem?.ai_tagged_at && !addingItem.user_edited_at)
 
+  // What the phone is doing before the upload starts: cutting the garment out
+  // of its photo (cutout.ts). Null the rest of the time.
+  const [cutStatus, setCutStatus] = useState<string | null>(null)
+  const cutFailed = useRef(false)
   const upload = useMutation({
-    mutationFn: uploadItem,
+    mutationFn: async (file: File) => {
+      // A cut-out is a bonus: whatever goes wrong, the photo is uploaded as it is.
+      let mask: Blob | undefined
+      cutFailed.current = false
+      if (await shouldCutOut()) {
+        try {
+          mask = await makeMask(file, setCutStatus)
+        } catch (err) {
+          console.warn('cut-out failed', err)
+          cutFailed.current = true
+        }
+      }
+      setCutStatus(null)
+      return uploadItem(file, mask)
+    },
     onSuccess: (newItem) => {
+      if (cutFailed.current) flash("COULDN'T CUT OUT — SAVED AS IS")
       // Seed the cache synchronously so the review stage's very first
       // render already finds the item — invalidate still follows, to
       // reconcile with the server (and pick up anything a plain POST
@@ -220,12 +242,7 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
             className="wy-tile"
           >
             <div className="wy-block aspect-3/4" style={{ background: blockOf(item.category) }}>
-              <img
-                src={`/api/items/${item.id}/thumb`}
-                alt={item.name || 'wardrobe item'}
-                className="w-full h-full object-cover"
-                loading="lazy"
-              />
+              <ItemImg item={item} alt={item.name || 'wardrobe item'} loading="lazy" />
               <span className="absolute left-2 top-2 text-(--color-block-ink)">
                 <Shape name={shapeOf(item.category)} />
               </span>
@@ -303,11 +320,7 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
               className="wy-block aspect-3/4 border-b border-(--color-line)"
               style={{ background: blockOf(selected.category) }}
             >
-              <img
-                src={`/api/items/${selected.id}/photo`}
-                alt={selected.name || 'wardrobe item'}
-                className="w-full h-full object-cover"
-              />
+              <ItemImg item={selected} full alt={selected.name || 'wardrobe item'} />
               <span className="absolute left-3 top-3 text-(--color-block-ink)">
                 <Shape name={shapeOf(selected.category)} size={22} />
               </span>
@@ -347,6 +360,8 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
                 note={weather?.layerBelow != null ? `LAYER UP BELOW ${weather.layerBelow}°` : undefined}
               />
             </div>
+
+            <CutoutControls item={selected} />
 
             <div className="p-4">
               <TagEditor item={selected} />
@@ -448,9 +463,10 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
                 padding: '14px 28px',
               }}
             >
-              {upload.isPending ? 'UPLOADING…' : 'CHOOSE A PHOTO'}
+              {upload.isPending ? (cutStatus ? 'CUTTING OUT…' : 'UPLOADING…') : 'CHOOSE A PHOTO'}
             </button>
 
+            {cutStatus && <Notice kind="loading">{cutStatus}…</Notice>}
             {upload.isError && <p className="text-sm text-(--color-accent-700)">Upload failed. Try again.</p>}
           </div>
         </div>
@@ -469,11 +485,7 @@ export default function Wardrobe({ onAddToOutfit }: { onAddToOutfit: (item: Item
             className="wy-block aspect-3/4 border-b border-(--color-line)"
             style={{ background: blockOf(addingItem.category) }}
           >
-            <img
-              src={`/api/items/${addingItem.id}/photo`}
-              alt="newly added wardrobe item"
-              className="w-full h-full object-cover"
-            />
+            <ItemImg item={addingItem} full alt="newly added wardrobe item" />
             <span className="absolute left-3 top-3 text-(--color-block-ink)">
               <Shape name={shapeOf(addingItem.category)} size={22} />
             </span>

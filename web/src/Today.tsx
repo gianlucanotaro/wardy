@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import ItemImg from './ItemImg'
 import Notice from './Notice'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { createLook, getSuggestions, getWeather, listItems, logWear, MOODS, todayISODate } from './api'
@@ -250,11 +251,7 @@ export default function Today() {
               {outfit.items.map((item) => (
                 <div key={item.id} className="wy-tile">
                   <div className="wy-block h-[170px]" style={{ background: blockOf(item.category) }}>
-                    <img
-                      src={`/api/items/${item.id}/thumb`}
-                      alt={item.name || item.category}
-                      className="w-full h-full object-cover"
-                    />
+                    <ItemImg item={item} />
                     <span className="absolute left-2 top-2 text-(--color-block-ink)">
                       <Shape name={shapeOf(item.category)} />
                     </span>
