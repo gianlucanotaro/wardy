@@ -8,13 +8,18 @@ In daily use by a two-person household since summer 2026, running as one Go
 binary on a 4 GB VPS.
 
 <p align="center">
-  <img src="docs/screenshots/today.png" width="260" alt="Today: an outfit for the current weather, occasion and mood">
-  <img src="docs/screenshots/wardrobe.png" width="260" alt="Wardrobe: a photo grid with structured search filters">
-  <img src="docs/screenshots/build.png" width="260" alt="Build: an AI-suggested outfit, every slot swappable">
+  <img src="docs/screenshots/today.png" width="240" alt="Today: an outfit for the current weather, occasion and mood">
+  <img src="docs/screenshots/wardrobe.png" width="240" alt="Wardrobe: a photo grid with structured search filters">
+  <img src="docs/screenshots/build.png" width="240" alt="Build: an AI-suggested outfit, every slot swappable">
+</p>
+<p align="center">
+  <img src="docs/screenshots/today-dark.png" width="240" alt="Today in dark mode">
+  <img src="docs/screenshots/wardrobe-dark.png" width="240" alt="Wardrobe in dark mode">
+  <img src="docs/screenshots/build-dark.png" width="240" alt="Build in dark mode">
 </p>
 
-<sub>Screenshots from a local instance with the bundled sample garments and the
-mock AI provider.</sub>
+<sub>Light and dark follow the phone. Screenshots from a local instance with
+the bundled sample garments and the mock AI provider.</sub>
 
 ## Highlights
 
@@ -57,6 +62,20 @@ mock AI provider.</sub>
   you wear and what you save.
 - **Login**: Authelia single sign-on with password fallback, no public
   signup. Installable as a PWA.
+
+## Design
+
+Bauhaus, on a phone: flat colour blocks on warm paper, one red that only ever
+marks the next action, and one heavy lowercase font. Circle, square, triangle
+and half-circle mean tops, bottoms, layers and shoes, in the tab bar and on
+every garment. Light and dark are both first-class.
+
+<p align="center">
+  <img src="docs/design/poster.png" width="520" alt="The design concept poster: shapes, type, colour, and three screens">
+</p>
+
+The rules (tokens, shapes, colour blocks, type, theming) are written down in
+[`docs/frontend.md`](docs/frontend.md#look).
 
 ## Architecture
 
