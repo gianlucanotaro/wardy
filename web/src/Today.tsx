@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import ItemImg from './ItemImg'
 import Notice from './Notice'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { createLook, getPlan, getSuggestions, getWeather, listItems, listWears, logWear, MOODS, todayISODate, type Item } from './api'
@@ -371,7 +372,7 @@ function OutfitTiles({ items }: { items: Item[] }) {
       {items.map((item) => (
         <div key={item.id} className="wy-tile">
           <div className="wy-block h-[170px]" style={{ background: blockOf(item.category) }}>
-            <img src={`/api/items/${item.id}/thumb`} alt={item.name || item.category} className="w-full h-full object-cover" />
+            <ItemImg item={item} tile={1} />
             <span className="absolute left-2 top-2 text-(--color-block-ink)">
               <Shape name={shapeOf(item.category)} />
             </span>

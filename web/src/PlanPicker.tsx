@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import ItemImg from './ItemImg'
 import { blockOf } from './shapes'
 import type { Look } from './api'
 
@@ -196,7 +197,7 @@ function LookRow({ look, on, onClick }: { look: Look; on: boolean; onClick: () =
         <span className="h-10 flex gap-[3px] overflow-hidden">
           {shown.map((it) => (
             <span key={it.id} className={`wy-block ${thumb}`} style={{ background: blockOf(it.category) }}>
-              <img src={`/api/items/${it.id}/thumb`} alt="" loading="lazy" className="w-full h-full object-cover" />
+              <ItemImg item={it} alt="" loading="lazy" />
             </span>
           ))}
           {more > 0 && (

@@ -63,6 +63,7 @@ func run() error {
 	secureCookies := envOr("SECURE", "false") == "true"
 	dataDir := envOr("DATA_DIR", "./data")
 	photosDir := filepath.Join(dataDir, "photos")
+	modelsDir := filepath.Join(dataDir, "models")
 
 	if err := os.MkdirAll(photosDir, 0o755); err != nil {
 		return fmt.Errorf("create photos dir: %w", err)
@@ -103,6 +104,13 @@ func run() error {
 		}
 	}
 
+	// Cut-outs made before their garment's box was measured get it now.
+	if n, err := jobs.BackfillMaskBoxes(ctx, s, photosDir); err != nil {
+		slog.Error("mask box backfill", "error", err)
+	} else if n > 0 {
+		slog.Info("measured cut-out boxes", "items", n)
+	}
+
 	weatherClient := weather.NewClient()
 
 	// Single sign-on (#51); off unless all of issuer, client and redirect are set.
@@ -116,7 +124,7 @@ func run() error {
 
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           httpapi.New(s, web.FS(), secureCookies, photosDir, aiEnabled, weatherClient, provider, monthlyBudget, sso),
+		Handler:           httpapi.New(s, web.FS(), secureCookies, photosDir, modelsDir, aiEnabled, weatherClient, provider, monthlyBudget, sso),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

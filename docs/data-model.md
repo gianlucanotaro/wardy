@@ -12,7 +12,7 @@ items        id, user_id, name, category, subcategory, color_primary,
              color_secondary, pattern, material, formality_min,
              formality_max, warmth_min, warmth_max, fit,
              brand, notes, seasons(JSON), occasions(JSON), custom_tags(JSON),
-             styles(JSON), photo_path, thumb_path, ai_tagged_at,
+             styles(JSON), photo_path, thumb_path, mask_path, mask_box(JSON), ai_tagged_at,
              styles_ai_at, user_edited_at, archived, created_at
 looks        id, user_id, name, notes, cover_item_id, created_at
 look_items   look_id, item_id, position

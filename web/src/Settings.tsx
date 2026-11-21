@@ -3,6 +3,7 @@ import Shape from './Shape'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getSettings, getWeather, updateSettings } from './api'
 import { type LocationSource, useLocationSource, useWeatherCoords } from './location'
+import { cutoutInstalled, cutoutSupported, cutoutWanted, setCutoutWanted } from './cutout'
 import { type ThemePref, getThemePref, setThemePref } from './theme'
 import { useToast } from './useToast'
 
@@ -36,6 +37,8 @@ export default function Settings() {
   const flash = useToast()
   const [showIOSInstallHint] = useState(isIOSInstallable)
   const [themePref, setThemeState] = useState<ThemePref>(getThemePref)
+  const [cutWanted, setCutWanted] = useState(cutoutWanted)
+  const cutInstalled = useQuery({ queryKey: ['cutout-installed'], queryFn: cutoutInstalled, staleTime: Infinity })
   const settings = useQuery({ queryKey: ['settings'], queryFn: getSettings })
   const hasLocation = settings.data?.home_lat != null && settings.data?.home_lon != null
   const [locationSource, setLocationSource] = useLocationSource()
@@ -123,6 +126,34 @@ export default function Settings() {
             </button>
           ))}
         </div>
+      </section>
+
+      <section className="px-4 py-3 border-b border-(--color-line) flex flex-col gap-2">
+        <div className="wy-lbl">CUT OUT NEW PHOTOS</div>
+        <div className="flex flex-wrap gap-1.5">
+          {[true, false].map((on) => (
+            <button
+              key={String(on)}
+              type="button"
+              className="wy-chip"
+              data-on={on === cutWanted || undefined}
+              aria-pressed={on === cutWanted}
+              onClick={() => {
+                setCutoutWanted(on)
+                setCutWanted(on)
+              }}
+            >
+              {on ? 'on' : 'off'}
+            </button>
+          ))}
+        </div>
+        <p className="wy-lbl">
+          {!cutoutSupported()
+            ? "This phone can't do it."
+            : cutInstalled.data === false
+              ? 'Not set up on the server yet.'
+              : "Removes the background on this phone, before the photo is uploaded. The first time downloads 44 MB. This setting is for this phone only."}
+        </p>
       </section>
 
       <section className="px-4 py-3 border-b border-(--color-line) flex flex-col gap-2">

@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import ItemImg from './ItemImg'
 import Notice from './Notice'
 import { blockOf } from './shapes'
 import { useRef, useState } from 'react'
@@ -283,7 +284,7 @@ function DayCard({
               className={`wy-block ${THUMB_SIZE} ${isPast && !wear ? 'grayscale opacity-55' : ''}`}
               style={{ background: blockOf(it.category) }}
             >
-              <img src={`/api/items/${it.id}/thumb`} alt="" loading="lazy" className="w-full h-full object-cover" />
+              <ItemImg item={it} alt="" loading="lazy" />
             </span>
           ))}
           {more > 0 && (

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"image"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -63,6 +65,17 @@ func uploadItemHandler(s *store.Store, photosDir string, aiEnabled bool, jobLimi
 			slog.Error("upload: create item", "error", err)
 			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
+		}
+
+		// A cut-out is optional and never worth losing the upload over: a bad
+		// mask is logged and ignored, and the item keeps its plain photo.
+		if maskData := formFileBytes(r, "mask", images.MaxMaskBytes); maskData != nil {
+			if maskRel, box, err := saveMask(photosDir, photoRel, maskData); err != nil {
+				slog.Warn("upload: ignoring mask", "error", err)
+			} else if _, err := s.SetItemMask(r.Context(), user.ID, itemID, maskRel, store.MaybeBox{Box: box, Valid: true}); err != nil {
+				slog.Error("upload: record mask", "error", err)
+				removePhotos(photosDir, maskRel)
+			}
 		}
 
 		// Enqueue AI tagging unless the kill switch is off or this user has
@@ -153,6 +166,9 @@ func savePhoto(w http.ResponseWriter, r *http.Request, photosDir string, userID 
 // removePhotos deletes a deleted item's or fit's files, best effort.
 func removePhotos(photosDir string, rels ...string) {
 	for _, rel := range rels {
+		if rel == "" {
+			continue
+		}
 		if err := os.Remove(filepath.Join(photosDir, rel)); err != nil && !os.IsNotExist(err) {
 			slog.Warn("remove photo file", "path", rel, "error", err)
 		}
@@ -444,7 +460,7 @@ func deleteItemHandler(s *store.Store, photosDir string) http.HandlerFunc {
 			return
 		}
 
-		photoRel, thumbRel, err := s.DeleteItem(r.Context(), user.ID, id)
+		photoRel, thumbRel, maskRel, err := s.DeleteItem(r.Context(), user.ID, id)
 		if errors.Is(err, store.ErrNotFound) {
 			http.Error(w, "not found", http.StatusNotFound)
 			return
@@ -455,7 +471,7 @@ func deleteItemHandler(s *store.Store, photosDir string) http.HandlerFunc {
 			return
 		}
 
-		removePhotos(photosDir, photoRel, thumbRel)
+		removePhotos(photosDir, photoRel, thumbRel, maskRel)
 
 		w.WriteHeader(http.StatusNoContent)
 	}
@@ -504,4 +520,169 @@ func itemIDFromPath(r *http.Request) (int64, error) {
 		return 0, fmt.Errorf("parse id: %w", err)
 	}
 	return id, nil
+}
+
+// formFileBytes returns the bytes of an optional multipart file field, or nil
+// if it is absent, empty or longer than limit. It reads from the form
+// savePhoto has already parsed.
+func formFileBytes(r *http.Request, field string, limit int) []byte {
+	file, _, err := r.FormFile(field)
+	if err != nil {
+		return nil
+	}
+	defer file.Close()
+	data, err := io.ReadAll(io.LimitReader(file, int64(limit)+1))
+	if err != nil || len(data) == 0 || len(data) > limit {
+		return nil
+	}
+	return data
+}
+
+// saveMask checks a mask against the stored photo it belongs to and writes
+// it next to the photo under a fresh name (so the URL changes with the mask
+// and browsers never show a stale one), returning its path relative to
+// photosDir and where the garment sits in the photo. images.ErrBadMask means
+// the mask itself is unusable.
+func saveMask(photosDir, photoRel string, data []byte) (string, images.Box, error) {
+	f, err := os.Open(filepath.Join(photosDir, photoRel))
+	if err != nil {
+		return "", images.Box{}, fmt.Errorf("open photo: %w", err)
+	}
+	cfg, _, err := image.DecodeConfig(f)
+	f.Close()
+	if err != nil {
+		return "", images.Box{}, fmt.Errorf("read photo size: %w", err)
+	}
+	mask, err := images.ProcessMask(data, cfg.Width, cfg.Height)
+	if err != nil {
+		return "", images.Box{}, err
+	}
+	box, err := images.MeasureMask(mask)
+	if err != nil {
+		return "", images.Box{}, err
+	}
+	maskRel := filepath.Join(filepath.Dir(photoRel), uuid.NewString()+"_mask.png")
+	if err := os.WriteFile(filepath.Join(photosDir, maskRel), mask, 0o644); err != nil {
+		return "", images.Box{}, fmt.Errorf("write mask: %w", err)
+	}
+	return maskRel, box, nil
+}
+
+// putMaskHandler adds or replaces an item's cut-out: a multipart "mask" PNG.
+// The mask is checked like any upload, and must match the photo's shape.
+func putMaskHandler(s *store.Store, photosDir string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := userFromContext(r.Context())
+		if !ok {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		id, err := itemIDFromPath(r)
+		if err != nil {
+			http.Error(w, "invalid item id", http.StatusBadRequest)
+			return
+		}
+		item, err := s.ItemByID(r.Context(), user.ID, id)
+		if errors.Is(err, store.ErrNotFound) {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		if err != nil {
+			slog.Error("put mask: look up item", "error", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+
+		r.Body = http.MaxBytesReader(w, r.Body, images.MaxMaskBytes+(64<<10))
+		if err := r.ParseMultipartForm(images.MaxMaskBytes); err != nil {
+			http.Error(w, "mask too large or malformed form", http.StatusBadRequest)
+			return
+		}
+		data := formFileBytes(r, "mask", images.MaxMaskBytes)
+		if data == nil {
+			http.Error(w, "missing or oversized \"mask\" field", http.StatusBadRequest)
+			return
+		}
+
+		maskRel, box, err := saveMask(photosDir, item.PhotoPath, data)
+		if errors.Is(err, images.ErrBadMask) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if err != nil {
+			slog.Error("put mask: save", "error", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		previous, err := s.SetItemMask(r.Context(), user.ID, id, maskRel, store.MaybeBox{Box: box, Valid: true})
+		if err != nil {
+			removePhotos(photosDir, maskRel)
+			slog.Error("put mask: record", "error", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		removePhotos(photosDir, previous)
+
+		item.MaskPath = maskRel
+		item.MaskBox = store.MaybeBox{Box: box, Valid: true}
+		writeItem(r.Context(), w, s, item, http.StatusOK)
+	}
+}
+
+// deleteMaskHandler removes an item's cut-out; the photo itself is untouched.
+func deleteMaskHandler(s *store.Store, photosDir string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := userFromContext(r.Context())
+		if !ok {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		id, err := itemIDFromPath(r)
+		if err != nil {
+			http.Error(w, "invalid item id", http.StatusBadRequest)
+			return
+		}
+		previous, err := s.SetItemMask(r.Context(), user.ID, id, "", store.MaybeBox{})
+		if errors.Is(err, store.ErrNotFound) {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		if err != nil {
+			slog.Error("delete mask", "error", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		removePhotos(photosDir, previous)
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+// serveMaskHandler serves an item's mask, scoped to the authenticated owner
+// like the photo itself. The URL carries the mask's file name (?v=), so the
+// answer can be cached for good.
+func serveMaskHandler(s *store.Store, photosDir string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user, ok := userFromContext(r.Context())
+		if !ok {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		id, err := itemIDFromPath(r)
+		if err != nil {
+			http.Error(w, "invalid item id", http.StatusBadRequest)
+			return
+		}
+		item, err := s.ItemByID(r.Context(), user.ID, id)
+		if errors.Is(err, store.ErrNotFound) || (err == nil && item.MaskPath == "") {
+			http.Error(w, "not found", http.StatusNotFound)
+			return
+		}
+		if err != nil {
+			slog.Error("serve mask", "error", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
+		http.ServeFile(w, r, filepath.Join(photosDir, item.MaskPath))
+	}
 }

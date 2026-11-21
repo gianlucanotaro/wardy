@@ -53,6 +53,25 @@ ssh user@host 'sudo systemctl restart wardrobe'
   `wardy` whose `redirect_uris` list each instance's
   `https://<host>/api/auth/oidc/callback`. Unset → password login only.
 
+### Cut-out model (optional)
+
+Cut-outs (`docs/backend.md`) need about 59 MB of files in `<DATA_DIR>/models/`
+(`data/models/` by default): the ISNet model shrunk to 8 bits, and the ONNX
+runtime that runs it in the browser. They are not in git or the binary. Make
+them once, on a laptop (the shrinking step wants ~1.5 GB of RAM for a few
+seconds, more than the shared VPS should spend), then copy the folder over:
+
+```bash
+tools/cutout-model.sh /tmp/models          # downloads ~190 MB, writes ~59 MB
+scp -r /tmp/models/* user@host:/opt/wardrobe/data/models/
+```
+
+No restart needed. Until the files are there, `/api/models/...` answers 404 and
+the app simply does not offer cut-outs. Each phone downloads them once (44 MB
+model plus 15 MB runtime, cached by the service worker); Settings has a switch
+per phone. The model (`imgly/isnet-general-onnx`) and the runtime
+(`onnxruntime-web`) are both MIT-licensed.
+
 No Docker in production. A Dockerfile is optional and dev-only; keep the door
 open for a PaaS later, but don't let Docker into the dev loop.
 

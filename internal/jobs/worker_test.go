@@ -271,7 +271,7 @@ func TestProcessOneSkipsWhenItemDeleted(t *testing.T) {
 	s, photosDir, userID, itemID := newTestFixture(t)
 	jobID := enqueueTagJob(t, s, userID, itemID)
 
-	if _, _, err := s.DeleteItem(ctx, userID, itemID); err != nil {
+	if _, _, _, err := s.DeleteItem(ctx, userID, itemID); err != nil {
 		t.Fatalf("DeleteItem: %v", err)
 	}
 

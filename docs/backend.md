@@ -39,6 +39,40 @@ controls the provider's accounts (the server admin) already controls Wardy's.
 Serve thumbs in grid views. A 4 MB original vs a 200 KB thumb is 20× the
 bandwidth on cellular.
 
+### Cut-outs
+
+A photo can carry a cut-out: a **mask** next to the JPEG, made **on the
+phone**, never on the server (a model takes hundreds of MB, which a 4 GB VPS
+shared with other apps cannot spare, and the photo never has to leave the
+phone for it).
+
+- The phone runs ISNet (MIT) with onnxruntime-web in a worker
+  (`web/src/cutoutWorker.ts`), then uploads the photo as usual plus an
+  optional `mask` field (`PUT /api/items/{id}/mask` for an existing photo,
+  `DELETE` to remove it).
+- The mask is a **PNG whose alpha channel** is opaque where the garment is
+  (a CSS mask reads alpha). The server re-encodes it black with that alpha, at
+  most 1000px, ~20 KB, as `data/photos/<user_id>/<uuid>_mask.png`, recorded in
+  `items.mask_path` (`''` for none). Every replacement gets a new name, so the
+  URL (`?v=`) changes and browsers never show a stale one.
+- When a mask is saved the server **measures the garment**: the box round
+  everything the mask keeps, as fractions of the photo's width and height, plus
+  the photo's width/height, stored as JSON in `items.mask_box`
+  (`images.MeasureMask`). Cut-outs made before migration 0010 are measured
+  when the server starts (`jobs.BackfillMaskBoxes`; a mask file it cannot read
+  is logged and left). This is what the app uses to normalize sizes.
+- The photo stays a plain JPEG: the original is never touched, and the AI
+  tagger still sees it. The app shows the garment through the mask on its
+  colour block (`ItemImg.tsx`), in its own colours.
+- A mask is **user input**: only PNG is decoded, size is checked first, it must
+  have the photo's shape (2%), and a mask that is all one value is refused
+  (`images.ProcessMask`). A bad mask on **upload** is logged and ignored: the
+  item is saved with its plain photo. On `PUT` it is a 400. Ownership is
+  checked like the photo's.
+- Model files are served by `GET /api/models/{name}` from `<data>/models/`
+  (a fixed list of names, `models.go`); not installed means 404 and the app
+  does not offer cut-outs. See `docs/deployment.md`.
+
 **HEIC gotcha:** iPhones shoot HEIC. Safari usually converts on
 `<input capture>`, but library picks can yield HEIC and pure-Go decoding isn't
 viable. Detect server-side and return a clear error.

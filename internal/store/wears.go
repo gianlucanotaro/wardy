@@ -216,7 +216,7 @@ func (s *Store) ItemsByLastWorn(ctx context.Context, userID int64) ([]ItemLastWo
 	// query needs its own items.-qualified list rather than reusing it.
 	rows, err := s.db.QueryContext(ctx, `SELECT items.id, items.user_id, items.name, items.category, items.subcategory,
 		items.color_primary, items.color_secondary, items.pattern, items.material, items.formality_min, items.formality_max, items.warmth_min, items.warmth_max,
-		items.fit, items.brand, items.notes, items.seasons, items.occasions, items.custom_tags, items.styles, items.photo_path, items.thumb_path,
+		items.fit, items.brand, items.notes, items.seasons, items.occasions, items.custom_tags, items.styles, items.photo_path, items.thumb_path, items.mask_path, items.mask_box,
 		items.ai_tagged_at, items.user_edited_at, items.archived, items.created_at, MAX(w.worn_on)
 		FROM items
 		LEFT JOIN wear_items wi ON wi.item_id = items.id
@@ -253,7 +253,7 @@ func scanItemWithLastWorn(row rowScanner) (ItemLastWorn, error) {
 	err := row.Scan(
 		&it.ID, &it.UserID, &it.Name, &it.Category, &it.Subcategory, &it.ColorPrimary,
 		&it.ColorSecondary, &it.Pattern, &it.Material, &it.FormalityMin, &it.FormalityMax, &it.WarmthMin, &it.WarmthMax, &it.Fit,
-		&it.Brand, &it.Notes, &it.Seasons, &it.Occasions, &it.CustomTags, &it.Styles, &it.PhotoPath, &it.ThumbPath,
+		&it.Brand, &it.Notes, &it.Seasons, &it.Occasions, &it.CustomTags, &it.Styles, &it.PhotoPath, &it.ThumbPath, &it.MaskPath, &it.MaskBox,
 		&it.AITaggedAt, &it.UserEditedAt, &it.Archived, &it.CreatedAt,
 		&it.LastWornOn,
 	)

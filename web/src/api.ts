@@ -1,3 +1,4 @@
+import type { GarmentBox } from './normalize'
 import { type Coords } from './location'
 
 export type Me = { email: string; display_name: string }
@@ -31,6 +32,11 @@ export type Item = TagsPayload & {
   name: string
   photo_path: string
   thumb_path: string
+  // The cut-out (docs/backend.md): '' without one. It is also the mask's
+  // version, so the URL changes when the mask does.
+  mask_path: string
+  // Where the garment sits in its photo; null until measured (normalize.ts).
+  mask_box: GarmentBox | null
   // Set once a tag_item job (AI or, going forward, any future automated
   // tagger) has written its result — null if the item was only ever
   // manually tagged. Paired with user_edited_at to tell "AI's untouched
@@ -89,14 +95,28 @@ export function listItems(opts?: { archived?: boolean }): Promise<Item[]> {
   return request(opts?.archived ? '/api/items?archived=true' : '/api/items')
 }
 
-export async function uploadItem(file: File): Promise<Item> {
+export async function uploadItem(file: File, mask?: Blob): Promise<Item> {
   const form = new FormData()
   form.append('photo', file)
+  if (mask) form.append('mask', mask, 'mask.png')
   const res = await fetch('/api/items', { method: 'POST', body: form })
   if (!res.ok) {
     throw new Error(`upload failed: ${res.status}`)
   }
   return res.json()
+}
+
+// Adds or replaces an item's cut-out.
+export async function setItemMask(id: number, mask: Blob): Promise<Item> {
+  const form = new FormData()
+  form.append('mask', mask, 'mask.png')
+  const res = await fetch(`/api/items/${id}/mask`, { method: 'PUT', body: form })
+  if (!res.ok) throw new Error(`mask failed: ${res.status}`)
+  return res.json()
+}
+
+export function removeItemMask(id: number): Promise<void> {
+  return request(`/api/items/${id}/mask`, { method: 'DELETE' })
 }
 
 export function deleteItem(id: number): Promise<void> {
