@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import Notice from './Notice'
-import { useMutation, useQuery } from '@tanstack/react-query'
-import { createLook, getSuggestions, getWeather, listItems, logWear, MOODS, todayISODate } from './api'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { createLook, getPlan, getSuggestions, getWeather, listItems, listWears, logWear, MOODS, todayISODate, type Item } from './api'
 import { useLocationSource, useWeatherCoords } from './location'
 import OutfitStyle from './OutfitStyle'
+import PlanForSheet from './PlanForSheet'
 import Shape from './Shape'
 import { blockOf, shapeOf } from './shapes'
 import { OCCASIONS } from './taxonomy'
@@ -34,6 +35,7 @@ const MONTH = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'O
 // the plan's "implementation-level calls").
 export default function Today() {
   const flash = useToast()
+  const queryClient = useQueryClient()
   const [occasion, setOccasion] = useState<string>('casual')
   const [mood, setMood] = useState<string>('')
   const [deckIndex, setDeckIndex] = useState(0)
@@ -47,6 +49,33 @@ export default function Today() {
   const dateLabel = `${WEEKDAY[now.getDay()]} ${now.getDate()} ${MONTH[now.getMonth()]}`
 
   const items = useQuery({ queryKey: ['items'], queryFn: () => listItems() })
+
+  // A look planned for today (#79) comes first; the suggestion deck is the
+  // alternative, fetched only once asked for so a planned day doesn't spend
+  // an AI suggestion nobody looks at. A failed plan load degrades to the
+  // usual suggestions.
+  const today = todayISODate()
+  const plan = useQuery({ queryKey: ['plan', today, today], queryFn: () => getPlan(today, today) })
+  const plannedLook = plan.data?.[0]?.look ?? null
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [planForOpen, setPlanForOpen] = useState(false)
+  const planSettled = plan.isSuccess || plan.isError
+  const showPlanned = plannedLook !== null && !showSuggestions
+  const wears = useQuery({ queryKey: ['wears'], queryFn: listWears, enabled: plannedLook !== null })
+  const wearPlanned = useMutation({
+    mutationFn: (lookId: number) => logWear({ look_id: lookId, worn_on: today }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['wears'] })
+      queryClient.invalidateQueries({ queryKey: ['history'] })
+      queryClient.invalidateQueries({ queryKey: ['plan'] })
+      flash('LOGGED AS WORN TODAY')
+    },
+  })
+  // The server also logs a look at most once a day, so a double tap that
+  // slips past the disabled button still can't log it twice.
+  const plannedWorn =
+    plannedLook !== null &&
+    (wearPlanned.isSuccess || (wears.data ?? []).some((w) => w.look_id === plannedLook.id && w.worn_on === today))
   // Both wait for the browser's answer on location, so they fetch once for
   // here rather than once for home and again for here.
   const [locationSource] = useLocationSource()
@@ -55,7 +84,7 @@ export default function Today() {
   const suggestions = useQuery({
     queryKey: ['suggest', occasion, mood, coords],
     queryFn: () => getSuggestions(occasion, mood || undefined, coords),
-    enabled: ready,
+    enabled: ready && planSettled && !showPlanned,
   })
 
   const outfits = suggestions.data?.outfits ?? []
@@ -177,6 +206,46 @@ export default function Today() {
         </div>
       </div>
 
+      {!planSettled && <Notice kind="loading">loading…</Notice>}
+
+      {showPlanned && plannedLook && (
+        <div>
+          <div
+            className="flex justify-between gap-3 px-4 py-3 wy-lbl"
+            style={{ background: 'color-mix(in srgb, var(--color-accent) 14%, var(--color-bg))' }}
+          >
+            <span>planned for today</span>
+            <span className="truncate text-(--color-ink)">{plannedLook.name}</span>
+          </div>
+          <OutfitTiles items={plannedLook.items} />
+          <OutfitStyle key={`plan-${plannedLook.id}`} items={plannedLook.items} />
+          <div className="wy-actions grid grid-cols-2 border-b-2 border-(--color-line-strong)">
+            <button
+              type="button"
+              data-primary="1"
+              disabled={plannedWorn || wearPlanned.isPending}
+              onClick={() => wearPlanned.mutate(plannedLook.id)}
+              className="wy-act"
+            >
+              {plannedWorn ? 'WORN ✓' : 'WEAR THIS'}
+            </button>
+            <button type="button" onClick={() => setShowSuggestions(true)} className="wy-act">
+              SUGGEST INSTEAD
+            </button>
+          </div>
+          {wearPlanned.isError && <Notice kind="error">couldn't log the wear, try again</Notice>}
+        </div>
+      )}
+
+      {planSettled && !showPlanned && (
+        <>
+          {plannedLook && (
+            <div className="px-4 pt-3">
+              <button type="button" onClick={() => setShowSuggestions(false)} className="wy-chip">
+                ← today's plan · {plannedLook.name}
+              </button>
+            </div>
+          )}
       <div className="py-3 border-y border-(--color-line) flex flex-col gap-2">
         <div className="flex gap-2 overflow-x-auto px-4" role="group" aria-label="Occasion">
           {OCCASIONS.map((o) => (
@@ -246,31 +315,12 @@ export default function Today() {
               touchAction: 'pan-y',
             }}
           >
-            <div className="grid grid-cols-2 sm:grid-cols-4 border-b border-(--color-line)">
-              {outfit.items.map((item) => (
-                <div key={item.id} className="wy-tile">
-                  <div className="wy-block h-[170px]" style={{ background: blockOf(item.category) }}>
-                    <img
-                      src={`/api/items/${item.id}/thumb`}
-                      alt={item.name || item.category}
-                      className="w-full h-full object-cover"
-                    />
-                    <span className="absolute left-2 top-2 text-(--color-block-ink)">
-                      <Shape name={shapeOf(item.category)} />
-                    </span>
-                  </div>
-                  <div className="font-extrabold text-sm mt-1.5 tracking-tight truncate lowercase">
-                    {item.name || item.subcategory || item.category}
-                  </div>
-                  <div className="wy-lbl truncate">{item.color_primary}</div>
-                </div>
-              ))}
-            </div>
+            <OutfitTiles items={outfit.items} />
           </div>
 
           <OutfitStyle key={key} items={outfit.items} />
 
-          <div className="wy-actions grid grid-cols-3 border-b-2 border-(--color-line-strong)">
+          <div className="wy-actions grid grid-cols-2 border-b-2 border-(--color-line-strong)">
             <button
               type="button"
               data-primary="1"
@@ -288,16 +338,50 @@ export default function Today() {
             >
               {saved ? 'SAVED ✓' : 'SAVE AS LOOK'}
             </button>
-            <button
-              type="button"
-              onClick={() => setDeckIndex((i) => i + 1)}
-              className="wy-act"
-            >
+          </div>
+          <div className="wy-actions grid grid-cols-2 border-b-2 border-(--color-line-strong)">
+            <button type="button" onClick={() => setPlanForOpen(true)} className="wy-act">
+              PLAN FOR…
+            </button>
+            <button type="button" onClick={() => setDeckIndex((i) => i + 1)} className="wy-act">
               NOT TODAY →
             </button>
           </div>
+          {planForOpen && (
+            <PlanForSheet
+              itemIds={outfit.items.map((it) => it.id)}
+              namePrefix={occasion.toUpperCase()}
+              onClose={() => setPlanForOpen(false)}
+              onPlanned={() => setPlanForOpen(false)}
+            />
+          )}
         </div>
       )}
+        </>
+      )}
+    </div>
+  )
+}
+
+// The outfit's pieces as a grid of photo tiles, shared by the planned look
+// and the suggestion deck.
+function OutfitTiles({ items }: { items: Item[] }) {
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-4 border-b border-(--color-line)">
+      {items.map((item) => (
+        <div key={item.id} className="wy-tile">
+          <div className="wy-block h-[170px]" style={{ background: blockOf(item.category) }}>
+            <img src={`/api/items/${item.id}/thumb`} alt={item.name || item.category} className="w-full h-full object-cover" />
+            <span className="absolute left-2 top-2 text-(--color-block-ink)">
+              <Shape name={shapeOf(item.category)} />
+            </span>
+          </div>
+          <div className="font-extrabold text-sm mt-1.5 tracking-tight truncate lowercase">
+            {item.name || item.subcategory || item.category}
+          </div>
+          <div className="wy-lbl truncate">{item.color_primary}</div>
+        </div>
+      ))}
     </div>
   )
 }

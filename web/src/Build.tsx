@@ -14,6 +14,7 @@ import {
   type SuggestSource,
 } from './api'
 import { useLocationSource, useWeatherCoords } from './location'
+import PlanForSheet from './PlanForSheet'
 import { OCCASIONS, type Category } from './taxonomy'
 import { useToast } from './useToast'
 
@@ -275,6 +276,7 @@ export default function Build({
   const flash = useToast()
 
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [planForOpen, setPlanForOpen] = useState(false)
   const [occasion, setOccasion] = useState<string>('casual')
   const [mood, setMood] = useState<string>('')
   const [prompt, setPrompt] = useState('')
@@ -402,6 +404,14 @@ export default function Build({
       return
     }
     saveAsLook.mutate({ itemIds: filled.map((it) => it.id) })
+  }
+
+  function openPlanFor() {
+    if (filled.length < 2) {
+      flash('PICK AT LEAST TWO PIECES')
+      return
+    }
+    setPlanForOpen(true)
   }
 
   // "LIKE 6 OF YOUR INSPO FITS" on a suggested piece that several of the
@@ -600,9 +610,12 @@ export default function Build({
         </p>
       )}
 
-      <div className="grid grid-cols-2 border-b-2 border-(--color-line-strong)">
+      <div className="wy-actions grid grid-cols-3 border-b-2 border-(--color-line-strong)">
         <button type="button" data-primary="1" onClick={save} disabled={saveAsLook.isPending} className="wy-act">
           {saveAsLook.isPending ? 'SAVING…' : 'SAVE AS LOOK'}
+        </button>
+        <button type="button" onClick={openPlanFor} className="wy-act">
+          PLAN FOR…
         </button>
         <button
           type="button"
@@ -613,6 +626,17 @@ export default function Build({
         </button>
       </div>
 
+      {planForOpen && (
+        <PlanForSheet
+          itemIds={filled.map((it) => it.id)}
+          namePrefix="BUILD"
+          onClose={() => setPlanForOpen(false)}
+          onPlanned={() => {
+            setPlanForOpen(false)
+            clearAll()
+          }}
+        />
+      )}
 
       {/* The suggest sheet: occasion, mood and an optional request in the
           user's own words (context for the AI, never a filter), and the

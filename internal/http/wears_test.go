@@ -220,3 +220,45 @@ func TestHistoryEndpointOwnershipScoped(t *testing.T) {
 		t.Errorf("user B's history should be empty, got wears=%d items=%d", len(resp.Wears), len(resp.Items))
 	}
 }
+
+// Today's "Wear this" on a planned look can be tapped twice (or retried on a
+// flaky connection); the same look on the same day must log one wear, not two.
+func TestLogWearFromLookTwiceSameDayLogsOnce(t *testing.T) {
+	s := newTestStore(t)
+	h := newTestHandler(t, s)
+	cookie := loginAndGetCookie(t, h, s, "me@example.com", "correct horse battery staple")
+	itemID := createTestItem(t, s, 1)
+
+	rec := doJSON(h, cookie, http.MethodPost, "/api/looks", map[string]any{
+		"name": "Look", "item_ids": []int64{itemID},
+	})
+	var look map[string]any
+	json.Unmarshal(rec.Body.Bytes(), &look)
+	lookID := int64(look["id"].(float64))
+
+	var ids []float64
+	for _, wornOn := range []string{"2026-07-15", "2026-07-15", "2026-07-16"} {
+		rec = doJSON(h, cookie, http.MethodPost, "/api/wears", map[string]any{
+			"look_id": lookID, "worn_on": wornOn,
+		})
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("create wear: status %d, body %s", rec.Code, rec.Body.String())
+		}
+		var wear map[string]any
+		json.Unmarshal(rec.Body.Bytes(), &wear)
+		ids = append(ids, wear["id"].(float64))
+	}
+	if ids[0] != ids[1] {
+		t.Errorf("second tap on the same day logged wear %v, want the first wear %v back", ids[1], ids[0])
+	}
+	if ids[2] == ids[0] {
+		t.Errorf("the same look on the next day reused wear %v, want a new wear", ids[0])
+	}
+
+	rec = doJSON(h, cookie, http.MethodGet, "/api/wears", nil)
+	var wears []map[string]any
+	json.Unmarshal(rec.Body.Bytes(), &wears)
+	if len(wears) != 2 {
+		t.Errorf("got %d wears, want 2 (one per day)", len(wears))
+	}
+}
