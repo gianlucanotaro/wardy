@@ -63,6 +63,22 @@ most people will add clothes they already photographed. The tradeoff is that
 library picks are more likely to be HEIC — handle the error path (see
 `docs/backend.md`) rather than removing the choice.
 
+## Cut-outs
+
+On a phone that can run it (`cutout.ts`: WebAssembly SIMD, a worker,
+OffscreenCanvas) and a server that has the model, a new photo is cut out
+**before** it is uploaded, in `cutoutWorker.ts`, and the mask goes up with it.
+Whatever goes wrong (no model, an old phone, a timeout, an error), the photo is
+uploaded as it is: a cut-out is a bonus, never a reason to lose a photo. The
+item view has "cut out the background", "redo" and "remove it"; Settings has an
+on/off switch, per phone.
+
+Every place that shows an item's photo uses `ItemImg`, which shows the photo
+through its mask when there is one. Without a mask a photo is blended into its
+colour block (`.wy-block`); with one, the garment sits on the block in its own
+colours. The worker is thrown away after each photo so the model's memory goes
+back to the phone, and runs one thread (more needs cross-origin isolation).
+
 ## Upload and tagging flow
 
 Tagging is a background job, so the UI must handle a pending state:

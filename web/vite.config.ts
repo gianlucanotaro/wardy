@@ -35,6 +35,18 @@ export default defineConfig({
         // is deliberate so nothing from /api ever lands in a cache that
         // could serve one session's wardrobe to another (docs/frontend.md).
         runtimeCaching: [
+          // The one exception: the cut-out model and its runtime (models.go,
+          // about 59 MB). They are the same for everyone and are not user
+          // data, and a phone should download them once, not on every photo.
+          {
+            urlPattern: ({ url }) => url.pathname.startsWith('/api/models/'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'cutout-model',
+              cacheableResponse: { statuses: [200] },
+              expiration: { maxEntries: 8 },
+            },
+          },
           {
             urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
             handler: 'NetworkOnly',

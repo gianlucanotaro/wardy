@@ -51,7 +51,9 @@ the bundled sample garments and the mock AI provider.</sub>
   and mood. Swipe for the next one; save it as a look or log it as worn.
 - **Wardrobe**: photo grid with structured search (`color:`, `category:`…
   as chips). New photos are tagged by AI in the background, then reviewed with
-  pickers only. Archive, delete, "never worn", add to Build.
+  pickers only. Archive, delete, "never worn", add to Build. On a phone that
+  can, the garment is cut out of its photo, on the phone, so it sits on its
+  colour block in its own colours.
 - **Build**: fill the outfit slots by hand, or tap SUGGEST OUTFIT with an
   occasion, mood and a request in your own words ("a fit with a red top").
   Every slot stays swappable.
@@ -163,8 +165,7 @@ work followed, and [`docs/`](docs) holds the design notes for each area:
 
 ## Non-goals
 
-Social features, sharing, e-commerce, native mobile apps, background
-removal, multi-tenancy, billing, Kubernetes, local LLM hosting.
+Social features, sharing, e-commerce, native mobile apps, multi-tenancy, billing, Kubernetes, local LLM hosting.
 
 ## License
 

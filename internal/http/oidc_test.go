@@ -81,7 +81,7 @@ func newSSOHandler(t *testing.T, s *store.Store, issuer string) http.Handler {
 	if err != nil {
 		t.Fatalf("ai.New: %v", err)
 	}
-	return New(s, frontend, false, t.TempDir(), true, weather.NewClient(), provider, 5.00, OIDCConfig{
+	return New(s, frontend, false, t.TempDir(), t.TempDir(), true, weather.NewClient(), provider, 5.00, OIDCConfig{
 		Issuer: issuer, ClientID: "wardy", ClientSecret: "s3cret", RedirectURL: testRedirectURL, ProviderName: "Authelia",
 	})
 }

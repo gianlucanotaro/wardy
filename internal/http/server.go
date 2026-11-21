@@ -33,12 +33,12 @@ const (
 // frontend, served as a single-page app. secureCookies should be true in
 // production (HTTPS via Caddy) and false for local HTTP development.
 // photosDir is where uploaded photo derivatives are written and served
-// from. aiEnabled controls whether uploads enqueue a tagging job at all
+// from; modelsDir holds the cut-out model files (see models.go). aiEnabled controls whether uploads enqueue a tagging job at all
 // and whether /api/suggest attempts an AI-written rationale. provider and
 // monthlyBudgetUSD are the same values passed to jobs.NewWorker, reused
 // here for outfit suggestions (see docs/ai.md's budget guards). sso turns on
 // "Sign in with …" when configured (see oidc.go); its zero value leaves it off.
-func New(s *store.Store, frontend fs.FS, secureCookies bool, photosDir string, aiEnabled bool, weatherClient *weather.Client, provider ai.Provider, monthlyBudgetUSD float64, sso OIDCConfig) http.Handler {
+func New(s *store.Store, frontend fs.FS, secureCookies bool, photosDir, modelsDir string, aiEnabled bool, weatherClient *weather.Client, provider ai.Provider, monthlyBudgetUSD float64, sso OIDCConfig) http.Handler {
 	mux := http.NewServeMux()
 	limiter := newRateLimiter(loginRateLimitAttempts, loginRateLimitWindow)
 	jobLimiter := newRateLimiter(aiDailyTagLimitAttempts, aiDailyTagLimitWindow)
@@ -65,6 +65,10 @@ func New(s *store.Store, frontend fs.FS, secureCookies bool, photosDir string, a
 	mux.Handle("DELETE /api/items/{id}", requireAuth(s, deleteItemHandler(s, photosDir)))
 	mux.Handle("GET /api/items/{id}/photo", requireAuth(s, servePhotoHandler(s, photosDir, false)))
 	mux.Handle("GET /api/items/{id}/thumb", requireAuth(s, servePhotoHandler(s, photosDir, true)))
+	mux.Handle("GET /api/items/{id}/mask", requireAuth(s, serveMaskHandler(s, photosDir)))
+	mux.Handle("PUT /api/items/{id}/mask", requireAuth(s, putMaskHandler(s, photosDir)))
+	mux.Handle("DELETE /api/items/{id}/mask", requireAuth(s, deleteMaskHandler(s, photosDir)))
+	mux.Handle("GET /api/models/{name}", requireAuth(s, serveModelHandler(modelsDir)))
 
 	mux.Handle("GET /api/inspo", requireAuth(s, inspoBoardHandler(s)))
 	mux.Handle("POST /api/inspo", requireAuth(s, uploadInspoHandler(s, photosDir, aiEnabled, jobLimiter)))

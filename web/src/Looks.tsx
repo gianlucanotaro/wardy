@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import ItemImg from './ItemImg'
 import Notice from './Notice'
 import { Cross } from './Icons'
 import { blockOf } from './shapes'
@@ -96,12 +97,7 @@ export default function Looks() {
                 className="wy-block aspect-3/4"
                 style={{ background: blockOf(item.category) }}
               >
-                <img
-                  src={`/api/items/${item.id}/thumb`}
-                  alt={item.name || item.category}
-                  loading="lazy"
-                  className="w-full h-full object-cover"
-                />
+                <ItemImg item={item} loading="lazy" />
               </div>
             ))}
           </div>

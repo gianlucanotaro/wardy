@@ -60,7 +60,7 @@ func TestSeedSamplesIsIdempotent(t *testing.T) {
 	if first.Name == "" || first.UserEditedAt.String == "" {
 		t.Errorf("seeded item should be named and user-edited: %+v", first)
 	}
-	if _, _, err := s.DeleteItem(ctx, userID, items[0].ID); err != nil {
+	if _, _, _, err := s.DeleteItem(ctx, userID, items[0].ID); err != nil {
 		t.Fatalf("delete: %v", err)
 	}
 	if err := s.ArchiveItem(ctx, userID, items[1].ID, true); err != nil {
